@@ -272,7 +272,8 @@ def cassandra_writer(q):
 def main():
     
     logger.info('startup: configuration:{}'.format(cfg))
-    global workers    
+    global workers
+    global saveq
     workers = Pool(cfg['workers'])
     saveq = Manager().Queue()
 
