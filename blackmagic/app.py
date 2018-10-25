@@ -268,11 +268,11 @@ def cassandra_writer(q):
             if db['cluster']:
                 db['cluster'].shutdown()
                 
-        
-if __name__ == '__main__':
 
-    logger.info('startup: configuration:{}'.format(cfg))
+def main():
     
+    logger.info('startup: configuration:{}'.format(cfg))
+    global workers    
     workers = Pool(cfg['workers'])
     saveq = Manager().Queue()
 
@@ -293,3 +293,7 @@ if __name__ == '__main__':
         workers.join()
         [w.join() for w in writers]
         [w.terminate() for w in writers]
+
+        
+if __name__ == '__main__':
+    main()

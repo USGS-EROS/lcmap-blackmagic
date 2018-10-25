@@ -28,9 +28,11 @@ setup(name='lcmap-blackmagic',
       packages=['blackmagic'],
       install_requires=[
           'click==6.7',
+          'cython',
           'lcmap-merlin>=2.3.0',
           'lcmap-pyccd==2018.10.17',
           'flask',
+          'cassandra-driver'
           
       ],
       # List additional groups of dependencies here (e.g. development
@@ -46,7 +48,7 @@ setup(name='lcmap-blackmagic',
       #test_suite='nose.collector',
       #tests_require=['nose', 'nose-cover3'],
       entry_points={
-          'console_scripts': ['blackmagic=blackmagic.app:__main__'],
+          'console_scripts': ['blackmagic=blackmagic.app:main'],
       },
       include_package_data=True,
       zip_safe=False)
