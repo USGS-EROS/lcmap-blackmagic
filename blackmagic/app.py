@@ -231,7 +231,7 @@ def segment():
                          cfg=merlin.cfg.get(profile='chipmunk-ard',
                                             env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
     
-    pool.map(partial(pipeline, q=saveq), take(n, delete_segments(timeseries())))
+    workers.map(partial(pipeline, q=saveq), take(n, delete_segments(timeseries())))
     
     return jsonify({'cx':x, 'cy':y})
         
@@ -273,7 +273,7 @@ if __name__ == '__main__':
 
     logger.info('startup: configuration:{}'.format(cfg))
     
-    pool  = Pool(cfg['pool_size'])
+    workers = Pool(cfg['workers'])
     saveq = Manager().Queue()
 
     writers = [Process(name='cassandra-writer[{}]'.format(i),
@@ -289,7 +289,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     finally:
-        pool.close()
-        pool.join()
+        workers.close()
+        workers.join()
         [w.join() for w in writers]
         [w.terminate() for w in writers]
