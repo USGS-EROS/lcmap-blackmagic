@@ -4,7 +4,7 @@
 ================
 lcmap-blackmagic
 ================
-HTTP server that saves detected changes and predictions to Apache Cassandra
+HTTP server that saves PyCCD & prediction output to Apache Cassandra
 
 On DockerHub
 ------------
@@ -53,7 +53,7 @@ Send a request
 	       
 
 Documentation (Work In Progress)
--------------
+--------------------------------
 
 * `Overview <docs/overview.rst/>`_
 * `Running lcmap-blackmagic <docs/running.rst/>`_
