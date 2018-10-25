@@ -1,0 +1,100 @@
+.. image:: https://travis-ci.org/USGS-EROS/lcmap-blackmagic.svg?branch=develop
+    :target: https://travis-ci.org/USGS-EROS/lcmap-blackmagic
+
+================
+lcmap-blackmagic
+================
+HTTP server that saves detected changes and predictions to Apache Cassandra
+
+On DockerHub
+------------
+
+https://hub.docker.com/r/usgseros/lcmap-blackmagic/
+
+
+Features
+--------
+* Exposes execution of PyCCD over HTTP
+* Saves results to Apache Cassandra
+* Configurable number of workers and writers
+* Available as Python package or Docker image
+  
+
+Example
+-------
+
+Start BlackMagic
+
+.. code-block:: bash
+
+    docker run -it \
+               --rm \
+               --net=host \
+               --pid=host \
+	       -e CASSANDRA_HOST=localhost \
+	       -e CASSANDRA_PORT=9042 \
+	       -e CASSANDRA_USER=cassandra \
+	       -e CASSANDRA_PASS=cassandra \
+	       -e CASSANDRA_KEYSPACE=some_keyspace \
+	       -e CASSANDRA_TIMEOUT=600 \
+	       -e CASSANDRA_CONSISTENCY=QUORUM \
+	       -e CASSANDRA_CONCURRENT_WRITES=1 \
+	       -e CHIPMUNK_URL=http://host:port/path \
+	       -e HTTP_PORT=5000 \
+	       -e WORKERS=4 \
+               usgseros/lcmap-blackmagic:1.0
+
+	    
+Send a request
+
+.. code-block:: bash
+
+    http --timeout=12000 POST http://localhost:5000/segment cx:=1556415.0 cy:=2366805.0
+	       
+
+Documentation (Work In Progress)
+-------------
+
+* `Overview <docs/overview.rst/>`_
+* `Running lcmap-blackmagic <docs/running.rst/>`_
+* `Configuration <docs/configuration.rst/>`_
+* `Clients <docs/clients.rst/>`_
+* `Developing lcmap-blackmagic <docs/developing.rst/>`_
+
+Requirements
+------------
+
+* Python3 or Docker
+* Network access to Cassandra
+* Network access to Chipmunk
+                       
+Versioning
+----------
+lcmap-blackmagic follows semantic versioning: http://semver.org/
+
+License
+-------
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any
+means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the
+software to the public domain. We make this dedication for the benefit
+of the public at large and to the detriment of our heirs and
+successors. We intend this dedication to be an overt act of
+relinquishment in perpetuity of all present and future rights to this
+software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to http://unlicense.org.
