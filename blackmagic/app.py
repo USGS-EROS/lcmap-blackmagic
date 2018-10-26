@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
+from blackmagic import db
 from cassandra import ConsistencyLevel
-from cassandra.auth import PlainTextAuthProvider
-from cassandra.cluster import Cluster
-from cassandra.policies import RoundRobinPolicy
 from cytoolz import count
 from cytoolz import first
 from cytoolz import get
@@ -20,7 +18,6 @@ from multiprocessing import Pool
 from multiprocessing import Process
 from multiprocessing import Manager
 
-import cassandra
 import ccd
 import logging
 import merlin
@@ -50,67 +47,10 @@ logging.basicConfig(format='%(asctime)-15s %(module)-10s %(levelname)-8s - %(mes
 logger = logging.getLogger(__name__)
 
 
-def connection():
-    auth = PlainTextAuthProvider(username=cfg['cassandra_user'],
-                                 password=cfg['cassandra_pass'])
-
-    cluster = Cluster([cfg['cassandra_host'],],
-                      load_balancing_policy=RoundRobinPolicy(),
-                      port=cfg['cassandra_port'],
-                      auth_provider=auth)
-    
-    session = cluster.connect(keyspace=cfg['cassandra_keyspace'])
-    session.default_timeout = cfg['cassandra_timeout']
-
-    return {'cluster': cluster, 'session': session}
-
-        
-def insert_chip(detection):
-    s = 'INSERT INTO {keyspace}.chip (cx, cy, dates) VALUES ({cx}, {cy}, {dates});'
-
-    return s.format(keyspace=cfg['cassandra_keyspace'],
-                    cx=detection['cx'],
-                    cy=detection['cy'],
-                    dates=detection['dates'])
-
-
-def insert_pixel(detection):
-    s = 'INSERT INTO {keyspace}.pixel (cx, cy, px, py, mask) VALUES ({cx}, {cy}, {px}, {py}, {mask});'
-
-    return s.format(keyspace=cfg['cassandra_keyspace'],
-                    cx=detection['cx'],
-                    cy=detection['cy'],
-                    px=detection['px'],
-                    py=detection['py'],
-                    mask=detection['mask'])
-
-
-def insert_segment(detection):
-    s =  '''INSERT INTO {keyspace}.segment 
-                (cx, cy, px, py, sday, eday, bday, chprob, curqa,
-                 blcoef, blint, blmag, blrmse,
-                 grcoef, grint, grmag, grrmse,
-                 nicoef, niint, nimag, nirmse,
-                 recoef, reint, remag, rermse,
-                 s1coef, s1int, s1mag, s1rmse,
-                 s2coef, s2int, s2mag, s2rmse,
-                 thcoef, thint, thmag, thrmse) 
-            VALUES 
-               ({cx}, {cy}, {px}, {py}, '{sday}', '{eday}', '{bday}', {chprob}, {curqa},
-                {blcoef}, {blint}, {blmag}, {blrmse},
-                {grcoef}, {grint}, {grmag}, {grrmse},
-                {nicoef}, {niint}, {nimag}, {nirmse},
-                {recoef}, {reint}, {remag}, {rermse},
-                {s1coef}, {s1int}, {s1mag}, {s1rmse},
-                {s2coef}, {s2int}, {s2mag}, {s2rmse},
-                {thcoef}, {thint}, {thmag}, {thrmse});'''
-    return s.format(keyspace=cfg['cassandra_keyspace'], **detection)
-
-
 def saveccd(detection, q):
-    q.put(insert_chip(detection))
-    q.put(insert_pixel(detection))
-    q.put(insert_segment(detection))
+    q.put(db.insert_chip(cfg, detection))
+    q.put(db.insert_pixel(cfg, detection))
+    q.put(db.insert_segment(cfg, detection))
     return detection
     
 
@@ -191,24 +131,17 @@ def pipeline(x, q):
     return count(map(partial(saveccd, q=q), detect(x)))
 
 
-def delete_segments(timeseries):
+def delete_detections(timeseries):
     cx, cy, _, _ = first(first(timeseries))
-    conn = None
     try:
         x = int(cx)
         y = int(cy)
-        conn = connection()
-        rows = conn['session'].execute('DELETE FROM {keyspace}.chip WHERE cx={cx} AND cy={cy};'.format(keyspace=cfg['cassandra_keyspace'], cx=x, cy=y))
-        rows = conn['session'].execute('DELETE FROM {keyspace}.pixel WHERE cx={cx} AND cy={cy};'.format(keyspace=cfg['cassandra_keyspace'], cx=x, cy=y))
-        rows = conn['session'].execute('DELETE FROM {keyspace}.segment WHERE cx={cx} AND cy={cy};'.format(keyspace=cfg['cassandra_keyspace'], cx=x, cy=y))
+        rows = db.execute(db.batch([db.delete_chip(cfg, x, y),
+                                    db.delete_pixel(cfg, x, y),
+                                    db.delete_segment(cfg, x, y)]))
     except Exception as e:
         logger.exception('Exception deleting partition for x:{cx} y:{cy}'.format(cx=x, cy=y))
-    finally:
-        if conn:
-            if conn['session']:
-                conn['session'].shutdown()
-            if conn['cluster']:
-                conn['cluster'].shutdown()
+
     return timeseries
                 
 
@@ -231,7 +164,7 @@ def segment():
                          cfg=merlin.cfg.get(profile='chipmunk-ard',
                                             env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
     
-    workers.map(partial(pipeline, q=saveq), take(n, delete_segments(timeseries())))
+    workers.map(partial(pipeline, q=saveq), take(n, delete_detections(timeseries())))
     
     return jsonify({'cx':x, 'cy':y})
         
@@ -244,42 +177,17 @@ def prediction():
     return True
 
 
-def cassandra_writer(q):
-
-    db = None
-    
-    try:
-        db = connection()
-    
-        while True:
-            stmt = q.get()
-            logger.debug('writing:{}'.format(stmt))
-            try:
-                rows=db['session'].execute(stmt)
-            except Exception as e:
-                logger.exception('db execution error')
-                continue
-    except:
-        logger.exception('db connection error')
-    finally:
-        if db:
-            if db['session']:
-                db['session'].shutdown()
-            if db['cluster']:
-                db['cluster'].shutdown()
-                
-
 def main():
-    
     logger.info('startup: configuration:{}'.format(cfg))
+    db.setup(cfg)
     global workers
     global saveq
     workers = Pool(cfg['workers'])
     saveq = Manager().Queue()
 
     writers = [Process(name='cassandra-writer[{}]'.format(i),
-                       target=cassandra_writer,
-                       kwargs={'q': saveq},
+                       target=db.writer,
+                       kwargs={'cfg': cfg, 'q': saveq},
                        daemon=True) for i in range(cfg['cassandra_concurrent_writes'])]
     [w.start() for w in writers]
 
@@ -295,6 +203,6 @@ def main():
         [w.join() for w in writers]
         [w.terminate() for w in writers]
 
-        
+
 if __name__ == '__main__':
     main()
