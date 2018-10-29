@@ -20,6 +20,5 @@ ENV CASSANDRA_HOST=$CASSANDRA_HOST \
     HTTP_PORT=$HTTP_PORT \
     WORKERS=$WORKERS
 
-# uwsgi to actually run this in ops
 ENTRYPOINT blackmagic
 

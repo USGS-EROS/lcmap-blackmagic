@@ -11,22 +11,21 @@ from cytoolz import second
 from cytoolz import take
 from datetime import date
 from datetime import datetime
-from flask import Flask
-from flask import jsonify
-from flask import request
 from multiprocessing import Pool
 from multiprocessing import Process
 from multiprocessing import Manager
 
+
 import ccd
+import json
 import logging
 import merlin
 import os
 import sys
+import tornado.ioloop
+import tornado.web
 
 
-app = Flask(__name__)
-workers = None
 cfg = {'cassandra_host': os.environ['CASSANDRA_HOST'],
        'cassandra_port': int(os.environ.get('CASSANDRA_PORT', 9042)),
        'cassandra_user': os.environ.get('CASSANDRA_USER', 'cassandra'),
@@ -39,12 +38,56 @@ cfg = {'cassandra_host': os.environ['CASSANDRA_HOST'],
        'http_port': int(os.environ.get('HTTP_PORT', 5000)),
        'log_level': logging.INFO,
        'workers': int(os.environ.get('WORKERS', 1))}
-saveq = None
 
-logging.basicConfig(format='%(asctime)-15s %(module)-10s %(levelname)-8s - %(message)s',
-                    level=cfg['log_level'])
+logging.basicConfig(format='%(asctime)-15s %(name)-15s %(levelname)-8s - %(message)s', level=cfg['log_level'])
+logging.getLogger('cassandra.connection').setLevel(logging.ERROR)
+logging.getLogger('cassandra.cluster').setLevel(logging.ERROR)
+logger = logging.getLogger('blackmagic.app')
 
-logger = logging.getLogger(__name__)
+_workers = None
+_writers = None
+_q = None
+
+
+def start_workers():
+    global _workers
+    if _workers is None:
+        _workers = Pool(cfg['workers'])
+    return _workers
+
+
+def stop_workers():
+    global _workers
+    if _workers:
+        _workers.close()
+        _workers.join()
+        _workers = None
+    return _workers
+    
+
+def start_writers(q):
+    global _writers
+    if _writers is None:
+        _writers = [Process(name='cassandra-writer[{}]'.format(i),
+                            target=db.writer,
+                            kwargs={'cfg': cfg, 'q': q},
+                            daemon=True) for i in range(cfg['cassandra_concurrent_writes'])]
+        [w.start() for w in _writers]
+    return _writers
+
+def stop_writers():
+    global _writers
+    if _writers:
+        [w.join() for w in _writers]
+        [w.terminate() for w in _writers]
+    return _writers
+
+
+def saveq():
+    global _q
+    if _q is None:
+        _q = Manager().Queue()
+    return _q
 
 
 def saveccd(detection, q):
@@ -122,11 +165,6 @@ def detect(timeseries):
                   ccdresult=ccd.detect(**second(timeseries)))
 
 
-@app.route('/health', methods=['GET'])
-def health():
-    return jsonify(True)
-
-
 def pipeline(x, q):
     return count(map(partial(saveccd, q=q), detect(x)))
 
@@ -136,73 +174,92 @@ def delete_detections(timeseries):
     try:
         x = int(cx)
         y = int(cy)
-        rows = db.execute(db.batch([db.delete_chip(cfg, x, y),
-                                    db.delete_pixel(cfg, x, y),
-                                    db.delete_segment(cfg, x, y)]))
+        _ = db.execute(cfg, db.delete_chip(cfg, x, y))
+        _ = db.execute(cfg, db.delete_pixel(cfg, x, y))
+        _ = db.execute(cfg, db.delete_segment(cfg, x, y))
+        
     except Exception as e:
         logger.exception('Exception deleting partition for x:{cx} y:{cy}'.format(cx=x, cy=y))
 
     return timeseries
-                
 
-@app.route('/segment', methods=['POST'])
-def segment():
-    
-    r = request.json
-    x = r['cx']
-    y = r['cy']
-    n = get('n', r, 10000)
 
-    a='0001-01-01/{}'.format(date.today().isoformat())
-    
-    logger.info('POST /segment {x},{y}'.format(x=x, y=y))
+class Health(tornado.web.RequestHandler):
 
-    timeseries = partial(merlin.create,
-                         x=x,
-                         y=y,
-                         acquired=a,
-                         cfg=merlin.cfg.get(profile='chipmunk-ard',
-                                            env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
-    
-    workers.map(partial(pipeline, q=saveq), take(n, delete_detections(timeseries())))
-    
-    return jsonify({'cx':x, 'cy':y})
+    def get(self):
+        self.write({'status': 'healthy'})
+
         
-               
-@app.route('/prediction', methods=['POST'])
-def prediction():
+class Prediction(tornado.web.RequestHandler):
 
-    r = request.json
-    # generate some predictions
-    return True
+    def post(self):
+        self.write('prediction')
+        
 
+class Segment(tornado.web.RequestHandler):
 
+    def post(self):
+
+        r = json.loads(self.request.body)
+        x = r['cx']
+        y = r['cy']
+        n = get('n', r, 10000)
+
+        a='0001-01-01/{}'.format(date.today().isoformat())
+    
+        logger.info('POST /segment {x},{y}'.format(x=x, y=y))
+
+        timeseries = partial(merlin.create,
+                             x=x,
+                             y=y,
+                             acquired=a,
+                             cfg=merlin.cfg.get(profile='chipmunk-ard',
+                                                env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
+    
+        _workers.map(partial(pipeline, q=_q), take(n, delete_detections(timeseries())))
+                    
+        self.write({'cx': x, 'cy': y})
+        
+
+def startup():
+    
+    d = {'cfg': db.setup(cfg),
+         'workers': start_workers(),
+         'writers': start_writers(saveq())}
+    
+    logger.info('startup: cassandra-writers started?:{}'.format([w.is_alive() for w in d['writers']]))
+
+    return d   
+
+    
+def shutdown():
+    tornado.ioloop.IOLoop.instance().stop()
+    return {'workers': stop_workers(),
+            'writers': stop_writers()}
+    
+        
+def application():
+
+    return tornado.web.Application([
+        (r'/segment', Segment),
+        (r'/health', Health),
+        (r'/prediction', Prediction)])
+
+    
 def main():
     logger.info('startup: configuration:{}'.format(cfg))
-    db.setup(cfg)
-    global workers
-    global saveq
-    workers = Pool(cfg['workers'])
-    saveq = Manager().Queue()
 
-    writers = [Process(name='cassandra-writer[{}]'.format(i),
-                       target=db.writer,
-                       kwargs={'cfg': cfg, 'q': saveq},
-                       daemon=True) for i in range(cfg['cassandra_concurrent_writes'])]
-    [w.start() for w in writers]
-
-    logger.info('startup: cassandra-writers started?:{}'.format([w.is_alive() for w in writers]))
-          
     try:
-        app.run(use_reloader=False, port=cfg['http_port'])
+        startup()
+        a = application()
+        a.listen(cfg['http_port'])
+        tornado.ioloop.IOLoop.current().start()
+        
     except KeyboardInterrupt:
-        pass
+        shutdown()
     finally:
-        workers.close()
-        workers.join()
-        [w.join() for w in writers]
-        [w.terminate() for w in writers]
+        shutdown()
 
-
+        
 if __name__ == '__main__':
     main()

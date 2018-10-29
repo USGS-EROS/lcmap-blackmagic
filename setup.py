@@ -31,7 +31,7 @@ setup(name='lcmap-blackmagic',
           'cython',
           'lcmap-merlin>=2.3.0',
           'lcmap-pyccd==2018.10.17',
-          'flask',
+          'tornado',
           'cassandra-driver'
           
       ],

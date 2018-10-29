@@ -306,16 +306,16 @@ def insert_segment(cfg, detection):
 
 def delete_chip(cfg, cx, cy):
     s = 'DELETE FROM {keyspace}.chip WHERE cx={cx} AND cy={cy};'
-    return d.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
+    return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
 def delete_pixel(cfg, cx, cy):
     s = 'DELETE FROM {keyspace}.pixel WHERE cx={cx} AND cy={cy};'
-    return d.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
+    return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
 def delete_segment(cfg, cx, cy):
     s = 'DELETE FROM {keyspace}.segment WHERE cx={cx} AND cy={cy};'
-    return d.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
+    return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
