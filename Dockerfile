@@ -15,7 +15,7 @@ COPY version.txt version.txt
 COPY README.rst README.rst
 COPY bin/blackmagic.sh blackmagic.sh
 COPY blackmagic/ blackmagic
-RUN pip install --upgrade pip lcmap-merlin==2.3.1 xgboost -e .
+RUN pip install --upgrade pip -e .
 ENV PYTHONWARNINGS="ignore"
 ENTRYPOINT su-exec lcmap:1000 /app/blackmagic.sh
 
