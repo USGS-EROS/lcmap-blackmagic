@@ -77,12 +77,11 @@ Blackmagic has three primary controls that determine the nature of its parallism
 Deployment Examples
 ~~~~~~~~~~~~~~~~~~~
 1.  Many slow HTTP requests
-    
-  ``WORKERS = <number of cores available>``
-  
-  ``CPUS = 1``
-  
-  ``CASSANDRA_CONCURRENT_WRITES = 1``
+  .. code-block:: bash
+
+      WORKERS = <number of cores available>
+      CPUS = 1
+      CASSANDRA_CONCURRENT_WRITES = 1
 
 2.  One fast HTTP request
     
