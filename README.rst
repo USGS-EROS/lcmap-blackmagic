@@ -70,7 +70,7 @@ Blackmagic has three primary controls that determine the nature of its parallism
 
 ``CPUS`` controls the number of cores available to each ``WORKER``.
 
-``CASSANDRA_CONCURRENT_WRITES`` controls the number of parallel cassandra writes for each worker.
+``CASSANDRA_CONCURRENT_WRITES`` controls the number of parallel cassandra writes from each worker.
 
 ``CPUS`` & ``CASSANDRA_CONCURRENT_WRITES`` combined determine how quickly an individual request is completed.
 
