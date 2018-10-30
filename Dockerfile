@@ -7,11 +7,7 @@ RUN apt-get update && \
     git clone https://github.com/ncopa/su-exec.git && \
     cd su-exec && make all && mv su-exec /usr/bin
 
-RUN adduser --system \
-            --shell /bin/bash \
-	    --uid 1000 \
-	    --no-create-home \
-	    lcmap
+RUN adduser --system --shell /bin/bash --uid 1000 --no-create-home lcmap
 
 RUN mkdir /app
 
