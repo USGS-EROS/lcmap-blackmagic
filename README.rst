@@ -71,10 +71,10 @@ URLs
 |                        |            | chip x (cx) and chip y (cy)        |
 +------------------------+------------+------------------------------------+
 | POST /tile             | tx, ty     | Save xgboost model for tile x (tx) |
-| (not yet implemented)  |            | and tile y (ty)                    |
+| (not yet implemented)  |            | and tile y (ty)                    | 
 +------------------------+------------+------------------------------------+
 | POST /prediction       | cx, cy     | Save xgboost predictions for       |
-| (not yet implemented)  |            | chip x (cx) and chip y(cy)         |
+| (not yet implemented)  |            | chip x (cx) and chip y (cy)        |
 +------------------------+------------+------------------------------------+
 | GET /health            | None       | Determine health of server         |
 +------------------------+------------+------------------------------------+
