@@ -24,6 +24,7 @@ Features
 --------
 * Exposes execution of PyCCD over HTTP
 * Saves results to Apache Cassandra
+* Automatic schema creation on startup
 * Highly tunable
 * Available as Python package or Docker image
 
