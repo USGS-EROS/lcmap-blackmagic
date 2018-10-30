@@ -29,8 +29,9 @@ setup(name='lcmap-blackmagic',
       install_requires=[
           'click==6.7',
           'cython',
-          'lcmap-merlin>=2.3.0',
+          'lcmap-merlin>=2.3.1',
           'lcmap-pyccd==2018.10.17',
+          'xgboost',
           'flask',
           'gunicorn',
           'cassandra-driver'
