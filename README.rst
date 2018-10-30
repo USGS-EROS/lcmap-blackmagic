@@ -64,19 +64,19 @@ Send a request
     
 Tuning
 ------
-Blackmagic has three primary controls that determine the nature of its parallism and concurrency: WORKERS, CPUS & CASSANDRA_CONCURRENT_WRITES.
+Blackmagic has three primary controls that determine the nature of its parallism and concurrency: `WORKERS`, `CPUS` & `CASSANDRA_CONCURRENT_WRITES`.
 
-WORKERS controls the number of HTTP listener processes (gunicorn workers).
+`WORKERS` controls the number of HTTP listener processes (gunicorn workers).
 
-CPUS controls the number of cores available to each WORKER.
+`CPUS` controls the number of cores available to each `WORKER`.
 
-CASSANDRA_CONCURRENT_WRITES controls the number of parallel cassandra writes for each WORKER.
+`CASSANDRA_CONCURRENT_WRITES` controls the number of parallel cassandra writes for each worker.
 
-In general, WORKERS determines the number of simultaneous HTTP requests that can be serviced.  CPUS & CASSANDRA_CONCURRENT_WRITES determine how quickly each individual request can be completed.
+In general, `WORKERS` determines the number of simultaneous HTTP requests that can be serviced.  `CPUS` & `CASSANDRA_CONCURRENT_WRITES` determine how quickly each individual request can be completed.
 
-One deployment approach is to accept the highest number of HTTP requests in parallel. To do this, WORKERS would equal the number of cores available and CPUS/CASSANDRA_CONCURRENT_WRITES would equal 1.
+One deployment approach is to accept the highest number of HTTP requests in parallel. To do this, `WORKERS` would equal the number of cores available and `CPUS`/`CASSANDRA_CONCURRENT_WRITES` would equal 1.
 
-Another approach is to process each request as quickly as possible.  To do this, WORKERS would equal 1 and CPUS would equal the number of cores available.  CASSANDRA_CONCURRENT_WRITES would be set to 1 unless the finished results are not being saved quickly enough (Observe memory utilization of the running server.  Steadily climbing memory utilization of the WORKER process(s) indicate the results are queuing and not being saved as quickly as they are being produced.)
+Another approach is to process each request as quickly as possible.  To do this, `WORKERS` would equal 1 and CPUS would equal the number of cores available.  `CASSANDRA_CONCURRENT_WRITES` would be set to 1 unless the finished results are not being saved quickly enough (Observe memory utilization of the running server.  Steadily climbing memory utilization of the worker process(s) indicate the results are queuing and not being saved as quickly as they are being produced.)
 
 
 Requirements
