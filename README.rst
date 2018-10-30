@@ -85,8 +85,6 @@ Deployment Examples
     -e CPUS=1
     -e CASSANDRA_CONCURRENT_WRITES=1
 
-.. code-block:: bash
-
     # One fast HTTP request
     
     -e WORKERS=1
