@@ -199,6 +199,7 @@ def segment():
 
         __workers.map(partial(pipeline, q=__queue),
                       take(n, delete_detections(timeseries())))
+        return jsonify({'cx': x, 'cy': y})
     except Exception as e:
         logger.exception(e)
     finally:
@@ -206,5 +207,3 @@ def segment():
         __workers.join()
         [w.join() for w in __writers]
         [w.terminate() for w in writers]
-                          
-    return jsonify({'cx': x, 'cy': y})
