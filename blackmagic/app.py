@@ -11,10 +11,12 @@ from cytoolz import second
 from cytoolz import take
 from datetime import date
 from datetime import datetime
+from flask import Flask
+from flask import jsonify
+from flask import request
 from multiprocessing import Pool
 from multiprocessing import Process
 from multiprocessing import Manager
-
 
 import ccd
 import json
@@ -22,8 +24,6 @@ import logging
 import merlin
 import os
 import sys
-import tornado.ioloop
-import tornado.web
 
 
 cfg = {'cassandra_host': os.environ['CASSANDRA_HOST'],
@@ -35,67 +35,24 @@ cfg = {'cassandra_host': os.environ['CASSANDRA_HOST'],
        'cassandra_consistency': ConsistencyLevel.name_to_value[os.environ.get('CASSANDRA_CONSISTENCY', 'QUORUM')],
        'cassandra_concurrent_writes': int(os.environ.get('CASSANDRA_CONCURRENT_WRITES', 1)),
        'chipmunk_url': os.environ['CHIPMUNK_URL'],
-       'http_port': int(os.environ.get('HTTP_PORT', 5000)),
        'log_level': logging.INFO,
-       'workers': int(os.environ.get('WORKERS', 1))}
+       'cpus': int(os.environ.get('CPUS', 1))}
 
 logging.basicConfig(format='%(asctime)-15s %(name)-15s %(levelname)-8s - %(message)s', level=cfg['log_level'])
 logging.getLogger('cassandra.connection').setLevel(logging.ERROR)
 logging.getLogger('cassandra.cluster').setLevel(logging.ERROR)
 logger = logging.getLogger('blackmagic.app')
 
-_workers = None
-_writers = None
-_q = None
+db.setup(cfg)
 
-
-def start_workers():
-    global _workers
-    if _workers is None:
-        _workers = Pool(cfg['workers'])
-    return _workers
-
-
-def stop_workers():
-    global _workers
-    if _workers:
-        _workers.close()
-        _workers.join()
-        _workers = None
-    return _workers
-    
-
-def start_writers(q):
-    global _writers
-    if _writers is None:
-        _writers = [Process(name='cassandra-writer[{}]'.format(i),
-                            target=db.writer,
-                            kwargs={'cfg': cfg, 'q': q},
-                            daemon=True) for i in range(cfg['cassandra_concurrent_writes'])]
-        [w.start() for w in _writers]
-    return _writers
-
-def stop_writers():
-    global _writers
-    if _writers:
-        [w.join() for w in _writers]
-        [w.terminate() for w in _writers]
-    return _writers
-
-
-def saveq():
-    global _q
-    if _q is None:
-        _q = Manager().Queue()
-    return _q
-
+app = Flask('blackmagic')
 
 def saveccd(detection, q):
     q.put(db.insert_chip(cfg, detection))
     q.put(db.insert_pixel(cfg, detection))
     q.put(db.insert_segment(cfg, detection))
     return detection
-    
+
 
 def savepredictions(preds):
     pass
@@ -184,82 +141,70 @@ def delete_detections(timeseries):
     return timeseries
 
 
-class Health(tornado.web.RequestHandler):
+def queue():
+    return Manager().Queue()
 
-    def get(self):
-        self.write({'status': 'healthy'})
+
+def workers(cfg):
+    return Pool(cfg['cpus'])
+
+
+def writers(cfg, q):
+    w = [Process(name='cassandra-writer[{}]'.format(i),
+                 target=db.writer,
+                 kwargs={'cfg': cfg, 'q': q},
+                 daemon=False)
+         for i in range(cfg['cassandra_concurrent_writes'])]
+    [writer.start() for writer in w]
+    return w
 
         
-class Prediction(tornado.web.RequestHandler):
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify(True)
 
-    def post(self):
-        self.write('prediction')
-        
 
-class Segment(tornado.web.RequestHandler):
+@app.route('/prediction')
+def prediction():
+    return jsonify('prediction')
 
-    def post(self):
 
-        r = json.loads(self.request.body)
-        x = r['cx']
-        y = r['cy']
-        n = get('n', r, 10000)
+@app.route('/segment', methods=['POST'])
+def segment():
 
-        a='0001-01-01/{}'.format(date.today().isoformat())
+    r = request.json
+    x = r['cx']
+    y = r['cy']
+    n = get('n', r, 10000)
+
+    a='0001-01-01/{}'.format(date.today().isoformat())
     
-        logger.info('POST /segment {x},{y}'.format(x=x, y=y))
+    logger.info('POST /segment {x},{y}'.format(x=x, y=y))
 
-        timeseries = partial(merlin.create,
-                             x=x,
-                             y=y,
-                             acquired=a,
-                             cfg=merlin.cfg.get(profile='chipmunk-ard',
-                                                env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
+    timeseries = partial(merlin.create,
+                         x=x,
+                         y=y,
+                         acquired=a,
+                         cfg=merlin.cfg.get(profile='chipmunk-ard',
+                                            env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
+
+    __queue   = None
+    __writers = None
+    __workers = None
     
-        _workers.map(partial(pipeline, q=_q), take(n, delete_detections(timeseries())))
-                    
-        self.write({'cx': x, 'cy': y})
-        
-
-def startup():
-    
-    d = {'cfg': db.setup(cfg),
-         'workers': start_workers(),
-         'writers': start_writers(saveq())}
-    
-    logger.info('startup: cassandra-writers started?:{}'.format([w.is_alive() for w in d['writers']]))
-
-    return d   
-
-    
-def shutdown():
-    tornado.ioloop.IOLoop.instance().stop()
-    return {'workers': stop_workers(),
-            'writers': stop_writers()}
-    
-        
-def application():
-
-    return tornado.web.Application([
-        (r'/segment', Segment),
-        (r'/health', Health),
-        (r'/prediction', Prediction)])
-
-    
-def main():
-    logger.info('startup: configuration:{}'.format(cfg))
-
     try:
-        startup()
-        a = application()
-        a.listen(cfg['http_port'])
-        tornado.ioloop.IOLoop.current().start()
-        
-    except KeyboardInterrupt:
-        shutdown()
-    finally:
-        shutdown()
+        __queue   = queue()
+        __writers = writers(cfg, __queue)
+        __workers = workers(cfg)
 
-        
-if __name__ == '__main__':
-    main()
+        __workers.map(partial(pipeline, q=__queue),
+                      take(n, delete_detections(timeseries())))
+    except Exception as e:
+        logger.exception(e)
+    finally:
+        __workers.close()
+        __workers.join()
+        [w.join() for w in __writers]
+        [w.terminate() for w in writers]
+                          
+    return jsonify({'cx': x, 'cy': y})
