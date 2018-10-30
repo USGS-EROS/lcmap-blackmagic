@@ -62,6 +62,23 @@ Send a request
 
     http --timeout=12000 POST http://localhost:5000/segment cx:=1556415.0 cy:=2366805.0
 
+URLs
+----
++------------------------+------------+------------------------------------+
+| URL                    | Parameters | Description                        |
++========================+============+====================================+
+| POST /segment          | cx, cy     | Save change detection segments for |
+|                        |            | chip x (cx) and chip y (cy)        |
++------------------------+------------+------------------------------------+
+| POST /tile             | tx, ty     | Save xgboost model for tile x (tx) |
+| (not yet implemented)  |            | and tile y (ty)                    |
++------------------------+------------+------------------------------------+
+| POST /prediction       | cx, cy     | Save xgboost predictions for       |
+| (not yet implemented)  |            | chip x (cx) and chip y(cy)         |
++------------------------|------------|------------------------------------+
+| GET /health            | None       | Determine health of server         |
++------------------------|------------|------------------------------------+
+
     
 Tuning
 ------
