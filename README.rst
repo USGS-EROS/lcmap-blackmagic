@@ -82,7 +82,7 @@ URLs
     
 Tuning
 ------
-Blackmagic has three primary controls that determine the nature of its parallism and concurrency: ``WORKERS``, ``CPUS`` & ``CASSANDRA_CONCURRENT_WRITES``.
+Blackmagic has three primary controls that determine the nature of its parallelism and concurrency: ``WORKERS``, ``CPUS`` & ``CASSANDRA_CONCURRENT_WRITES``.
 
 ``WORKERS`` controls the number of HTTP listener processes (gunicorn workers) and thus, the number of simultaneous HTTP requests that can be serviced.
 
