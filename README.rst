@@ -78,19 +78,15 @@ Deployment Examples
 ~~~~~~~~~~~~~~~~~~~
 1.  Many slow HTTP requests
     
-    WORKERS = number of cores available
-    
-    CPUS = 1
-    
-    CASSANDRA_CONCURRENT_WRITES = 1
+    - ``WORKERS`` = number of cores available
+    - ``CPUS`` = 1
+    - ``CASSANDRA_CONCURRENT_WRITES`` = 1
 
 2.  One fast HTTP request
     
-    WORKERS = 1
-    
-    CPUS = number of cores available
-    
-    CASSANDRA_CONCURRENT_WRITES = 1 unless memory is climbing in WORKER process.
+    ``WORKERS`` = 1
+    ``CPUS`` = number of cores available
+    ``CASSANDRA_CONCURRENT_WRITES`` = 1 unless memory is climbing in WORKER process.
     
 
 Requirements
