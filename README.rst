@@ -64,29 +64,29 @@ Send a request
     
 Tuning
 ------
-Blackmagic has three primary controls that determine the nature of its parallism and concurrency: `WORKERS`, `CPUS` & `CASSANDRA_CONCURRENT_WRITES`.
+Blackmagic has three primary controls that determine the nature of its parallism and concurrency: ``WORKERS``, ``CPUS`` & ``CASSANDRA_CONCURRENT_WRITES``.
 
-`WORKERS` controls the number of HTTP listener processes (gunicorn workers) and thus, the number of simultaneous HTTP requests that can be serviced.
+``WORKERS`` controls the number of HTTP listener processes (gunicorn workers) and thus, the number of simultaneous HTTP requests that can be serviced.
 
-`CPUS` controls the number of cores available to each `WORKER`.
+``CPUS`` controls the number of cores available to each ``WORKER``.
 
-`CASSANDRA_CONCURRENT_WRITES` controls the number of parallel cassandra writes for each worker.
+``CASSANDRA_CONCURRENT_WRITES`` controls the number of parallel cassandra writes for each worker.
 
-`CPUS` & `CASSANDRA_CONCURRENT_WRITES` combined determine how quickly an individual request is completed.
+``CPUS`` & ``CASSANDRA_CONCURRENT_WRITES`` combined determine how quickly an individual request is completed.
 
 Deployment Examples
 ~~~~~~~~~~~~~~~~~~~
 1.  Many slow HTTP requests
     
-    - ``WORKERS`` = number of cores available
-    - ``CPUS`` = 1
-    - ``CASSANDRA_CONCURRENT_WRITES`` = 1
+  ``WORKERS = <number of cores available>
+    CPUS = 1
+    CASSANDRA_CONCURRENT_WRITES = 1``
 
 2.  One fast HTTP request
     
-    ``WORKERS`` = 1
-    ``CPUS`` = number of cores available
-    ``CASSANDRA_CONCURRENT_WRITES`` = 1 unless memory is climbing in WORKER process.
+  ``WORKERS=1
+    CPUS = number of cores available
+    CASSANDRA_CONCURRENT_WRITES = 1 unless memory is climbing in WORKER process.``
     
 
 Requirements
