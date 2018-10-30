@@ -8,20 +8,14 @@ RUN apt-get update && \
     cd su-exec && make all && mv su-exec /usr/bin
 
 RUN adduser --system --shell /bin/bash --uid 1000 --no-create-home lcmap
-
 RUN mkdir /app
-
 WORKDIR /app
-
 COPY setup.py setup.py
 COPY version.txt version.txt
 COPY README.rst README.rst
 COPY bin/blackmagic.sh blackmagic.sh
 COPY blackmagic/ blackmagic
-
 RUN pip install --upgrade pip lcmap-merlin==2.3.1 xgboost -e .
-
 ENV PYTHONWARNINGS="ignore"
-   
 ENTRYPOINT /usr/bin/su-exec lcmap:1000 /app/blackmagic.sh
 
