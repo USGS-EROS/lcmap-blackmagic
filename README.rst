@@ -79,7 +79,9 @@ Deployment Examples
 1.  Many slow HTTP requests
     
   ``WORKERS = <number of cores available>``
+  
   ``CPUS = 1``
+  
   ``CASSANDRA_CONCURRENT_WRITES = 1``
 
 2.  One fast HTTP request
