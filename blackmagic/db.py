@@ -47,6 +47,9 @@ def writer(cfg, q):
     
         while True:
             stmt = q.get()
+            if stmt == 'STOP_WRITER':
+                logger.debug('stopping writer')
+                break
             logger.debug('writing:{}'.format(stmt))
             try:
                 rows=conn['session'].execute(stmt)

@@ -141,10 +141,6 @@ def delete_detections(timeseries):
     return timeseries
 
 
-def queue():
-    return Manager().Queue()
-
-
 def workers(cfg):
     return Pool(cfg['cpus'])
 
@@ -187,7 +183,7 @@ def segment():
                          acquired=a,
                          cfg=merlin.cfg.get(profile='chipmunk-ard',
                                             env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
-
+    
     __queue   = None
     __writers = None
     __workers = None
@@ -200,27 +196,19 @@ def segment():
         __workers.map(partial(pipeline, q=__queue),
                       take(n, delete_detections(timeseries())))
 
-        #logger.info('after workers map')
-        #__workers.close()
-        #__workers.join()
-        #logger.info('after workers close/join')
-        #[w.join() for w in __writers]
-        #[w.terminate() for w in __writers]
-        #logger.info('after writers join/terminate')
-        #__queue.close()
-        #__queue.join_thread()
-        #logger.info('after queue close/join')
-
         return jsonify({'cx': x, 'cy': y})
     
     except Exception as e:
         logger.exception(e)
         raise e
     finally:
-        __workers.close()
-        __workers.join()
-        [w.join() for w in __writers]
+
+        logger.debug('stopping writers')
+        [__queue.put('STOP_WRITER') for w in __writers]
         [w.terminate() for w in __writers]
-        __queue.close()
-        __queue.join_thread()
+        [w.join() for w in __writers]
+        
+        logger.debug('stopping workers')
+        __workers.terminate()
+        __workers.join()
        
