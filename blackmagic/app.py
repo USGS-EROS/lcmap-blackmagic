@@ -141,6 +141,10 @@ def delete_detections(timeseries):
     return timeseries
 
 
+def queue():
+    return Manager().Queue()
+
+
 def workers(cfg):
     return Pool(cfg['cpus'])
 
