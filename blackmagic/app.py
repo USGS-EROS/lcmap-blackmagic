@@ -36,7 +36,7 @@ cfg = {'cassandra_host': os.environ['CASSANDRA_HOST'],
        'cassandra_concurrent_writes': int(os.environ.get('CASSANDRA_CONCURRENT_WRITES', 1)),
        'chipmunk_url': os.environ['CHIPMUNK_URL'],
        'log_level': logging.INFO,
-       'cpus': int(os.environ.get('CPUS', 1))}
+       'cpus_per_worker': int(os.environ.get('CPUS_PER_WORKER', 1))}
 
 logging.basicConfig(format='%(asctime)-15s %(name)-15s %(levelname)-8s - %(message)s', level=cfg['log_level'])
 logging.getLogger('cassandra.connection').setLevel(logging.ERROR)
@@ -146,7 +146,7 @@ def queue():
 
 
 def workers(cfg):
-    return Pool(cfg['cpus'])
+    return Pool(cfg['cpus_per_worker'])
 
 
 def writers(cfg, q):

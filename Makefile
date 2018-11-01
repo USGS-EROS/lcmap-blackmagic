@@ -1,4 +1,4 @@
-VERSION :=`./bin/version`
+VERSION :=`cat version.txt`
 IMAGE   := usgseros/lcmap-blackmagic
 BRANCH     := $(or $(TRAVIS_BRANCH),`git rev-parse --abbrev-ref HEAD`)
 BRANCH     := $(shell echo $(BRANCH) | tr / -)
@@ -17,6 +17,9 @@ deps-up-d:
 deps-down:
 	docker-compose -f resources/docker-compose.yml down blackmagic-cassandra
 
+clean:
+	rm -rf lcmap_blackmagic.egg-info *pyc *~
+
 test:
 	pytest
 
@@ -32,7 +35,7 @@ docker-login:
 docker-push: docker-login
 	docker push $(TAG)
 
-all: deps-up-d test deps-down docker-build docker-tag docker-push
+all: deps-up-d test deps-down clean docker-build docker-tag docker-push
 
 debug:
 	@echo "VERSION:   $(VERSION)"

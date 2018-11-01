@@ -49,7 +49,7 @@ Start BlackMagic
 	       -e CASSANDRA_CONSISTENCY=QUORUM \
 	       -e CASSANDRA_CONCURRENT_WRITES=1 \
 	       -e CHIPMUNK_URL=http://host:port/path \
-	       -e CPUS=4 \
+	       -e CPUS_PER_WORKER=4 \
 	       -e HTTP_PORT=5000 \
 	       -e WORKERS=4 \
 	       -e WORKER_TIMEOUT=12000 \
@@ -82,15 +82,15 @@ URLs
     
 Tuning
 ------
-Blackmagic has three primary controls that determine the nature of its parallelism and concurrency: ``WORKERS``, ``CPUS`` & ``CASSANDRA_CONCURRENT_WRITES``.
+Blackmagic has three primary controls that determine the nature of its parallelism and concurrency: ``WORKERS``, ``CPUS_PER_WORKER`` & ``CASSANDRA_CONCURRENT_WRITES``.
 
 ``WORKERS`` controls the number of HTTP listener processes (gunicorn workers) and thus, the number of simultaneous HTTP requests that can be serviced.
 
-``CPUS`` controls the number of cores available to each ``WORKER``.
+``CPUS_PER_WORKER`` controls the number of cores available to each ``WORKER``.
 
 ``CASSANDRA_CONCURRENT_WRITES`` controls the number of parallel cassandra writes from each worker.
 
-``CPUS`` & ``CASSANDRA_CONCURRENT_WRITES`` combined determine how quickly an individual request is completed.
+``CPUS_PER_WORKER`` & ``CASSANDRA_CONCURRENT_WRITES`` combined determine how quickly an individual request is completed.
 
 Deployment Examples
 ~~~~~~~~~~~~~~~~~~~
@@ -100,13 +100,13 @@ Deployment Examples
     # Many slow HTTP requests
 
     -e WORKERS=<number of cores available>
-    -e CPUS=1
+    -e CPUS_PER_WORKER=1
     -e CASSANDRA_CONCURRENT_WRITES=1
 
     # One fast HTTP request
     
     -e WORKERS=1
-    -e CPUS=<number of cores available>
+    -e CPUS_PER_WORKER=<number of cores available>
     -e CASSANDRA_CONCURRENT_WRITES=1  #unless memory is climbing in WORKER process.
     
 
