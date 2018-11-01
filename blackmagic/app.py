@@ -164,9 +164,9 @@ def health():
     return jsonify(True)
 
 
-@app.route('/prediction')
+@app.route('/annual_prediction')
 def prediction():
-    return jsonify('prediction')
+    return jsonify('annual_prediction')
 
 
 @app.route('/segment', methods=['POST'])
