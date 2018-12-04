@@ -187,11 +187,16 @@ def segment():
     
     logger.info('POST /segment {x},{y}'.format(x=x, y=y))
 
-    timeseries = merlin.create(x=x,
-                               y=y,
-                               acquired=a,
-                               cfg=merlin.cfg.get(profile='chipmunk-ard',
-                                                  env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
+    try:
+        timeseries = merlin.create(x=x,
+                                   y=y,
+                                   acquired=a,
+                                   cfg=merlin.cfg.get(profile='chipmunk-ard',
+                                                      env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
+    except Exception as e:
+        response = jsonify({'cx': x, 'cy': y, 'msg': e})
+        response.status_code = 400
+        return response
     
     if count(timeseries) == 0:
         response = jsonify({'cx': x, 'cy': y, 'msg': 'no input data'})
