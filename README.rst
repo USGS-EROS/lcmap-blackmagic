@@ -108,15 +108,100 @@ Deployment Examples
     -e WORKERS=1
     -e CPUS_PER_WORKER=<number of cores available>
     -e CASSANDRA_CONCURRENT_WRITES=1  #unless memory is climbing in WORKER process.
-    
 
+    
 Requirements
 ------------
 
 * Python3 or Docker
 * Network access to Cassandra
 * Network access to Chipmunk
-                       
+
+HTTP Requests & Responses
+-------------------------
+.. code-block:: bash
+
+
+    # /segment resource expects cx (chip x) and cy (chip y) as parameters
+    # If parameters are missing /segment returns HTTP 400 with JSON message
+		
+    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx:=1484415 
+    HTTP/1.1 400 BAD REQUEST
+    Connection: close
+    Content-Length: 67
+    Content-Type: application/json
+    Date: Tue, 04 Dec 2018 14:59:21 GMT
+    Server: gunicorn/19.9.0
+
+    {
+        "cx": 1484415, 
+        "cy": null, 
+        "msg": "cx and cy are required parameters"
+    }
+
+    [user@machine]$ http --timeout 1200 POST http://localhost:9876/segment cy:=1484415 
+    HTTP/1.1 400 BAD REQUEST
+    Connection: close
+    Content-Length: 67
+    Content-Type: application/json
+    Date: Tue, 04 Dec 2018 14:59:26 GMT
+    Server: gunicorn/19.9.0
+
+    {
+        "cx": null, 
+        "cy": 1484415, 
+        "msg": "cx and cy are required parameters"
+    }
+
+    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment 
+    HTTP/1.1 400 BAD REQUEST
+    Connection: close
+    Content-Length: 64
+    Content-Type: application/json
+    Date: Tue, 04 Dec 2018 14:59:29 GMT
+    Server: gunicorn/19.9.0
+
+    {
+        "cx": null, 
+        "cy": null, 
+        "msg": "cx and cy are required parameters"
+    }
+
+    # if no input data was available from Chipmunk for cx/cy,
+    # /segment returns HTTP 400 with msg = "no input data"
+    
+    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx:=1484415 cy:=-99999999
+    HTTP/1.1 400 BAD REQUEST
+    Connection: close
+    Content-Length: 52
+    Content-Type: application/json
+    Date: Tue, 04 Dec 2018 14:59:40 GMT
+    Server: gunicorn/19.9.0
+
+    {
+        "cx": 1484415, 
+        "cy": -99999999, 
+        "msg": "no input data"
+    }
+
+
+    # Successful POST to /segment returns HTTP 200 and cx/cy as JSON
+    
+    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx:=1484415 cy:=2414805
+    HTTP/1.1 200 OK
+    Connection: close
+    Content-Length: 28
+    Content-Type: application/json
+    Date: Tue, 04 Dec 2018 15:37:33 GMT
+    Server: gunicorn/19.9.0
+
+    {
+        "cx": 1484415, 
+        "cy": 2414805
+    }
+
+
+    
 Versioning
 ----------
 lcmap-blackmagic follows semantic versioning: http://semver.org/

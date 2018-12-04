@@ -3,6 +3,7 @@
 from blackmagic import db
 from cassandra import ConsistencyLevel
 from cytoolz import count
+from cytoolz import excepts
 from cytoolz import first
 from cytoolz import get
 from cytoolz import get_in
@@ -173,20 +174,29 @@ def prediction():
 def segment():
 
     r = request.json
-    x = r['cx']
-    y = r['cy']
+    x = get('cx', r, None)
+    y = get('cy', r, None)
     n = get('n', r, 10000)
-
     a='0001-01-01/{}'.format(date.today().isoformat())
+
+    if (x is None or y is None):
+        response = jsonify({'cx': x, 'cy': y, 'msg': 'cx and cy are required parameters'})
+        response.status_code = 400
+        return response
+        
     
     logger.info('POST /segment {x},{y}'.format(x=x, y=y))
 
-    timeseries = partial(merlin.create,
-                         x=x,
-                         y=y,
-                         acquired=a,
-                         cfg=merlin.cfg.get(profile='chipmunk-ard',
-                                            env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
+    timeseries = merlin.create(x=x,
+                               y=y,
+                               acquired=a,
+                               cfg=merlin.cfg.get(profile='chipmunk-ard',
+                                                  env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
+    
+    if count(timeseries) == 0:
+        response = jsonify({'cx': x, 'cy': y, 'msg': 'no input data'})
+        response.status_code = 400
+        return response
     
     __queue   = None
     __writers = None
@@ -198,7 +208,7 @@ def segment():
         __workers = workers(cfg)
 
         __workers.map(partial(pipeline, q=__queue),
-                      take(n, delete_detections(timeseries())))
+                      take(n, delete_detections(timeseries)))
 
         return jsonify({'cx': x, 'cy': y})
     
