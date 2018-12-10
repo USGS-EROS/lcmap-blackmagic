@@ -65,7 +65,12 @@ def default(change_models):
 
     return [{'start_day': 1, 'end_day': 1, 'break_day': 1}] if not change_models else change_models
 
-    
+
+def coefficients(change_model, spectra):
+    coefs = get_in([spectra, 'coefficients'], change_model, None)
+    return list(coefs) if coefs else None
+
+
 def format(cx, cy, px, py, dates, ccdresult):
     logger.debug('formatting {},{},{},{}'.format(cx, cy, px, py))
     return [
@@ -92,13 +97,13 @@ def format(cx, cy, px, py, dates, ccdresult):
               's1rmse' : get_in(['swir1', 'rmse'], cm, None),
               's2rmse' : get_in(['swir2', 'rmse'], cm, None),
               'thrmse' : get_in(['thermal', 'rmse'], cm, None),
-              'blcoef' : list(get_in(['blue', 'coefficients'], cm, None)),
-              'grcoef' : list(get_in(['green', 'coefficients'], cm, None)),
-              'recoef' : list(get_in(['red', 'coefficients'], cm, None)),
-              'nicoef' : list(get_in(['nir', 'coefficients'], cm, None)),
-              's1coef' : list(get_in(['swir1', 'coefficients'], cm, None)),
-              's2coef' : list(get_in(['swir2', 'coefficients'], cm, None)),
-              'thcoef' : list(get_in(['thermal', 'coefficients'], cm, None)),
+              'blcoef' : coefficients(cm, 'blue'),
+              'grcoef' : coefficients(cm, 'green'),
+              'recoef' : coefficients(cm, 'red'),
+              'nicoef' : coefficients(cm, 'nir'),
+              's1coef' : coefficients(cm, 'swir1'),
+              's2coef' : coefficients(cm, 'swir2'),
+              'thcoef' : coefficients(cm, 'thermal'),
               'blint'  : get_in(['blue', 'intercept'], cm, None),
               'grint'  : get_in(['green', 'intercept'], cm, None),
               'reint'  : get_in(['red', 'intercept'], cm, None),

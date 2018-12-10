@@ -8,6 +8,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def none_as_null(s):
+    return s.replace('None', 'null')
+
+
 def connect(cfg, keyspace=None):
     auth = PlainTextAuthProvider(username=cfg['cassandra_user'],
                                  password=cfg['cassandra_pass'])
@@ -26,9 +30,11 @@ def connect(cfg, keyspace=None):
 def execute(cfg, stmt, keyspace=None):
     conn = None
     try:
+        s = none_as_null(stmt)
         conn = connect(cfg, keyspace)
-        return conn['session'].execute(stmt)
+        return conn['session'].execute(s)
     except Exception as e:
+        logger.error('statement:{}'.format(s))
         logger.exception('db execution exception:{}'.format(e))
     finally:
         if conn:
@@ -50,10 +56,11 @@ def writer(cfg, q):
             if stmt == 'STOP_WRITER':
                 logger.debug('stopping writer')
                 break
-            logger.debug('writing:{}'.format(stmt))
+            logger.debug('writing:{}'.format(none_as_null(stmt)))
             try:
-                rows=conn['session'].execute(stmt)
+                rows=conn['session'].execute(none_as_null(stmt))
             except Exception as e:
+                logger.error('statement:{}'.format(none_as_null(stmt)))
                 logger.exception('db execution error')
                 continue
     except:
