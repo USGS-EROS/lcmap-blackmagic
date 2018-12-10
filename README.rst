@@ -64,20 +64,19 @@ Send a request
 
 URLs
 ----
-+------------------------+------------+------------------------------------+
-| URL                    | Parameters | Description                        |
-+========================+============+====================================+
-| POST /segment          | cx, cy     | Save change detection segments for |
-|                        |            | chip x (cx) and chip y (cy)        |
-+------------------------+------------+------------------------------------+
-| POST /tile             | tx, ty     | Save xgboost model for tile x (tx) |
-| (not yet implemented)  |            | and tile y (ty)                    | 
-+------------------------+------------+------------------------------------+
-| POST /prediction       | cx, cy     | Save xgboost predictions for       |
-| (not yet implemented)  |            | chip x (cx) and chip y (cy)        |
-+------------------------+------------+------------------------------------+
-| GET /health            | None       | Determine health of server         |
-+------------------------+------------+------------------------------------+
++------------------------+------------------------+------------------------------------+
+| URL                    | Parameters             | Description                        |
++========================+========================+====================================+
+| POST /segment          | grid, cx, cy, acquired | Save change detection segments     |
++------------------------+------------------------+------------------------------------+
+| POST /tile             | tx, ty                 | Save xgboost model for tile x (tx) |
+| (not yet implemented)  |                        | and tile y (ty)                    | 
++------------------------+------------------------+------------------------------------+
+| POST /prediction       | cx, cy                 | Save xgboost predictions for       |
+| (not yet implemented)  |                        | chip x (cx) and chip y (cy)        |
++------------------------+------------------------+------------------------------------+
+| GET /health            | None                   | Determine health of server         |
++------------------------+------------------------+------------------------------------+
 
     
 Tuning
@@ -125,7 +124,7 @@ HTTP Requests & Responses
     # /segment resource expects cx (chip x) and cy (chip y) as parameters
     # If parameters are missing /segment returns HTTP 400 with JSON message
 		
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx:=1484415 
+    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 67
@@ -134,12 +133,13 @@ HTTP Requests & Responses
     Server: gunicorn/19.9.0
 
     {
+        "acquired": null,
         "cx": 1484415, 
-        "cy": null, 
-        "msg": "cx and cy are required parameters"
+        "cy": null,
+        "msg": "cx, cy, and acquired are required parameters"
     }
 
-    [user@machine]$ http --timeout 1200 POST http://localhost:9876/segment cy:=1484415 
+    [user@machine]$ http --timeout 1200 POST http://localhost:9876/segment cy=1484415 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 67
@@ -148,9 +148,10 @@ HTTP Requests & Responses
     Server: gunicorn/19.9.0
 
     {
+        "acquired": null,
         "cx": null, 
-        "cy": 1484415, 
-        "msg": "cx and cy are required parameters"
+        "cy": 1484415,
+        "msg": "cx, cy, and acquired are required parameters"
     }
 
     [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment 
@@ -162,15 +163,16 @@ HTTP Requests & Responses
     Server: gunicorn/19.9.0
 
     {
+        "acquired": null,
         "cx": null, 
-        "cy": null, 
-        "msg": "cx and cy are required parameters"
+        "cy": null,
+        "msg": "cx, cy, and acquired are required parameters"
     }
 
-    # if no input data was available from Chipmunk for cx/cy,
+    # if no input data was available from Chipmunk for cx/cy & acquired date range,
     # /segment returns HTTP 400 with msg = "no input data"
     
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx:=1484415 cy:=-99999999
+    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=-99999999 acquired=1980-01-01/2017-12-31
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 52
@@ -179,15 +181,16 @@ HTTP Requests & Responses
     Server: gunicorn/19.9.0
 
     {
+    	"acquired": 1980-01-01/2017-12-31,
         "cx": 1484415, 
-        "cy": -99999999, 
+        "cy": -99999999,
         "msg": "no input data"
     }
 
 
     # Successful POST to /segment returns HTTP 200 and cx/cy as JSON
     
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx:=1484415 cy:=2414805
+    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
     HTTP/1.1 200 OK
     Connection: close
     Content-Length: 28
@@ -196,10 +199,10 @@ HTTP Requests & Responses
     Server: gunicorn/19.9.0
 
     {
+        "acquired": 1980/2017-12-31,
         "cx": 1484415, 
-        "cy": 2414805
+        "cy": 2414805,
     }
-
 
     
 Versioning

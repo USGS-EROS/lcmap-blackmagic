@@ -181,16 +181,15 @@ def segment():
     r = request.json
     x = get('cx', r, None)
     y = get('cy', r, None)
+    a = get('acquired', r, None)
     n = get('n', r, 10000)
-    a='0001-01-01/{}'.format(date.today().isoformat())
-
-    if (x is None or y is None):
-        response = jsonify({'cx': x, 'cy': y, 'msg': 'cx and cy are required parameters'})
+    
+    if (x is None or y is None or a is None):
+        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'cx, cy, and acquired are required parameters'})
         response.status_code = 400
         return response
-        
-    
-    logger.info('POST /segment {x},{y}'.format(x=x, y=y))
+
+    logger.info('POST /segment {x},{y},{a}'.format(x=x, y=y, a=a))
 
     try:
         timeseries = merlin.create(x=x,
@@ -198,13 +197,13 @@ def segment():
                                    acquired=a,
                                    cfg=merlin.cfg.get(profile='chipmunk-ard',
                                                       env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
-    except Exception as e:
-        response = jsonify({'cx': x, 'cy': y, 'msg': e})
+    except Exception as ex:
+        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': ex})
         response.status_code = 400
         return response
     
     if count(timeseries) == 0:
-        response = jsonify({'cx': x, 'cy': y, 'msg': 'no input data'})
+        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'no input data'})
         response.status_code = 400
         return response
     
@@ -220,7 +219,7 @@ def segment():
         __workers.map(partial(pipeline, q=__queue),
                       take(n, delete_detections(timeseries)))
 
-        return jsonify({'cx': x, 'cy': y})
+        return jsonify({'cx': x, 'cy': y, 'acquired': a})
     
     except Exception as e:
         logger.exception(e)
