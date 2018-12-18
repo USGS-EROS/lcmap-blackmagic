@@ -1,5 +1,6 @@
 from blackmagic import cfg
 from blackmagic import db
+from blackmagic import parallel
 from cytoolz import count
 from cytoolz import excepts
 from cytoolz import first
@@ -19,7 +20,7 @@ import merlin
 
 logger = logging.getLogger('blackmagic.segment')
 
-segment = Blueprint('segment', __name__)
+blueprint = Blueprint('segment', __name__)
 
 
 def saveccd(detection, q):
@@ -117,7 +118,7 @@ def delete_detections(timeseries):
     return timeseries
 
 
-@segment.route('/segment', methods=['POST'])
+@blueprint.route('/segment', methods=['POST'])
 def segment():
 
     r = request.json
@@ -154,12 +155,12 @@ def segment():
     __workers = None
     
     try:
-        __queue   = queue()
-        __writers = writers(cfg, __queue)
-        __workers = workers(cfg)
+        __queue   = parallel.queue()
+        __writers = parallel.writers(cfg, __queue)
+        __workers = parallel.workers(cfg)
 
-        __workers.map(partial(changedetection.pipeline, q=__queue),
-                      take(n, changedetection.delete_detections(timeseries)))
+        __workers.map(partial(pipeline, q=__queue),
+                      take(n, delete_detections(timeseries)))
 
         return jsonify({'cx': x, 'cy': y, 'acquired': a})
     
