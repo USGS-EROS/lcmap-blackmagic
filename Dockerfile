@@ -3,7 +3,7 @@ FROM continuumio/miniconda3
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install libev-dev gcc git make -y && \
-    conda install python=3.6 pip numpy scikit-learn scipy cython pandas>=0.19.2 --yes && \
+    conda install python=3.6 pip numpy scikit-learn scipy cython pandas>=0.19.2 xgboost=0.80 --yes && \
     git clone https://github.com/ncopa/su-exec.git && \
     cd su-exec && make all && mv su-exec /usr/bin
 
