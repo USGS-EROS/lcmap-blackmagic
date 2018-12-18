@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from blackmagic import cfg
-from blackmagic import changedetection
+from blackmagic.blueprints.segment import segments
 from blackmagic import db
 from cassandra import ConsistencyLevel
 from cytoolz import count
@@ -40,6 +40,7 @@ app = Flask('blackmagic')
 def savepredictions(preds):
     pass
 
+
 def queue():
     return Manager().Queue()
 
@@ -66,6 +67,15 @@ def health():
 @app.route('/annual_prediction')
 def prediction():
     return jsonify('annual_prediction')
+
+
+@app.route('/tile')
+def tile():
+    r = request.json
+    x = get('x', r, None)
+    y = get('y', r, None)
+    n = get('n', r, None)
+    pass
 
 
 @app.route('/segment', methods=['POST'])
