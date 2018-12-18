@@ -1,14 +1,26 @@
 from blackmagic import cfg
 from blackmagic import db
+from cytoolz import count
+from cytoolz import excepts
 from cytoolz import first
 from cytoolz import get
 from cytoolz import get_in
+from cytoolz import partial
 from cytoolz import second
+from cytoolz import take
 from datetime import date
+from flask import Blueprint
+from flask import jsonify
+from flask import request
+
 import ccd
 import logging
+import merlin
 
-logger = logging.getLogger('blackmagic.changedetection')
+logger = logging.getLogger('blackmagic.segment')
+
+segment = Blueprint('segment', __name__)
+
 
 def saveccd(detection, q):
     q.put(db.insert_chip(cfg, detection))
@@ -103,3 +115,64 @@ def delete_detections(timeseries):
         logger.exception('Exception deleting partition for x:{cx} y:{cy}'.format(cx=x, cy=y))
 
     return timeseries
+
+
+@segment.route('/segment', methods=['POST'])
+def segment():
+
+    r = request.json
+    x = get('cx', r, None)
+    y = get('cy', r, None)
+    a = get('acquired', r, None)
+    n = get('n', r, 10000)
+    
+    if (x is None or y is None or a is None):
+        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'cx, cy, and acquired are required parameters'})
+        response.status_code = 400
+        return response
+
+    logger.info('POST /segment {x},{y},{a}'.format(x=x, y=y, a=a))
+
+    try:
+        timeseries = merlin.create(x=x,
+                                   y=y,
+                                   acquired=a,
+                                   cfg=merlin.cfg.get(profile='chipmunk-ard',
+                                                      env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
+    except Exception as ex:
+        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': ex})
+        response.status_code = 400
+        return response
+    
+    if count(timeseries) == 0:
+        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'no input data'})
+        response.status_code = 400
+        return response
+    
+    __queue   = None
+    __writers = None
+    __workers = None
+    
+    try:
+        __queue   = queue()
+        __writers = writers(cfg, __queue)
+        __workers = workers(cfg)
+
+        __workers.map(partial(changedetection.pipeline, q=__queue),
+                      take(n, changedetection.delete_detections(timeseries)))
+
+        return jsonify({'cx': x, 'cy': y, 'acquired': a})
+    
+    except Exception as e:
+        logger.exception(e)
+        raise e
+    finally:
+
+        logger.debug('stopping writers')
+        [__queue.put('STOP_WRITER') for w in __writers]
+        [w.terminate() for w in __writers]
+        [w.join() for w in __writers]
+        
+        logger.debug('stopping workers')
+        __workers.terminate()
+        __workers.join()
