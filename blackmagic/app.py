@@ -2,6 +2,7 @@
 
 from blackmagic import cfg
 from blackmagic.blueprints.segment import segments
+from blackmagic.blueprints.tile import tiles
 from blackmagic import db
 from cassandra import ConsistencyLevel
 from cytoolz import count
@@ -35,6 +36,8 @@ logger = logging.getLogger('blackmagic.app')
 db.setup(cfg)
 
 app = Flask('blackmagic')
+app.register_blueprint(segments)
+app.register_blueprint(tiles)
 
 
 def savepredictions(preds):
