@@ -1,8 +1,8 @@
 from flask import Blueprint
 from flask import jsonify
 
-blueprint = Blueprint('health', __name__)
+health = Blueprint('health', __name__)
 
-@blueprint.route('/health', methods=['GET'])
-def health():
+@health.route('/health', methods=['GET'])
+def health_fn():
     return jsonify(True)

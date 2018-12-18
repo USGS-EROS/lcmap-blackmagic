@@ -6,10 +6,10 @@ from flask import request
 import logging
 
 logger = logging.getLogger('blackmagic.tile')
-blueprint = Blueprint('tiles', __name__)
+tile = Blueprint('tile', __name__)
 
-@blueprint.route('/tile', methods=['POST'])
-def tile():
+@tile.route('/tile', methods=['POST'])
+def tile_fn():
     r = request.json
     x = get('x', r, None)
     y = get('y', r, None)

@@ -20,7 +20,7 @@ import merlin
 
 logger = logging.getLogger('blackmagic.segment')
 
-blueprint = Blueprint('segment', __name__)
+segment = Blueprint('segment', __name__)
 
 
 def saveccd(detection, q):
@@ -118,14 +118,14 @@ def delete_detections(timeseries):
     return timeseries
 
 
-@blueprint.route('/segment', methods=['POST'])
-def segment():
+@segment.route('/segment', methods=['POST'])
+def segment_fn():
 
     r = request.json
     x = get('cx', r, None)
     y = get('cy', r, None)
     a = get('acquired', r, None)
-    n = get('n', r, 10000)
+    n = int(get('n', r, 10000))
     
     if (x is None or y is None or a is None):
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'cx, cy, and acquired are required parameters'})
@@ -139,7 +139,7 @@ def segment():
                                    y=y,
                                    acquired=a,
                                    cfg=merlin.cfg.get(profile='chipmunk-ard',
-                                                      env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
+                                                      env={'CHIPMUNK_URL': cfg['ard_url']}))
     except Exception as ex:
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': ex})
         response.status_code = 400
