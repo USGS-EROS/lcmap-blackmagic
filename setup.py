@@ -27,6 +27,7 @@ setup(name='lcmap-blackmagic',
       license='Unlicense',
       packages=['blackmagic'],
       install_requires=[
+          'arrow',
           'cython',
           'lcmap-merlin>=2.3.1',
           'lcmap-pyccd==2018.10.17',
