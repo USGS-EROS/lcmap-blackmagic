@@ -8,6 +8,7 @@ from cytoolz import second
 from flask import Blueprint
 from flask import jsonify
 from flask import request
+from merlin.functions import flatten
 
 import arrow
 import logging
@@ -110,8 +111,10 @@ def format(entries):
                  [get('thmag'  , e)],
                  [get('thrmse' , e)]] for e in entries]
 
+    return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
+    #  return training
     # This is not returning the correct shizzle
-    return reduce(lambda a, b: a + b, training)
+    #return reduce(lambda a, b: a + b, training)
 
  
 #    return numpy.array(reduce(lambda a, v: a + v, training), dtype=numpy.float64)
