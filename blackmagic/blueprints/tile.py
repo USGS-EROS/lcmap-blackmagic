@@ -109,8 +109,12 @@ def format(entries):
                  [get('thint'  , e)],
                  [get('thmag'  , e)],
                  [get('thrmse' , e)]] for e in entries]
-    
-    return numpy.array(reduce(lambda a, v: a + v, training), dtype=numpy.float64)
+
+    # This is not returning the correct shizzle
+    return reduce(lambda a, b: a + b, training)
+
+ 
+#    return numpy.array(reduce(lambda a, v: a + v, training), dtype=numpy.float64)
 
 
 def train(data):
