@@ -112,13 +112,11 @@ def format(entries):
                  [get('thrmse' , e)]] for e in entries]
 
     return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
-    #  return training
-    # This is not returning the correct shizzle
-    #return reduce(lambda a, b: a + b, training)
 
- 
-#    return numpy.array(reduce(lambda a, v: a + v, training), dtype=numpy.float64)
-
+    # test with
+    # f = tile.format(tile.combine(segments=tile.filter(tile.segments(cx=cx, cy=cy), '1982-11-11'),
+    #                              aux=tile.aux(cx=cx, cy=cy))
+    
 
 def train(data):
     pass
