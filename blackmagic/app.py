@@ -155,10 +155,10 @@ def workers(cfg):
     return Pool(cfg['cpus_per_worker'])
 
 
-def writers(cfg, q):
+def writers(cfg, q, errorq):
     w = [Process(name='cassandra-writer[{}]'.format(i),
                  target=db.writer,
-                 kwargs={'cfg': cfg, 'q': q},
+                 kwargs={'cfg': cfg, 'q': q, 'errorq': errorq},
                  daemon=False)
          for i in range(cfg['cassandra_concurrent_writes'])]
     [writer.start() for writer in w]
@@ -208,18 +208,18 @@ def segment():
         return response
     
     __queue   = None
+    __errorq  = None
     __writers = None
     __workers = None
     
     try:
         __queue   = queue()
+        __errorq  = queue()
         __writers = writers(cfg, __queue)
         __workers = workers(cfg)
 
         __workers.map(partial(pipeline, q=__queue),
                       take(n, delete_detections(timeseries)))
-
-        return jsonify({'cx': x, 'cy': y, 'acquired': a})
     
     except Exception as e:
         logger.exception(e)
@@ -234,4 +234,12 @@ def segment():
         logger.debug('stopping workers')
         __workers.terminate()
         __workers.join()
+
+        # this makes sure no db errors occurred
+        if __errorq.empty():
+            return jsonify({'cx': x, 'cy': y, 'acquired': a})
+        else:
+            response = jsonify({'cx': x 'cy': y, 'acquired': a, 'msg': __errorq.get()})
+            response.status_code = 400
+            return response
        
