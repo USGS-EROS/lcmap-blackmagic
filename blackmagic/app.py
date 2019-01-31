@@ -240,6 +240,6 @@ def segment():
             return jsonify({'cx': x, 'cy': y, 'acquired': a})
         else:
             response = jsonify({'cx': x 'cy': y, 'acquired': a, 'msg': __errorq.get()})
-            response.status_code = 400
+            response.status_code = 500
             return response
        
