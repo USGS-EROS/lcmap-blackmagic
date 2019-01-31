@@ -207,7 +207,7 @@ HTTP Requests & Responses
     # Database errors reported with HTTP 500 and the first error that occurred, with request parameters as JSON
     
     [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
-    HTTP/1.1 500 OK
+    HTTP/1.1 500 INTERNAL SERVER ERROR
     Connection: close
     Content-Length: 28
     Content-Type: application/json
