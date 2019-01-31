@@ -67,10 +67,10 @@ URLs
 +------------------------+------------------------+------------------------------------+
 | URL                    | Parameters             | Description                        |
 +========================+========================+====================================+
-| POST /segment          | grid, cx, cy, acquired | Save change detection segments     |
+| POST /segment          | cx, cy, acquired       | Save change detection segments     |
 +------------------------+------------------------+------------------------------------+
-| POST /tile             | tx, ty                 | Save xgboost model for tile x (tx) |
-| (not yet implemented)  |                        | and tile y (ty)                    | 
+| POST /tile             | tx, ty, date, chips    | Create and save xgboost model      |
+| (not yet implemented)  |                        | chips/date at tile x and tile y    | 
 +------------------------+------------------------+------------------------------------+
 | POST /prediction       | cx, cy                 | Save xgboost predictions for       |
 | (not yet implemented)  |                        | chip x (cx) and chip y (cy)        |
