@@ -204,6 +204,23 @@ HTTP Requests & Responses
         "cy": 2414805,
     }
 
+    # Database errors reported with HTTP 500 and the first error that occurred, with request parameters as JSON
+    
+    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
+    HTTP/1.1 500 OK
+    Connection: close
+    Content-Length: 28
+    Content-Type: application/json
+    Date: Tue, 04 Dec 2018 15:37:33 GMT
+    Server: gunicorn/19.9.0
+
+    {
+        "acquired": 1980/2017-12-31,
+        "cx": 1484415, 
+        "cy": 2414805,
+	"msg": "database execution error: <first database error message>"
+    }
+
     
 Versioning
 ----------
