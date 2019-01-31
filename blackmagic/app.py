@@ -182,7 +182,7 @@ def segment():
     x = get('cx', r, None)
     y = get('cy', r, None)
     a = get('acquired', r, None)
-    n = get('n', r, 10000)
+    n = int(get('n', r, 10000))
     
     if (x is None or y is None or a is None):
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'cx, cy, and acquired are required parameters'})
@@ -215,12 +215,20 @@ def segment():
     try:
         __queue   = queue()
         __errorq  = queue()
-        __writers = writers(cfg, __queue)
+        __writers = writers(cfg, __queue, __errorq)
         __workers = workers(cfg)
 
         __workers.map(partial(pipeline, q=__queue),
                       take(n, delete_detections(timeseries)))
-    
+
+        # this makes sure no db errors occurred
+        if __errorq.empty():
+            return jsonify({'cx': x, 'cy': y, 'acquired': a})
+        else:
+            response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': __errorq.get()})
+            response.status_code = 500
+            return response
+        
     except Exception as e:
         logger.exception(e)
         raise e
@@ -234,12 +242,3 @@ def segment():
         logger.debug('stopping workers')
         __workers.terminate()
         __workers.join()
-
-        # this makes sure no db errors occurred
-        if __errorq.empty():
-            return jsonify({'cx': x, 'cy': y, 'acquired': a})
-        else:
-            response = jsonify({'cx': x 'cy': y, 'acquired': a, 'msg': __errorq.get()})
-            response.status_code = 500
-            return response
-       
