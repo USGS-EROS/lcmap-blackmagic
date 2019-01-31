@@ -23,6 +23,7 @@ def connect(cfg, keyspace=None):
     
     session = cluster.connect(keyspace=keyspace)
     session.default_timeout = cfg['cassandra_timeout']
+    session.default_fetch_size = None
 
     return {'cluster': cluster, 'session': session}
 
