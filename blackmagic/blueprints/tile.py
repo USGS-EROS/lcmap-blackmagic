@@ -14,6 +14,7 @@ from merlin.functions import flatten
 
 import arrow
 import logging
+import io
 import merlin
 import numpy
 import xgboost as xgb
@@ -161,6 +162,19 @@ def pipeline_fn(date):
 
 def save(tx, ty, model):
     '''Saves a model to Cassandra given primary key tx & ty'''
+
+    binary_model = model.save_raw()
+
+    # write binary_model to Cassandra as bytes
+
+    
+    # StringIO for text data
+    #text = StringIO()
+
+    # BytesIO for binary data
+    #bdata = BytesIO()
+
+    
     # create buffer
     # write to buffer
     # ? encode buffer
@@ -178,7 +192,8 @@ def tile_fn():
     d = get('date', r, None)
 
     if x is None or y is None or c is None or d is None:
-        response = jsonify({'tx': tx, 'ty': ty, 'chips': chips, 'date': date, 'msg': 'tx, ty, chips and date are required parameters'})
+        response = jsonify({'tx': tx, 'ty': ty, 'chips': chips, 'date': date,
+                            'msg': 'tx, ty, chips and date are required parameters'})
         response.status_code = 400
         return response
 
