@@ -60,17 +60,17 @@ Send a request
 
 .. code-block:: bash
 
-    http --timeout=12000 POST http://localhost:5000/segment cx:=1556415.0 cy:=2366805.0
+    http --timeout=12000 POST http://localhost:5000/segment cx:=1556415.0 cy:=2366805.0 acquired=1980/2017
 
 URLs
 ----
 +------------------------+------------------------+------------------------------------+
 | URL                    | Parameters             | Description                        |
 +========================+========================+====================================+
-| POST /segment          | grid, cx, cy, acquired | Save change detection segments     |
+| POST /segment          | cx, cy, acquired       | Save change detection segments     |
 +------------------------+------------------------+------------------------------------+
-| POST /tile             | tx, ty                 | Save xgboost model for tile x (tx) |
-| (not yet implemented)  |                        | and tile y (ty)                    | 
+| POST /tile             | tx, ty, date, chips    | Create and save xgboost model      |
+| (not yet implemented)  |                        | chips/date at tile x and tile y    | 
 +------------------------+------------------------+------------------------------------+
 | POST /prediction       | cx, cy                 | Save xgboost predictions for       |
 | (not yet implemented)  |                        | chip x (cx) and chip y (cy)        |
@@ -203,6 +203,24 @@ HTTP Requests & Responses
         "cx": 1484415, 
         "cy": 2414805,
     }
+
+    # Database errors reported with HTTP 500 and the first error that occurred, with request parameters as JSON
+    
+    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
+    HTTP/1.1 500 INTERNAL SERVER ERROR
+    Connection: close
+    Content-Length: 89
+    Content-Type: application/json
+    Date: Thu, 31 Jan 2019 22:04:57 GMT
+    Server: gunicorn/19.9.0
+
+    {
+        "acquired": "1980/2017-12-31", 
+        "cx": "1484415", 
+        "cy": "2414805", 
+        "msg": "db connection error"
+    }
+
 
     
 Versioning

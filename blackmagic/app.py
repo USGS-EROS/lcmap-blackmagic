@@ -143,7 +143,7 @@ def delete_detections(timeseries):
         
     except Exception as e:
         logger.exception('Exception deleting partition for x:{cx} y:{cy}'.format(cx=x, cy=y))
-
+        raise e
     return timeseries
 
 
@@ -155,10 +155,10 @@ def workers(cfg):
     return Pool(cfg['cpus_per_worker'])
 
 
-def writers(cfg, q):
+def writers(cfg, q, errorq):
     w = [Process(name='cassandra-writer[{}]'.format(i),
                  target=db.writer,
-                 kwargs={'cfg': cfg, 'q': q},
+                 kwargs={'cfg': cfg, 'q': q, 'errorq': errorq},
                  daemon=False)
          for i in range(cfg['cassandra_concurrent_writes'])]
     [writer.start() for writer in w]
@@ -182,7 +182,7 @@ def segment():
     x = get('cx', r, None)
     y = get('cy', r, None)
     a = get('acquired', r, None)
-    n = get('n', r, 10000)
+    n = int(get('n', r, 10000))
     
     if (x is None or y is None or a is None):
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'cx, cy, and acquired are required parameters'})
@@ -208,21 +208,30 @@ def segment():
         return response
     
     __queue   = None
+    __errorq  = None
     __writers = None
     __workers = None
     
     try:
         __queue   = queue()
-        __writers = writers(cfg, __queue)
+        __errorq  = queue()
+        __writers = writers(cfg, __queue, __errorq)
         __workers = workers(cfg)
 
         __workers.map(partial(pipeline, q=__queue),
                       take(n, delete_detections(timeseries)))
 
-        return jsonify({'cx': x, 'cy': y, 'acquired': a})
-    
+        # this makes sure no db errors occurred
+        if __errorq.empty():
+            return jsonify({'cx': x, 'cy': y, 'acquired': a})
+        else:
+            response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': __errorq.get()})
+            response.status_code = 500
+            return response
+        
     except Exception as e:
         logger.exception(e)
+        # raising an exception here makes Flask issue HTTP 500
         raise e
     finally:
 
@@ -234,4 +243,3 @@ def segment():
         logger.debug('stopping workers')
         __workers.terminate()
         __workers.join()
-       
