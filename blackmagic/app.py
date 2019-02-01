@@ -143,7 +143,7 @@ def delete_detections(timeseries):
         
     except Exception as e:
         logger.exception('Exception deleting partition for x:{cx} y:{cy}'.format(cx=x, cy=y))
-
+        raise e
     return timeseries
 
 
