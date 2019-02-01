@@ -231,6 +231,7 @@ def segment():
         
     except Exception as e:
         logger.exception(e)
+        # raising an exception here makes Flask issue HTTP 500
         raise e
     finally:
 
