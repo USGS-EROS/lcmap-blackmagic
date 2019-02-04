@@ -45,7 +45,7 @@ def execute(cfg, stmt, keyspace=None):
                 conn['cluster'].shutdown()
 
                 
-def writer(cfg, q):
+def writer(cfg, q, errorq):
 
     conn = None
     
@@ -61,10 +61,13 @@ def writer(cfg, q):
             try:
                 rows=conn['session'].execute(none_as_null(stmt))
             except Exception as e:
-                logger.error('statement:{}'.format(none_as_null(stmt)))
+                msg = 'statement:{}'.format(non_as_null(stmt))
+                errorq.put('db execution error: {}'.format(msg))
+                logger.error(msg)
                 logger.exception('db execution error')
                 continue
     except:
+        errorq.put('db connection error')
         logger.exception('db connection error')
     finally:
         if conn:

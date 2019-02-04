@@ -114,6 +114,7 @@ def delete_detections(timeseries):
         
     except Exception as e:
         logger.exception('Exception deleting partition for x:{cx} y:{cy}'.format(cx=x, cy=y))
+        raise e
 
     return timeseries
 
@@ -151,21 +152,31 @@ def segment_fn():
         return response
     
     __queue   = None
+    __errorq  = None
     __writers = None
     __workers = None
     
     try:
         __queue   = parallel.queue()
-        __writers = parallel.writers(cfg, __queue)
+        __errorq  = parallel.queue()
+        __writers = parallel.writers(cfg, __queue, __errorq)
         __workers = parallel.workers(cfg)
 
         __workers.map(partial(pipeline, q=__queue),
                       take(n, delete_detections(timeseries)))
 
-        return jsonify({'cx': x, 'cy': y, 'acquired': a})
-    
+         # this makes sure no db errors occurred
+
+        if __errorq.empty():
+            return jsonify({'cx': x, 'cy': y, 'acquired': a})
+        else:
+            response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': __errorq.get()})
+            response.status_code = 500
+            return response
+            
     except Exception as e:
         logger.exception(e)
+        # raising an exception here makes Flask issue HTTP 500
         raise e
     finally:
 

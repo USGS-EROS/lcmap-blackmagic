@@ -13,10 +13,10 @@ def workers(cfg):
     return Pool(cfg['cpus_per_worker'])
 
 
-def writers(cfg, q):
+def writers(cfg, q, errorq):
     w = [Process(name='cassandra-writer[{}]'.format(i),
                  target=db.writer,
-                 kwargs={'cfg': cfg, 'q': q},
+                 kwargs={'cfg': cfg, 'q': q, 'errorq': errorq},
                  daemon=False)
          for i in range(cfg['cassandra_concurrent_writes'])]
     [writer.start() for writer in w]
