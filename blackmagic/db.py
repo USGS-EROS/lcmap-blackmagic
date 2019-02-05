@@ -86,16 +86,12 @@ def create_tile(cfg):
     '''
         tx:    tile upper left x
         ty:    tile upper left y
-        model: model coefficients
-        name:  model name
-        updated: timestamp of last model update
+        model: model blob
     '''
     s = '''CREATE TABLE IF NOT EXISTS {keyspace}.tile (
            tx      int,
            ty      int,
-           model   text,
-           name    text,
-           updated text,
+           model   blob,
            PRIMARY KEY((tx, ty)))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
            AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
@@ -320,6 +316,15 @@ def insert_pixels(cfg, detections):
                 conn['session'].shutdown()
             if conn['cluster']:
                 conn['cluster'].shutdown()
+
+                
+def insert_tile(cfg, tx, ty, model):
+    s = 'INSERT INTO {keyspace}.tile (tx, ty, model) VALUES ({tx}, {ty}, {model});'
+
+    return s.format(keyspace=cfg['cassandra_keyspace'],
+                    tx=tx,
+                    ty=ty,
+                    model=model.hex())
 
                 
 def insert_segments(cfg, detections):
