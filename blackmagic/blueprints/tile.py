@@ -1,6 +1,7 @@
 from blackmagic import cfg
 from blackmagic import db
 from blackmagic import parallel
+from cytoolz import drop
 from cytoolz import first
 from cytoolz import get
 from cytoolz import merge
@@ -11,6 +12,7 @@ from flask import Blueprint
 from flask import jsonify
 from flask import request
 from merlin.functions import flatten
+from sklearn.model_selection import train_test_split
 
 import arrow
 import logging
@@ -49,6 +51,9 @@ def segments(cx, cy):
 
 def datefilter(date, segments):
     '''Yield segments that span the supplied date'''
+
+    #rint("datefilter date:{}".format(date))
+
 
     d = arrow.get(date).datetime
     
@@ -120,35 +125,82 @@ def format(entries):
 # pipeline calls must be merged/concatenated.
 # Need to find 9 tiles bounds given a single tile x & y, then find all chip ids that fall within the 9 tiles.  Parallelize the 9
 # tiles chip retrieval.
-1
-def dmatrix(data):
+
+def dmatrix(data, labels):
     '''Transforms a sequence of numpy values from format() to an xgboost dmatrix'''
 
-    return xgb.DMatrix(map(drop(1, data)), label=map(first, data))
+    #labels numpy.delete(data, numpy.s_[1:], 1).flatten()
+    #values numpy.delete(data, 0, 1)
+
+    # label is the first array element in every row
+
+    #n = numpy.array(data)
+    
+    #return xgb.DMatrix(numpy.delete(data, 0, 1),
+    #                  label=numpy.delete(data, numpy.s_[1:], 1).flatten())
+    return xgb.DMatrix(data, labels)
+
+
+def independent(data):
+    '''Independent variable is (are) all the values except the labels
+        data: 2d numpy array
+        return: 2d numpy array minus the labels (first element of every row)
+    '''
+    
+    return numpy.delete(data, 0, 1)
+
+
+def dependent(data):
+    '''Dependent variable is (are) the labels
+       data: 2d numpy array
+       return: 1d numpy array of labels
+    '''
+    
+    return numpy.delete(data, numpy.s_[1:], 1).flatten()
 
 
 def parameters():
     '''Parameters for xgboost training'''
-    return {'max_depth': 2,
-            'eta': 1,
+    return {'objective': 'multi:softprob',
+            'num_class': 9,
+            'max_depth': 8,
+            'tree_method': 'hist',
+            'eval_metric': 'mlogloss',
             'silent': 1,
-            'objective': 'binary:logistic',
-            'nthread': -1,
-            'eval_metric': 'auc'}
+            'nthread': -1}
 
 
-def train(dmatrix, params):
-    num_round = 10
-    return xgb.train(params, dmatrix, num_round, evallist)
+def watchlist(training_data, eval_data):
+    return [(training_data, 'train'), (eval_data, 'eval')]
+
+
+def train(data, params):
+    numpy_data = numpy.array(data)
+    num_round  = 500
+    test_size  = 0.2
+    itrain, itest, dtrain, dtest = train_test_split(independent(numpy_data),
+                                                    dependent(numpy_data),
+                                                    test_size=test_size)
+    train_matrix = xgb.DMatrix(itrain, label=dtrain)
+    test_matrix  = xgb.DMatrix(itest, label=dtest)
+    
+    return xgb.train(params,
+                     train_matrix,
+                     num_round,
+                     watchlist(train_matrix, test_matrix),
+                     early_stopping_rounds=10,
+                     verbose_eval=False)
 
 
 def pipeline_fn(date):
-
-    def pipeline(date, cx, cy):
-        return format(combine(segments=datefilter(segments(cx=cx, cy=cy), date),
+    '''Returns function that accepts cx, cy and returns formatted training data 
+       ready to be shaped into a dmatrix'''
+    
+    def pipeline(cx, cy):
+        return format(combine(segments=datefilter(date=date, segments=segments(cx=cx, cy=cy)),
                               aux=aux(cx=cx, cy=cy)))
     
-    return partial(pipeline, date=date)
+    return pipeline
     
 
 '''
@@ -163,23 +215,9 @@ def pipeline_fn(date):
 def save(tx, ty, model):
     '''Saves a model to Cassandra given primary key tx & ty'''
 
-    binary_model = model.save_raw()
-
-    # write binary_model to Cassandra as bytes
-
-    
-    # StringIO for text data
-    #text = StringIO()
-
-    # BytesIO for binary data
-    #bdata = BytesIO()
-
-    
-    # create buffer
-    # write to buffer
-    # ? encode buffer
-    # save buffer contents
-    
+    # model is a byte buffer        
+    model = model.save_raw()
+    db.execute(db.insert_tile(cfg, tx, ty, model))
     return {'tx': tx, 'ty': ty, 'model': model}
 
 
@@ -191,7 +229,7 @@ def tile_fn():
     c = get('chips', r, None)
     d = get('date', r, None)
 
-    if x is None or y is None or c is None or d is None:
+    if (x is None or y is None or c is None or d is None):
         response = jsonify({'tx': tx, 'ty': ty, 'chips': chips, 'date': date,
                             'msg': 'tx, ty, chips and date are required parameters'})
         response.status_code = 400
@@ -205,8 +243,8 @@ def tile_fn():
 
         # data is going to be about 20GB (!..!)
         data = __workers.map(pipeline_fn(d), chips)
-
-        saved = save(tx=tx, ty=ty, model=train(dmatrix(data), parameters()))
+        
+        _ = save(tx=tx, ty=ty, model=train(list(flatten(data)), parameters()))
 
         return jsonify({'tx': tx, 'ty': ty, 'date': d, 'chips': c})
     

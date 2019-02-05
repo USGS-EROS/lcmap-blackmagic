@@ -143,7 +143,7 @@ def segment_fn():
                                                       env={'CHIPMUNK_URL': cfg['ard_url']}))
     except Exception as ex:
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': ex})
-        response.status_code = 400
+        response.status_code = 500
         return response
     
     if count(timeseries) == 0:
