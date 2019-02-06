@@ -60,7 +60,7 @@ Send a request
 
 .. code-block:: bash
 
-    http --timeout=12000 POST http://localhost:5000/segment cx:=1556415 cy:=2366805 --acquired 1980/2017
+    http --timeout=12000 POST http://localhost:5000/segment cx:=1556415 cy:=2366805 acquired=1980/2017
 
 URLs
 ----

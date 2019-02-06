@@ -45,6 +45,22 @@ def execute(cfg, stmt, keyspace=None):
                 conn['cluster'].shutdown()
 
                 
+def execute2(cfg, statement, parameters, keyspace=None):
+    conn = None
+    try:
+        conn = connect(cfg, keyspace)
+        return conn['session'].execute(statement, parameters)
+    except Exception as e:
+        logger.error('statement:{} parameters:{}'.format(statement, parameters))
+        logger.exception('db execution exception:{}'.format(e))
+    finally:
+        if conn:
+            if conn['session']:
+                conn['session'].shutdown()
+            if conn['cluster']:
+                conn['cluster'].shutdown()
+                
+                
 def writer(cfg, q, errorq):
 
     conn = None
@@ -128,7 +144,6 @@ def create_pixel(cfg):
         py: y pixel coordinate
         mask: processing mask, 0/1 for not used/used in calculation
        (applies against dates)
-
     '''
     s = '''CREATE TABLE IF NOT EXISTS {keyspace}.pixel (
            cx   int,
@@ -273,12 +288,16 @@ def setup(cfg):
 
 
 def insert_tile(cfg, tx, ty, model):
-    s = 'INSERT INTO {keyspace}.tile (tx, ty, model) VALUES ({tx}, {ty}, {model});'
+    s = 'INSERT INTO {keyspace}.tile (tx, ty, model) VALUES (%(tx)s, %(ty)s, %(model)s);'
 
-    return s.format(keyspace=cfg['cassandra_keyspace'],
-                    tx=tx,
-                    ty=ty,
-                    model=model.hex())
+    p = {"tx":       tx,
+         "ty":       ty,
+         "model":    bytes(model)}
+    
+    return {'statement': s.format(keyspace=cfg['cassandra_keyspace']), 'parameters': p}
+              
+
+    #model=model.hex())
 
 
 def insert_chip(cfg, detection):
