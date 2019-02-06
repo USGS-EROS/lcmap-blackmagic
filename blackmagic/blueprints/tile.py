@@ -192,32 +192,21 @@ def train(data, params):
                      verbose_eval=False)
 
 
-def pipeline_fn(date):
-    '''Returns function that accepts cx, cy and returns formatted training data 
-       ready to be shaped into a dmatrix'''
+def pipeline(chip, date):
+    cx=first(chip)
+    cy=second(chip)
     
-    def pipeline(cx, cy):
-        return format(combine(segments=datefilter(date=date, segments=segments(cx=cx, cy=cy)),
-                              aux=aux(cx=cx, cy=cy)))
-    
-    return pipeline
-    
+    return format(combine(segments=datefilter(date=date, segments=segments(cx=cx, cy=cy)),
+                          aux=aux(cx=cx, cy=cy)))
 
-'''
-# in parallel, run pipeline to pull, merge and format chips
-# in one process, combine all formatted training data into a dmatrix (1d label array & 2d feature array plus params) (numpy.vstack)
-# train xgboost and obtain the trained model
-# save to buffer, write contents to Cassandra for tx & ty.
-    
-# merging formatted datasets: numpy.concatenate((a, b, c)).reshape(3, -1) where 3 is equal to the number of elements that belong in each row
-'''
 
 def save(tx, ty, model):
     '''Saves a model to Cassandra given primary key tx & ty'''
 
-    # model is a byte buffer        
-    model = model.save_raw()
-    db.execute(db.insert_tile(cfg, tx, ty, model))
+    # model.save_raw() is a bytearray
+    
+    db.execute2(cfg, **db.insert_tile(cfg, tx, ty, model.save_raw()))
+    #db.insert_tile(cfg, tx, ty, model.save_raw())
     return {'tx': tx, 'ty': ty, 'model': model}
 
 
@@ -241,12 +230,13 @@ def tile_fn():
         __queue   = parallel.queue()
         __workers = parallel.workers(cfg)
 
-        # data is going to be about 20GB (!..!)
-        data = __workers.map(pipeline_fn(d), chips)
+        # data is going to be about 20GB
+        f = partial(pipeline, date=d)
+        data = __workers.map(f, c)
         
-        _ = save(tx=tx, ty=ty, model=train(list(flatten(data)), parameters()))
+        _ = save(tx=x, ty=y, model=train(list(flatten(data)), parameters()))
 
-        return jsonify({'tx': tx, 'ty': ty, 'date': d, 'chips': c})
+        return jsonify({'tx': x, 'ty': y, 'date': d, 'chips': c})
     
     except Exception as e:
         logger.exception(e)
