@@ -115,11 +115,7 @@ def format(entries):
                  [get('thrmse' , e)]] for e in entries]
 
     return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
-
-    # test with
-    # f = t.format(t.combine(segments=t.filter(t.segments(cx=cx, cy=cy), '1982-11-11'),
-    #                        aux=t.aux(cx=cx, cy=cy))
-    
+ 
 
 # dmatrix & train need to run in a single process.  The format() pipeline needs to run concurrently.  Results from concurrent format()
 # pipeline calls must be merged/concatenated.
@@ -127,17 +123,8 @@ def format(entries):
 # tiles chip retrieval.
 
 def dmatrix(data, labels):
-    '''Transforms a sequence of numpy values from format() to an xgboost dmatrix'''
+    '''Transforms independent and dependent variables into an xgboost dmatrix'''
 
-    #labels numpy.delete(data, numpy.s_[1:], 1).flatten()
-    #values numpy.delete(data, 0, 1)
-
-    # label is the first array element in every row
-
-    #n = numpy.array(data)
-    
-    #return xgb.DMatrix(numpy.delete(data, 0, 1),
-    #                  label=numpy.delete(data, numpy.s_[1:], 1).flatten())
     return xgb.DMatrix(data, labels)
 
 
@@ -206,7 +193,7 @@ def save(tx, ty, model):
     # model.save_raw() is a bytearray
     
     db.execute2(cfg, **db.insert_tile(cfg, tx, ty, model.save_raw()))
-    #db.insert_tile(cfg, tx, ty, model.save_raw())
+    
     return {'tx': tx, 'ty': ty, 'model': model}
 
 
