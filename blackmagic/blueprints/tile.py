@@ -115,12 +115,7 @@ def format(entries):
                  [get('thrmse' , e)]] for e in entries]
 
     return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
- 
 
-# dmatrix & train need to run in a single process.  The format() pipeline needs to run concurrently.  Results from concurrent format()
-# pipeline calls must be merged/concatenated.
-# Need to find 9 tiles bounds given a single tile x & y, then find all chip ids that fall within the 9 tiles.  Parallelize the 9
-# tiles chip retrieval.
 
 def dmatrix(data, labels):
     '''Transforms independent and dependent variables into an xgboost dmatrix'''
@@ -162,7 +157,6 @@ def watchlist(training_data, eval_data):
 
 
 def train(data, params):
-    numpy_data = numpy.array(data)
     num_round  = 500
     test_size  = 0.2
     itrain, itest, dtrain, dtest = train_test_split(independent(numpy_data),
@@ -177,6 +171,10 @@ def train(data, params):
                      watchlist(train_matrix, test_matrix),
                      early_stopping_rounds=10,
                      verbose_eval=False)
+
+
+def sample(npdata):
+    pass
 
 
 def pipeline(chip, date):
@@ -221,7 +219,9 @@ def tile_fn():
         f = partial(pipeline, date=d)
         data = __workers.map(f, c)
         
-        _ = save(tx=x, ty=y, model=train(list(flatten(data)), parameters()))
+        _ = save(tx=x,
+                 ty=y,
+                 model=train(sample(numpy.array(list(flatten(data)), parameters()))))
 
         return jsonify({'tx': x, 'ty': y, 'date': d, 'chips': c})
     
