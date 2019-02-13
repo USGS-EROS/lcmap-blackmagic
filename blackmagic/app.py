@@ -15,6 +15,7 @@ from datetime import datetime
 from flask import Flask
 from flask import jsonify
 from flask import request
+from merlin.functions import flatten
 from multiprocessing import Pool
 from multiprocessing import Process
 from multiprocessing import Manager
@@ -48,14 +49,23 @@ db.setup(cfg)
 
 app = Flask('blackmagic')
 
-def saveccd(detection, q):
-    q.put(db.insert_chip(cfg, detection))
-    q.put(db.insert_pixel(cfg, detection))
-    q.put(db.insert_segment(cfg, detection))
-    return detection
+
+def save_chip(detections):
+    _ = db.execute_statement(cfg, db.insert_chip(cfg, first(detections)))
+    return detections
+    
+
+def save_pixels(detections):
+    _ = db.execute_statements(cfg, db.insert_pixels(cfg, detections))
+    return detections
 
 
-def savepredictions(preds):
+def save_segments(detections):
+    _ = db.execute_statements(cfg, db.insert_segments(cfg, detections))
+    return detections
+
+
+def save_predictions(preds):
     pass
 
 
@@ -128,18 +138,16 @@ def detect(timeseries):
                   ccdresult=ccd.detect(**second(timeseries)))
 
 
-def pipeline(x, q):
-    return count(map(partial(saveccd, q=q), detect(x)))
-
-
 def delete_detections(timeseries):
     cx, cy, _, _ = first(first(timeseries))
     try:
         x = int(cx)
         y = int(cy)
-        _ = db.execute(cfg, db.delete_chip(cfg, x, y))
-        _ = db.execute(cfg, db.delete_pixel(cfg, x, y))
-        _ = db.execute(cfg, db.delete_segment(cfg, x, y))
+        stmts = [db.delete_chip(cfg, x, y),
+                 db.delete_pixel(cfg, x, y),
+                 db.delete_segment(cfg, x, y)]
+        
+        _ = db.execute_statements(cfg, stmts)
         
     except Exception as e:
         logger.exception('Exception deleting partition for x:{cx} y:{cy}'.format(cx=x, cy=y))
@@ -147,24 +155,10 @@ def delete_detections(timeseries):
     return timeseries
 
 
-def queue():
-    return Manager().Queue()
-
-
 def workers(cfg):
     return Pool(cfg['cpus_per_worker'])
 
 
-def writers(cfg, q, errorq):
-    w = [Process(name='cassandra-writer[{}]'.format(i),
-                 target=db.writer,
-                 kwargs={'cfg': cfg, 'q': q, 'errorq': errorq},
-                 daemon=False)
-         for i in range(cfg['cassandra_concurrent_writes'])]
-    [writer.start() for writer in w]
-    return w
-
-        
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify(True)
@@ -198,48 +192,35 @@ def segment():
                                    cfg=merlin.cfg.get(profile='chipmunk-ard',
                                                       env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
     except Exception as ex:
-        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': ex})
+        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
         response.status_code = 400
         return response
     
     if count(timeseries) == 0:
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'no input data'})
-        response.status_code = 400
+        response.status_code = 500
         return response
     
-    __queue   = None
-    __errorq  = None
-    __writers = None
     __workers = None
-    
+
     try:
-        __queue   = queue()
-        __errorq  = queue()
-        __writers = writers(cfg, __queue, __errorq)
-        __workers = workers(cfg)
-
-        __workers.map(partial(pipeline, q=__queue),
-                      take(n, delete_detections(timeseries)))
-
-        # this makes sure no db errors occurred
-        if __errorq.empty():
-            return jsonify({'cx': x, 'cy': y, 'acquired': a})
-        else:
-            response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': __errorq.get()})
-            response.status_code = 500
-            return response
-        
-    except Exception as e:
-        logger.exception(e)
-        # raising an exception here makes Flask issue HTTP 500
-        raise e
+        __workers = workers(cfg)    
+        detections = list(flatten(__workers.map(detect, take(n, delete_detections(timeseries)))))
+        #print("detections:{}".format(detections))
+        detections = save_segments(save_pixels(save_chip(detections)))
+        return jsonify({'cx': x, 'cy': y, 'acquired': a})
+    except Exception as ex:
+        logger.exception("Exception in /segment:{}".format(ex))
+        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
+        response.status_code = 500
+        return response
     finally:
-
-        logger.debug('stopping writers')
-        [__queue.put('STOP_WRITER') for w in __writers]
-        [w.terminate() for w in __writers]
-        [w.join() for w in __writers]
-        
         logger.debug('stopping workers')
         __workers.terminate()
         __workers.join()
+
+
+  
+
+        
+    

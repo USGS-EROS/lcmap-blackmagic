@@ -26,48 +26,22 @@ def connect(cfg, keyspace=None):
 
     return {'cluster': cluster, 'session': session}
 
-
-def execute(cfg, stmt, keyspace=None):
-    conn = None
+  
+def execute(cfg, stmt, connection):
     try:
         s = none_as_null(stmt)
-        conn = connect(cfg, keyspace)
-        return conn['session'].execute(s)
+        return connection['session'].execute(s)
     except Exception as e:
         logger.error('statement:{}'.format(s))
-        logger.exception('db execution exception:{}'.format(e))
-    finally:
-        if conn:
-            if conn['session']:
-                conn['session'].shutdown()
-            if conn['cluster']:
-                conn['cluster'].shutdown()
+        raise e
+    
 
-                
-def writer(cfg, q, errorq):
+def execute_statement(cfg, stmt, keyspace=None):
 
     conn = None
-    
     try:
-        conn = connect(cfg)
-    
-        while True:
-            stmt = q.get()
-            if stmt == 'STOP_WRITER':
-                logger.debug('stopping writer')
-                break
-            logger.debug('writing:{}'.format(none_as_null(stmt)))
-            try:
-                rows=conn['session'].execute(none_as_null(stmt))
-            except Exception as e:
-                msg = 'statement:{}'.format(non_as_null(stmt))
-                errorq.put('db execution error: {}'.format(msg))
-                logger.error(msg)
-                logger.exception('db execution error')
-                continue
-    except:
-        errorq.put('db connection error')
-        logger.exception('db connection error')
+        conn = connect(cfg, keyspace)
+        return execute(cfg, stmt, conn)
     finally:
         if conn:
             if conn['session']:
@@ -76,6 +50,20 @@ def writer(cfg, q, errorq):
                 conn['cluster'].shutdown()
 
 
+def execute_statements(cfg, stmts, keyspace=None):
+    conn = None
+    try:
+        conn = connect(cfg, keyspace)
+        return [execute(cfg, s, conn) for s in stmts]
+    finally:
+        if conn:
+            if conn['session']:
+                conn['session'].shutdown()
+            if conn['cluster']:
+                conn['cluster'].shutdown()
+    return c
+        
+                
 def create_keyspace(cfg):
     s = '''CREATE KEYSPACE IF NOT EXISTS {keyspace} 
            WITH REPLICATION = {{ 'class' : 'SimpleStrategy', 
@@ -263,12 +251,14 @@ def create_annual_prediction(cfg):
 def setup(cfg):
     logger.info('setting up database')
     try:
-        execute(cfg, create_keyspace(cfg), None)
-        execute(cfg, create_tile(cfg))
-        execute(cfg, create_chip(cfg))
-        execute(cfg, create_pixel(cfg))
-        execute(cfg, create_segment(cfg))
-        execute(cfg, create_annual_prediction(cfg))
+        s = [create_keyspace(cfg),
+             create_tile(cfg),
+             create_chip(cfg),
+             create_pixel(cfg),
+             create_segment(cfg),
+             create_annual_prediction(cfg)]
+        execute_statements(cfg, s)
+        
     except Exception as e:
         logger.exception('setup exception:{}'.format(e))
 
@@ -285,7 +275,7 @@ def insert_chip(cfg, detection):
 
 
 def insert_pixel(cfg, detection):
-    s = 'INSERT INTO {keyspace}.pixel (cx, cy, px, py, mask) VALUES ({cx}, {cy}, {px}, {py}, {mask});'
+    s = 'INSERT INTO {keyspace}.pixel (cx, cy, px, py, mask) VALUES ({cx}, {cy}, {px}, {py}, {mask})'
 
     return s.format(keyspace=cfg['cassandra_keyspace'],
                     cx=detection['cx'],
@@ -293,6 +283,14 @@ def insert_pixel(cfg, detection):
                     px=detection['px'],
                     py=detection['py'],
                     mask=detection['mask'])
+
+
+def insert_pixels(cfg, detections):
+    #pixels = ''.join([insert_pixel(cfg, d) for d in detections])
+    #return '''BEGIN BATCH
+    #          {pixels}
+    #          APPLY BATCH;'''.format(pixels=''.join(pixels))
+    return [insert_pixel(cfg, d) for d in detections]
 
 
 def insert_segment(cfg, detection):
@@ -313,8 +311,18 @@ def insert_segment(cfg, detection):
                 {recoef}, {reint}, {remag}, {rermse},
                 {s1coef}, {s1int}, {s1mag}, {s1rmse},
                 {s2coef}, {s2int}, {s2mag}, {s2rmse},
-                {thcoef}, {thint}, {thmag}, {thrmse});'''
+                {thcoef}, {thint}, {thmag}, {thrmse})'''
+    
     return s.format(keyspace=cfg['cassandra_keyspace'], **detection)
+
+
+def insert_segments(cfg, detections):
+    #segments = [insert_segment(cfg, d) for d in detections]
+    #return '''BEGIN BATCH
+    #          {segments}
+    #          APPLY BATCH;'''.format(segments=''.join(segments))
+
+    return [insert_segment(cfg, d) for d in detections]
 
 
 def delete_chip(cfg, cx, cy):
