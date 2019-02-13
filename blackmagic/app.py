@@ -143,12 +143,9 @@ def delete_detections(timeseries):
     try:
         x = int(cx)
         y = int(cy)
-        stmts = [db.delete_chip(cfg, x, y),
-                 db.delete_pixel(cfg, x, y),
-                 db.delete_segment(cfg, x, y)]
-        
-        _ = db.execute_statements(cfg, stmts)
-        
+        db.execute_statements(cfg, [db.delete_chip(cfg, x, y),
+                                    db.delete_pixel(cfg, x, y),
+                                    db.delete_segment(cfg, x, y)])
     except Exception as e:
         logger.exception('Exception deleting partition for x:{cx} y:{cy}'.format(cx=x, cy=y))
         raise e
@@ -206,8 +203,7 @@ def segment():
     try:
         __workers = workers(cfg)    
         detections = list(flatten(__workers.map(detect, take(n, delete_detections(timeseries)))))
-        #print("detections:{}".format(detections))
-        detections = save_segments(save_pixels(save_chip(detections)))
+        save_segments(save_pixels(save_chip(detections)))
         return jsonify({'cx': x, 'cy': y, 'acquired': a})
     except Exception as ex:
         logger.exception("Exception in /segment:{}".format(ex))

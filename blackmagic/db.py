@@ -286,10 +286,6 @@ def insert_pixel(cfg, detection):
 
 
 def insert_pixels(cfg, detections):
-    #pixels = ''.join([insert_pixel(cfg, d) for d in detections])
-    #return '''BEGIN BATCH
-    #          {pixels}
-    #          APPLY BATCH;'''.format(pixels=''.join(pixels))
     return [insert_pixel(cfg, d) for d in detections]
 
 
@@ -317,11 +313,6 @@ def insert_segment(cfg, detection):
 
 
 def insert_segments(cfg, detections):
-    #segments = [insert_segment(cfg, d) for d in detections]
-    #return '''BEGIN BATCH
-    #          {segments}
-    #          APPLY BATCH;'''.format(segments=''.join(segments))
-
     return [insert_segment(cfg, d) for d in detections]
 
 
