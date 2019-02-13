@@ -198,22 +198,17 @@ def segment():
         response.status_code = 500
         return response
     
-    __workers = None
-
     try:
-        __workers = workers(cfg)    
-        detections = list(flatten(__workers.map(detect, take(n, delete_detections(timeseries)))))
-        save_segments(save_pixels(save_chip(detections)))
+        with workers(cfg) as __workers:
+            detections = list(flatten(__workers.map(detect, take(n, delete_detections(timeseries)))))
+            save_segments(save_pixels(save_chip(detections)))
         return jsonify({'cx': x, 'cy': y, 'acquired': a})
     except Exception as ex:
         logger.exception("Exception in /segment:{}".format(ex))
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
         response.status_code = 500
         return response
-    finally:
-        logger.debug('stopping workers')
-        __workers.terminate()
-        __workers.join()
+   
 
 
   
