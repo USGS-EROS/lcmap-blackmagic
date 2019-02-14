@@ -29,7 +29,7 @@ import os
 import sys
 
 
-cfg = {'cassandra_host': os.environ['CASSANDRA_HOST'],
+cfg = {'cassandra_host': str(os.environ['CASSANDRA_HOST']).split(','),
        'cassandra_port': int(os.environ.get('CASSANDRA_PORT', 9042)),
        'cassandra_user': os.environ.get('CASSANDRA_USER', 'cassandra'),
        'cassandra_pass': os.environ.get('CASSANDRA_PASS', 'cassandra'),

@@ -17,7 +17,7 @@ def connect(cfg, keyspace=None):
     auth = PlainTextAuthProvider(username=cfg['cassandra_user'],
                                  password=cfg['cassandra_pass'])
 
-    cluster = Cluster([cfg['cassandra_host'],],
+    cluster = Cluster(cfg['cassandra_host'],
                       load_balancing_policy=RoundRobinPolicy(),
                       port=cfg['cassandra_port'],
                       auth_provider=auth)
