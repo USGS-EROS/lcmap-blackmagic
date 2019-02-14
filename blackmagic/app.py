@@ -48,6 +48,8 @@ logging.getLogger('cassandra.pool').setLevel(logging.ERROR)
 logging.getLogger('cassandra.io').setLevel(logging.ERROR)
 logging.getLogger('ccd.procedures').setLevel(logging.ERROR)
 logging.getLogger('ccd.change').setLevel(logging.ERROR)
+logging.getLogger('lcmap-pyccd').setLevel(logging.ERROR)
+logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
 logger = logging.getLogger('blackmagic.app')
 
 db.setup(cfg)
@@ -87,7 +89,6 @@ def coefficients(change_model, spectra):
 
 
 def format(cx, cy, px, py, dates, ccdresult):
-    logger.debug('formatting {},{},{},{}'.format(cx, cy, px, py))
     return [
              {'cx'     : int(cx),
               'cy'     : int(cy),
@@ -205,13 +206,15 @@ def segment():
                                    cfg=merlin.cfg.get(profile='chipmunk-ard',
                                                       env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
     except Exception as ex:
-        measure('merlin_bad_parameter_exception', merlin_start, x, y, a)
+        measure('merlin_exception', merlin_start, x, y, a)
+        logger.exception('Merlin exception in /segment:{}'.format(ex))
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
-        response.status_code = 400
+        response.status_code = 500
         return response
     
     if count(timeseries) == 0:
         measure('merlin_no_input_data_exception', merlin_start, x, y, a)
+        logger.warning('No input data for {cx},{cy},{a}'.format(cx=x, cy=y, a=a))
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'no input data'})
         response.status_code = 500
         return response
@@ -229,7 +232,7 @@ def segment():
             measure('detection', detection_start, x, y, a)
     except Exception as ex:
         measure('detection_exception', detection_start, x, y, a)
-        logger.exception("Exception in /segment:{}".format(ex))
+        logger.exception("Detection exception in /segment:{}".format(ex))
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
         response.status_code = 500
         return response
@@ -241,7 +244,7 @@ def segment():
         return jsonify({'cx': x, 'cy': y, 'acquired': a})
     except Exception as ex:
         measure('cassandra_exception', cassandra_start, x, y, a)
-        logger.exception("Exception in /segment:{}".format(ex))
+        logger.exception("Cassandra exception in /segment:{}".format(ex))
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
         response.status_code = 500
         return response

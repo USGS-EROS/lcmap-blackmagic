@@ -1,6 +1,7 @@
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import Cluster
 from cassandra.policies import RoundRobinPolicy
+from cytoolz import partition
 
 import cassandra
 import logging
@@ -62,8 +63,32 @@ def execute_statements(cfg, stmts, keyspace=None):
             if conn['cluster']:
                 conn['cluster'].shutdown()
     return c
-        
-                
+
+
+def as_logged_batch(stmt):
+    s = '''BEGIN BATCH
+            {stmt}
+           APPLY BATCH'''.format(stmt=stmt)
+    return s
+
+
+def as_unlogged_batch(stmt):
+    s = '''BEGIN BATCH UNLOGGED
+            {stmt}
+           APPLY BATCH'''.format(stmt=stmt)
+    return s
+
+
+def as_batches(stmts, batch_size):
+    chunks = partition(stmts, batch_size)
+    return [as_batch(''.join(chunk)) for chunk in chunks]
+
+
+def as_unlogged_batches(stmts, batch_size):
+    chunks = partition(stmts, batch_size)
+    return [as_unlogged_batch(''.join(chunk)) for chunk in chunks]
+    
+
 def create_keyspace(cfg):
     s = '''CREATE KEYSPACE IF NOT EXISTS {keyspace} 
            WITH REPLICATION = {{ 'class' : 'SimpleStrategy', 
