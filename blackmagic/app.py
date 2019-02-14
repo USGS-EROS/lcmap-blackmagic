@@ -2,6 +2,7 @@
 
 from blackmagic import db
 from cassandra import ConsistencyLevel
+from cytoolz import assoc
 from cytoolz import count
 from cytoolz import excepts
 from cytoolz import first
@@ -37,12 +38,16 @@ cfg = {'cassandra_host': os.environ['CASSANDRA_HOST'],
        'cassandra_consistency': ConsistencyLevel.name_to_value[os.environ.get('CASSANDRA_CONSISTENCY', 'QUORUM')],
        'cassandra_concurrent_writes': int(os.environ.get('CASSANDRA_CONCURRENT_WRITES', 1)),
        'chipmunk_url': os.environ['CHIPMUNK_URL'],
-       'log_level': logging.INFO,
+       'log_level': logging.DEBUG,
        'cpus_per_worker': int(os.environ.get('CPUS_PER_WORKER', 1))}
 
 logging.basicConfig(format='%(asctime)-15s %(name)-15s %(levelname)-8s - %(message)s', level=cfg['log_level'])
 logging.getLogger('cassandra.connection').setLevel(logging.ERROR)
 logging.getLogger('cassandra.cluster').setLevel(logging.ERROR)
+logging.getLogger('cassandra.pool').setLevel(logging.ERROR)
+logging.getLogger('cassandra.io').setLevel(logging.ERROR)
+logging.getLogger('ccd.procedures').setLevel(logging.ERROR)
+logging.getLogger('ccd.change').setLevel(logging.ERROR)
 logger = logging.getLogger('blackmagic.app')
 
 db.setup(cfg)
@@ -156,6 +161,16 @@ def workers(cfg):
     return Pool(cfg['cpus_per_worker'])
 
 
+def measure(name, start_time, cx, cy, acquired):
+    e = datetime.now()
+    d = {'cx': cx,
+         'cy': cy,
+         'acquired': acquired}
+    d = assoc(d, '{name}_elapsed_seconds'.format(name=name), (e - start_time).total_seconds())
+
+    logger.debug(d)
+    return d
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify(True)
@@ -168,7 +183,7 @@ def prediction():
 
 @app.route('/segment', methods=['POST'])
 def segment():
-
+    segment_start = datetime.now()
     r = request.json
     x = get('cx', r, None)
     y = get('cy', r, None)
@@ -182,6 +197,7 @@ def segment():
 
     logger.info('POST /segment {x},{y},{a}'.format(x=x, y=y, a=a))
 
+    merlin_start = datetime.now()
     try:
         timeseries = merlin.create(x=x,
                                    y=y,
@@ -189,29 +205,43 @@ def segment():
                                    cfg=merlin.cfg.get(profile='chipmunk-ard',
                                                       env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
     except Exception as ex:
+        measure('merlin_bad_parameter_exception', merlin_start, x, y, a)
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
         response.status_code = 400
         return response
     
     if count(timeseries) == 0:
+        measure('merlin_no_input_data_exception', merlin_start, x, y, a)
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'no input data'})
         response.status_code = 500
         return response
     
+    measure('merlin', merlin_start, x, y, a)
+
+    detection_start = None
+    cassandra_start = None
+    detections = None
+
     try:
         with workers(cfg) as __workers:
+            detection_start = datetime.now()
             detections = list(flatten(__workers.map(detect, take(n, delete_detections(timeseries)))))
-            save_segments(save_pixels(save_chip(detections)))
-        return jsonify({'cx': x, 'cy': y, 'acquired': a})
+            measure('detection', detection_start, x, y, a)
     except Exception as ex:
+        measure('detection_exception', detection_start, x, y, a)
         logger.exception("Exception in /segment:{}".format(ex))
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
         response.status_code = 500
         return response
-   
 
-
-  
-
-        
-    
+    try:    
+        cassandra_start = datetime.now()
+        save_segments(save_pixels(save_chip(detections)))
+        measure('cassandra', cassandra_start, x, y, a)    
+        return jsonify({'cx': x, 'cy': y, 'acquired': a})
+    except Exception as ex:
+        measure('cassandra_exception', cassandra_start, x, y, a)
+        logger.exception("Exception in /segment:{}".format(ex))
+        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
+        response.status_code = 500
+        return response
