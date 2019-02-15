@@ -29,16 +29,16 @@ import os
 import sys
 
 
-cfg = {'cassandra_host': str(os.environ['CASSANDRA_HOST']).split(','),
+cfg = {'cassandra_batch_size': int(os.environ.get('CASSSANDRA_BATCH_SIZE', 1000)),
+       'cassandra_host': str(os.environ['CASSANDRA_HOST']).split(','),
        'cassandra_port': int(os.environ.get('CASSANDRA_PORT', 9042)),
        'cassandra_user': os.environ.get('CASSANDRA_USER', 'cassandra'),
        'cassandra_pass': os.environ.get('CASSANDRA_PASS', 'cassandra'),
        'cassandra_keyspace': os.environ['CASSANDRA_KEYSPACE'],
        'cassandra_timeout': float(os.environ.get('CASSANDRA_TIMEOUT', 600)),
        'cassandra_consistency': ConsistencyLevel.name_to_value[os.environ.get('CASSANDRA_CONSISTENCY', 'QUORUM')],
-       'cassandra_concurrent_writes': int(os.environ.get('CASSANDRA_CONCURRENT_WRITES', 1)),
        'chipmunk_url': os.environ['CHIPMUNK_URL'],
-       'log_level': logging.DEBUG,
+       'log_level': logging.INFO,
        'cpus_per_worker': int(os.environ.get('CPUS_PER_WORKER', 1))}
 
 logging.basicConfig(format='%(asctime)-15s %(name)-15s %(levelname)-8s - %(message)s', level=cfg['log_level'])
@@ -58,17 +58,17 @@ app = Flask('blackmagic')
 
 
 def save_chip(detections):
-    _ = db.execute_statement(cfg, db.insert_chip(cfg, first(detections)))
+    db.insert_chips(cfg, detections)
     return detections
     
 
 def save_pixels(detections):
-    _ = db.execute_statements(cfg, db.insert_pixels(cfg, detections))
+    db.insert_pixels(cfg, detections)
     return detections
 
 
 def save_segments(detections):
-    _ = db.execute_statements(cfg, db.insert_segments(cfg, detections))
+    db.insert_segments(cfg, detections)
     return detections
 
 
@@ -153,7 +153,7 @@ def delete_detections(timeseries):
                                     db.delete_pixel(cfg, x, y),
                                     db.delete_segment(cfg, x, y)])
     except Exception as e:
-        logger.exception('Exception deleting partition for x:{cx} y:{cy}'.format(cx=x, cy=y))
+        logger.exception('Exception deleting partition for cx:{cx} cy:{cy}'.format(cx=x, cy=y))
         raise e
     return timeseries
 
@@ -164,13 +164,11 @@ def workers(cfg):
 
 def measure(name, start_time, cx, cy, acquired):
     e = datetime.now()
-    d = {'cx': cx,
-         'cy': cy,
-         'acquired': acquired}
+    d = {'cx': cx, 'cy': cy, 'acquired': acquired}
     d = assoc(d, '{name}_elapsed_seconds'.format(name=name), (e - start_time).total_seconds())
-
-    logger.debug(d)
+    logger.info(d)
     return d
+
 
 @app.route('/health', methods=['GET'])
 def health():
