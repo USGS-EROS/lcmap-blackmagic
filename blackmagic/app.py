@@ -76,50 +76,6 @@ def save_predictions(preds):
     pass
 
 
-#def default(change_models):
-    # if there are no change models, append an empty one to
-    # signify that ccd was run for the point, setting start_day and end_day to day 1
-    
-#    default_value = [{'start_day': 1,
-#                      'end_day': 1,
-#                      'break_day': 1,
-#                      'chprob': 0.0,
-#                      'curqa': 0,
-#                      'blmag': 0.0,
-#                      'grmag': 0.0,
-#                      'remag': 0.0,
-#                      'nimag': 0.0,
-#                      's1mag': 0.0,
-#                      's2mag': 0.0,
-#                      'thmag': 0.0,
-#                      'blrmse': 0.0,
-#                      'grrmse': 0.0,
-#                      'rermse': 0.0,
-#                      'nirmse': 0.0,
-#                      's1rmse': 0.0,
-#                      's2rmse': 0.0,
-#                      'thrmse': 0.0,
-#                      'blcoef': [],
-#                      'grcoef': [],
-#                      'recoef': [],
-#                      'nicoef': [],
-#                      's1coef': [],
-#                      's2coef': [],
-#                      'thcoef': [],
-#                      'blint': 0.0,
-#                      'grint': 0.0,
-#                      'reint': 0.0,
-#                      'niint': 0.0,
-#                      's1int': 0.0,
-#                      's2int': 0.0,
-#                      'thint': 0.0}]
-
-#    if not change_models or len(change_models) == 0:
-#        return default_value
-#    else:
-#        return change_models
-
-
 def defaults(cms):
     return [{}] if (not cms or len(cms) == 0) else cms
 
@@ -225,7 +181,6 @@ def prediction():
 
 @app.route('/segment', methods=['POST'])
 def segment():
-    segment_start = datetime.now()
     r = request.json
     x = get('cx', r, None)
     y = get('cy', r, None)
