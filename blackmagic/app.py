@@ -36,7 +36,7 @@ cfg = {'cassandra_batch_size': int(os.environ.get('CASSSANDRA_BATCH_SIZE', 1000)
        'cassandra_pass': os.environ.get('CASSANDRA_PASS', 'cassandra'),
        'cassandra_keyspace': os.environ['CASSANDRA_KEYSPACE'],
        'cassandra_timeout': float(os.environ.get('CASSANDRA_TIMEOUT', 600)),
-       'cassandra_consistency': ConsistencyLevel.name_to_value[os.environ.get('CASSANDRA_CONSISTENCY', 'QUORUM')],
+       'cassandra_consistency': ConsistencyLevel.name_to_value[os.environ.get('CASSANDRA_CONSISTENCY', 'ALL')],
        'chipmunk_url': os.environ['CHIPMUNK_URL'],
        'log_level': logging.INFO,
        'cpus_per_worker': int(os.environ.get('CPUS_PER_WORKER', 1))}
@@ -76,43 +76,85 @@ def save_predictions(preds):
     pass
 
 
-def default(change_models):
+#def default(change_models):
     # if there are no change models, append an empty one to
     # signify that ccd was run for the point, setting start_day and end_day to day 1
+    
+#    default_value = [{'start_day': 1,
+#                      'end_day': 1,
+#                      'break_day': 1,
+#                      'chprob': 0.0,
+#                      'curqa': 0,
+#                      'blmag': 0.0,
+#                      'grmag': 0.0,
+#                      'remag': 0.0,
+#                      'nimag': 0.0,
+#                      's1mag': 0.0,
+#                      's2mag': 0.0,
+#                      'thmag': 0.0,
+#                      'blrmse': 0.0,
+#                      'grrmse': 0.0,
+#                      'rermse': 0.0,
+#                      'nirmse': 0.0,
+#                      's1rmse': 0.0,
+#                      's2rmse': 0.0,
+#                      'thrmse': 0.0,
+#                      'blcoef': [],
+#                      'grcoef': [],
+#                      'recoef': [],
+#                      'nicoef': [],
+#                      's1coef': [],
+#                      's2coef': [],
+#                      'thcoef': [],
+#                      'blint': 0.0,
+#                      'grint': 0.0,
+#                      'reint': 0.0,
+#                      'niint': 0.0,
+#                      's1int': 0.0,
+#                      's2int': 0.0,
+#                      'thint': 0.0}]
 
-    return [{'start_day': 1, 'end_day': 1, 'break_day': 1}] if not change_models else change_models
+#    if not change_models or len(change_models) == 0:
+#        return default_value
+#    else:
+#        return change_models
 
 
+def defaults(cms):
+    return [{}] if (not cms or len(cms) == 0) else cms
+
+    
 def coefficients(change_model, spectra):
-    coefs = get_in([spectra, 'coefficients'], change_model, None)
-    return list(coefs) if coefs else None
+    coefs = get_in([spectra, 'coefficients'], change_model)
+    return list(coefs) if coefs else []
 
 
 def format(cx, cy, px, py, dates, ccdresult):
+    
     return [
              {'cx'     : int(cx),
               'cy'     : int(cy),
               'px'     : int(px),
               'py'     : int(py),
-              'sday'   : date.fromordinal(get('start_day', cm)).isoformat(),
-              'eday'   : date.fromordinal(get('end_day', cm)).isoformat(),
-              'bday'   : date.fromordinal(get('break_day', cm, None)).isoformat(),
-              'chprob' : get('change_probability', cm, None),
-              'curqa'  : get('curve_qa', cm, None),
-              'blmag'  : get_in(['blue', 'magnitude'], cm, None),
-              'grmag'  : get_in(['green', 'magnitude'], cm, None),
-              'remag'  : get_in(['red', 'magnitude'], cm, None),
-              'nimag'  : get_in(['nir', 'magnitude'], cm, None),
-              's1mag'  : get_in(['swir1', 'magnitude'], cm, None),
-              's2mag'  : get_in(['swir2', 'magnitude'], cm, None),
-              'thmag'  : get_in(['thermal', 'magnitude'], cm, None),
-              'blrmse' : get_in(['blue', 'rmse'], cm, None),
-              'grrmse' : get_in(['green', 'rmse'], cm, None),
-              'rermse' : get_in(['red', 'rmse'], cm, None),
-              'nirmse' : get_in(['nir', 'rmse'], cm, None),
-              's1rmse' : get_in(['swir1', 'rmse'], cm, None),
-              's2rmse' : get_in(['swir2', 'rmse'], cm, None),
-              'thrmse' : get_in(['thermal', 'rmse'], cm, None),
+              'sday'   : date.fromordinal(get('start_day', cm, 1)).isoformat(),
+              'eday'   : date.fromordinal(get('end_day', cm, 1)).isoformat(),
+              'bday'   : date.fromordinal(get('break_day', cm, 1)).isoformat(),
+              'chprob' : get('change_probability', cm, 0.0),
+              'curqa'  : get('curve_qa', cm, 0),
+              'blmag'  : get_in(['blue', 'magnitude'], cm, 0.0),
+              'grmag'  : get_in(['green', 'magnitude'], cm, 0.0),
+              'remag'  : get_in(['red', 'magnitude'], cm, 0.0),
+              'nimag'  : get_in(['nir', 'magnitude'], cm, 0.0),
+              's1mag'  : get_in(['swir1', 'magnitude'], cm, 0.0),
+              's2mag'  : get_in(['swir2', 'magnitude'], cm, 0.0),
+              'thmag'  : get_in(['thermal', 'magnitude'], cm, 0.0),
+              'blrmse' : get_in(['blue', 'rmse'], cm, 0.0),
+              'grrmse' : get_in(['green', 'rmse'], cm, 0.0),
+              'rermse' : get_in(['red', 'rmse'], cm, 0.0),
+              'nirmse' : get_in(['nir', 'rmse'], cm, 0.0),
+              's1rmse' : get_in(['swir1', 'rmse'], cm, 0.0),
+              's2rmse' : get_in(['swir2', 'rmse'], cm, 0.0),
+              'thrmse' : get_in(['thermal', 'rmse'], cm, 0.0),
               'blcoef' : coefficients(cm, 'blue'),
               'grcoef' : coefficients(cm, 'green'),
               'recoef' : coefficients(cm, 'red'),
@@ -120,16 +162,17 @@ def format(cx, cy, px, py, dates, ccdresult):
               's1coef' : coefficients(cm, 'swir1'),
               's2coef' : coefficients(cm, 'swir2'),
               'thcoef' : coefficients(cm, 'thermal'),
-              'blint'  : get_in(['blue', 'intercept'], cm, None),
-              'grint'  : get_in(['green', 'intercept'], cm, None),
-              'reint'  : get_in(['red', 'intercept'], cm, None),
-              'niint'  : get_in(['nir', 'intercept'], cm, None),
-              's1int'  : get_in(['swir1', 'intercept'], cm, None),
-              's2int'  : get_in(['swir2', 'intercept'], cm, None),
-              'thint'  : get_in(['thermal', 'intercept'], cm, None),
+              'blint'  : get_in(['blue', 'intercept'], cm, 0.0),
+              'grint'  : get_in(['green', 'intercept'], cm, 0.0),
+              'reint'  : get_in(['red', 'intercept'], cm, 0.0),
+              'niint'  : get_in(['nir', 'intercept'], cm, 0.0),
+              's1int'  : get_in(['swir1', 'intercept'], cm, 0.0),
+              's2int'  : get_in(['swir2', 'intercept'], cm, 0.0),
+              'thint'  : get_in(['thermal', 'intercept'], cm, 0.0),
               'dates'  : [date.fromordinal(o).isoformat() for o in dates],
-              'mask'   : get('processing_mask', ccdresult, None)}
-             for cm in default(get('change_models', ccdresult, None))]
+              'mask'   : get('processing_mask', ccdresult)}
+        
+             for cm in defaults(get('change_models', ccdresult, [{},]))]
 
 
 def detect(timeseries):
@@ -234,7 +277,7 @@ def segment():
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
         response.status_code = 500
         return response
-
+    
     try:    
         cassandra_start = datetime.now()
         save_segments(save_pixels(save_chip(detections)))

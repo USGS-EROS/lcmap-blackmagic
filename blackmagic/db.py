@@ -98,7 +98,7 @@ def create_tile(cfg):
            PRIMARY KEY((tx, ty)))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
            AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
-           AND  GC_GRACE_SECONDS = 10800;'''
+           AND  GC_GRACE_SECONDS = 172800;'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -116,7 +116,7 @@ def create_chip(cfg):
            PRIMARY KEY((cx, cy)))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
            AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
-           AND  GC_GRACE_SECONDS = 10800;'''
+           AND  GC_GRACE_SECONDS = 172800;'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
     
@@ -141,7 +141,7 @@ def create_pixel(cfg):
            PRIMARY KEY((cx, cy), px, py))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
            AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
-           AND  GC_GRACE_SECONDS = 10800;'''
+           AND  GC_GRACE_SECONDS = 172800;'''
     
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -229,7 +229,7 @@ def create_segment(cfg):
            PRIMARY KEY((cx, cy), px, py, sday, eday))     
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
            AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
-           AND  GC_GRACE_SECONDS = 10800;'''
+           AND  GC_GRACE_SECONDS = 172800;'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -257,7 +257,7 @@ def create_annual_prediction(cfg):
            PRIMARY KEY((cx, cy), px, py, sday, eday, date))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
            AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
-           AND  GC_GRACE_SECONDS = 10800;'''
+           AND  GC_GRACE_SECONDS = 172800;'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -277,14 +277,6 @@ def setup(cfg):
         logger.exception('setup exception:{}'.format(e))
 
     return cfg
-
-#insert_user = session.prepare("INSERT INTO users (name, age) VALUES (?, ?)")
-#batch = BatchStatement(consistency_level=ConsistencyLevel.QUORUM)
-
-#for (name, age) in users_to_insert:
-#    batch.add(insert_user, (name, age))
-
-#session.execute(batch)
 
 
 def insert_chips(cfg, detections):
@@ -316,7 +308,7 @@ def insert_pixels(cfg, detections):
         batches = []
 
         for chunk in chunks:
-            batch = BatchStatement(batch_type=BatchType.LOGGED)
+            batch = BatchStatement(batch_type=BatchType.UNLOGGED)
             [batch.add(stmt, [c['cx'], c['cy'], c['px'], c['py'], c['mask']]) for c in chunk]
             batches.append(batch)
            
@@ -358,7 +350,7 @@ def insert_segments(cfg, detections):
         batches = []
 
         for chunk in chunks:
-            batch = BatchStatement(batch_type=BatchType.LOGGED)
+            batch = BatchStatement(batch_type=BatchType.UNLOGGED)
 
             for c in chunk:
                 batch.add(stmt, [c['cx'], c['cy'], c['px'], c['py'], c['sday'], c['eday'], c['bday'], c['chprob'], c['curqa'],
@@ -380,77 +372,6 @@ def insert_segments(cfg, detections):
             if conn['cluster']:
                 conn['cluster'].shutdown()
             
-
-#def insert_segment(cfg, detection):
-#    s =  '''INSERT INTO {keyspace}.segment 
-#                (cx, cy, px, py, sday, eday, bday, chprob, curqa,
-#                 blcoef, blint, blmag, blrmse,
-#                 grcoef, grint, grmag, grrmse,
-#                 nicoef, niint, nimag, nirmse,
-#                 recoef, reint, remag, rermse,
-#                 s1coef, s1int, s1mag, s1rmse,
-#                 s2coef, s2int, s2mag, s2rmse,
-#                 thcoef, thint, thmag, thrmse) 
-#            VALUES 
-#               ({cx}, {cy}, {px}, {py}, '{sday}', '{eday}', '{bday}', {chprob}, {curqa},
-#                {blcoef}, {blint}, {blmag}, {blrmse},
-#                {grcoef}, {grint}, {grmag}, {grrmse},
-#                {nicoef}, {niint}, {nimag}, {nirmse},
-#                {recoef}, {reint}, {remag}, {rermse},
-#                {s1coef}, {s1int}, {s1mag}, {s1rmse},
-#                {s2coef}, {s2int}, {s2mag}, {s2rmse},
-#                {thcoef}, {thint}, {thmag}, {thrmse})'''
-
-#def insert_chip(cfg, detection):
-#    s = 'INSERT INTO {keyspace}.chip (cx, cy, dates) VALUES ({cx}, {cy}, {dates});'
-#
-#    return s.format(keyspace=cfg['cassandra_keyspace'],
-#                    cx=detection['cx'],
-#                    cy=detection['cy'],
-#                    dates=detection['dates'])
-
-
-#def insert_pixel(cfg, detection):
-#    s = 'INSERT INTO {keyspace}.pixel (cx, cy, px, py, mask) VALUES ({cx}, {cy}, {px}, {py}, {mask})'
-#
-#    return s.format(keyspace=cfg['cassandra_keyspace'],
-#                    cx=detection['cx'],
-#                    cy=detection['cy'],
-#                    px=detection['px'],
-#                    py=detection['py'],
-#                    mask=detection['mask'])
-
-
-#def insert_pixels(cfg, detections):
-#    return [insert_pixel(cfg, d) for d in detections]
-
-
-#def insert_segment(cfg, detection):
-#    s =  '''INSERT INTO {keyspace}.segment 
-#                (cx, cy, px, py, sday, eday, bday, chprob, curqa,
-#                 blcoef, blint, blmag, blrmse,
-#                 grcoef, grint, grmag, grrmse,
-#                 nicoef, niint, nimag, nirmse,
-#                 recoef, reint, remag, rermse,
-#                 s1coef, s1int, s1mag, s1rmse,
-#                 s2coef, s2int, s2mag, s2rmse,
-#                 thcoef, thint, thmag, thrmse) 
-#            VALUES 
-#               ({cx}, {cy}, {px}, {py}, '{sday}', '{eday}', '{bday}', {chprob}, {curqa},
-#                {blcoef}, {blint}, {blmag}, {blrmse},
-#                {grcoef}, {grint}, {grmag}, {grrmse},
-#                {nicoef}, {niint}, {nimag}, {nirmse},
-#                {recoef}, {reint}, {remag}, {rermse},
-#                {s1coef}, {s1int}, {s1mag}, {s1rmse},
-#                {s2coef}, {s2int}, {s2mag}, {s2rmse},
-#                {thcoef}, {thint}, {thmag}, {thrmse})'''
-    
-#    return s.format(keyspace=cfg['cassandra_keyspace'], **detection)
-
-
-#def insert_segments(cfg, detections):
-#    return [insert_segment(cfg, d) for d in detections]
-
 
 def delete_chip(cfg, cx, cy):
     s = 'DELETE FROM {keyspace}.chip WHERE cx={cx} AND cy={cy};'

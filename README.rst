@@ -47,7 +47,7 @@ Start BlackMagic
 	       -e CASSANDRA_PASS=cassandra \
 	       -e CASSANDRA_KEYSPACE=some_keyspace \
 	       -e CASSANDRA_TIMEOUT=600 \
-	       -e CASSANDRA_CONSISTENCY=QUORUM \
+	       -e CASSANDRA_CONSISTENCY=ALL \
 	       -e CHIPMUNK_URL=http://host:port/path \
 	       -e CPUS_PER_WORKER=4 \
 	       -e HTTP_PORT=5000 \
