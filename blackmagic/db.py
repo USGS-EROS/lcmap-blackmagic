@@ -1,6 +1,13 @@
+from cassandra import ConsistencyLevel
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import Cluster
+from cassandra.policies import ExponentialReconnectionPolicy
+from cassandra.policies import RetryPolicy
 from cassandra.policies import RoundRobinPolicy
+from cassandra.query import BatchStatement
+from cassandra.query import BatchType
+from cytoolz import first
+from cytoolz import partition_all
 
 import cassandra
 import logging
@@ -8,16 +15,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def none_as_null(s):
-    return s.replace('None', 'null')
-
-
 def connect(cfg, keyspace=None):
     auth = PlainTextAuthProvider(username=cfg['cassandra_user'],
                                  password=cfg['cassandra_pass'])
 
-    cluster = Cluster([cfg['cassandra_host'],],
+    cluster = Cluster(cfg['cassandra_host'],
                       load_balancing_policy=RoundRobinPolicy(),
+                      default_retry_policy=RetryPolicy(),
+                      reconnection_policy=ExponentialReconnectionPolicy(1.0, 600.0),
                       port=cfg['cassandra_port'],
                       auth_provider=auth)
     
@@ -28,47 +33,25 @@ def connect(cfg, keyspace=None):
     return {'cluster': cluster, 'session': session}
 
 
-def execute(cfg, stmt, keyspace=None):
-    conn = None
+def none_as_null(s):
+    return s.replace('None', 'null')
+
+  
+def execute(cfg, stmt, connection):
     try:
         s = none_as_null(stmt)
-        conn = connect(cfg, keyspace)
-        return conn['session'].execute(s)
+        return connection['session'].execute(s)
     except Exception as e:
         logger.error('statement:{}'.format(s))
-        logger.exception('db execution exception:{}'.format(e))
-    finally:
-        if conn:
-            if conn['session']:
-                conn['session'].shutdown()
-            if conn['cluster']:
-                conn['cluster'].shutdown()
+        raise e
+    
 
-                
-def writer(cfg, q, errorq):
+def execute_statement(cfg, stmt, keyspace=None):
 
     conn = None
-    
     try:
-        conn = connect(cfg)
-    
-        while True:
-            stmt = q.get()
-            if stmt == 'STOP_WRITER':
-                logger.debug('stopping writer')
-                break
-            logger.debug('writing:{}'.format(none_as_null(stmt)))
-            try:
-                rows=conn['session'].execute(none_as_null(stmt))
-            except Exception as e:
-                msg = 'statement:{}'.format(non_as_null(stmt))
-                errorq.put('db execution error: {}'.format(msg))
-                logger.error(msg)
-                logger.exception('db execution error')
-                continue
-    except:
-        errorq.put('db connection error')
-        logger.exception('db connection error')
+        conn = connect(cfg, keyspace)
+        return execute(cfg, stmt, conn)
     finally:
         if conn:
             if conn['session']:
@@ -76,6 +59,20 @@ def writer(cfg, q, errorq):
             if conn['cluster']:
                 conn['cluster'].shutdown()
 
+
+def execute_statements(cfg, stmts, keyspace=None):
+    conn = None
+    try:
+        conn = connect(cfg, keyspace)
+        return [execute(cfg, s, conn) for s in stmts]
+    finally:
+        if conn:
+            if conn['session']:
+                conn['session'].shutdown()
+            if conn['cluster']:
+                conn['cluster'].shutdown()
+    return c
+  
 
 def create_keyspace(cfg):
     s = '''CREATE KEYSPACE IF NOT EXISTS {keyspace} 
@@ -101,7 +98,8 @@ def create_tile(cfg):
            updated text,
            PRIMARY KEY((tx, ty)))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
-           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }};'''
+           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
+           AND  GC_GRACE_SECONDS = 172800;'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -118,7 +116,8 @@ def create_chip(cfg):
            dates frozen<list<text>>,
            PRIMARY KEY((cx, cy)))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
-           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }};'''
+           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
+           AND  GC_GRACE_SECONDS = 172800;'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
     
@@ -142,7 +141,8 @@ def create_pixel(cfg):
            mask frozen<list<tinyint>>,,
            PRIMARY KEY((cx, cy), px, py))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
-           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }};'''
+           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
+           AND  GC_GRACE_SECONDS = 172800;'''
     
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -229,7 +229,8 @@ def create_segment(cfg):
            thint  float,    
            PRIMARY KEY((cx, cy), px, py, sday, eday))     
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
-           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }};'''
+           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
+           AND  GC_GRACE_SECONDS = 172800;'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -256,7 +257,8 @@ def create_annual_prediction(cfg):
            prob frozen<list<float>>,
            PRIMARY KEY((cx, cy), px, py, sday, eday, date))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
-           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }};'''
+           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
+           AND  GC_GRACE_SECONDS = 172800;'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -264,59 +266,113 @@ def create_annual_prediction(cfg):
 def setup(cfg):
     logger.info('setting up database')
     try:
-        execute(cfg, create_keyspace(cfg), None)
-        execute(cfg, create_tile(cfg))
-        execute(cfg, create_chip(cfg))
-        execute(cfg, create_pixel(cfg))
-        execute(cfg, create_segment(cfg))
-        execute(cfg, create_annual_prediction(cfg))
+        s = [create_keyspace(cfg),
+             create_tile(cfg),
+             create_chip(cfg),
+             create_pixel(cfg),
+             create_segment(cfg),
+             create_annual_prediction(cfg)]
+        execute_statements(cfg, s)
+        
     except Exception as e:
         logger.exception('setup exception:{}'.format(e))
 
     return cfg
 
 
-def insert_chip(cfg, detection):
-    s = 'INSERT INTO {keyspace}.chip (cx, cy, dates) VALUES ({cx}, {cy}, {dates});'
+def insert_chips(cfg, detections):
+    conn = connect(cfg)
+    detection = first(detections)
+    try:
+        s = 'INSERT INTO {keyspace}.chip (cx, cy, dates) VALUES (?, ?, ?)'.format(keyspace=cfg['cassandra_keyspace'])
+        stmt = conn['session'].prepare(s)
+        return conn['session'].execute(stmt, [detection['cx'],
+                                              detection['cy'],
+                                              detection['dates']])
+    finally:
+        if conn:
+            if conn['session']:
+                conn['session'].shutdown()
+            if conn['cluster']:
+                conn['cluster'].shutdown()
+            
 
-    return s.format(keyspace=cfg['cassandra_keyspace'],
-                    cx=detection['cx'],
-                    cy=detection['cy'],
-                    dates=detection['dates'])
+def insert_pixels(cfg, detections):
+    conn = connect(cfg)
+    
+    try:
+        s = 'INSERT INTO {keyspace}.pixel (cx, cy, px, py, mask) VALUES (?, ?, ?, ?, ?)'.format(keyspace=cfg['cassandra_keyspace'])
+        stmt = conn['session'].prepare(s)
 
+        chunks = partition_all(cfg['cassandra_batch_size'], detections)
 
-def insert_pixel(cfg, detection):
-    s = 'INSERT INTO {keyspace}.pixel (cx, cy, px, py, mask) VALUES ({cx}, {cy}, {px}, {py}, {mask});'
+        batches = []
 
-    return s.format(keyspace=cfg['cassandra_keyspace'],
-                    cx=detection['cx'],
-                    cy=detection['cy'],
-                    px=detection['px'],
-                    py=detection['py'],
-                    mask=detection['mask'])
+        for chunk in chunks:
+            batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+            [batch.add(stmt, [c['cx'], c['cy'], c['px'], c['py'], c['mask']]) for c in chunk]
+            batches.append(batch)
+           
+        return [conn['session'].execute(b) for b in batches]
+    finally:
+        if conn:
+            if conn['session']:
+                conn['session'].shutdown()
+            if conn['cluster']:
+                conn['cluster'].shutdown()
 
+                
+def insert_segments(cfg, detections):
+    conn = connect(cfg)
+    try:
+        s = '''INSERT INTO {keyspace}.segment 
+                   (cx, cy, px, py, sday, eday, bday, chprob, curqa,
+                    blcoef, blint, blmag, blrmse,
+                    grcoef, grint, grmag, grrmse,
+                    nicoef, niint, nimag, nirmse,
+                    recoef, reint, remag, rermse,
+                    s1coef, s1int, s1mag, s1rmse,
+                    s2coef, s2int, s2mag, s2rmse,
+                    thcoef, thint, thmag, thrmse) 
+               VALUES 
+                   (?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?,
+                    ?, ?, ?, ?,
+                    ?, ?, ?, ?,
+                    ?, ?, ?, ?,
+                    ?, ?, ?, ?,
+                    ?, ?, ?, ?,
+                    ?, ?, ?, ?)'''.format(keyspace=cfg['cassandra_keyspace'])
+        
+        stmt = conn['session'].prepare(s)
 
-def insert_segment(cfg, detection):
-    s =  '''INSERT INTO {keyspace}.segment 
-                (cx, cy, px, py, sday, eday, bday, chprob, curqa,
-                 blcoef, blint, blmag, blrmse,
-                 grcoef, grint, grmag, grrmse,
-                 nicoef, niint, nimag, nirmse,
-                 recoef, reint, remag, rermse,
-                 s1coef, s1int, s1mag, s1rmse,
-                 s2coef, s2int, s2mag, s2rmse,
-                 thcoef, thint, thmag, thrmse) 
-            VALUES 
-               ({cx}, {cy}, {px}, {py}, '{sday}', '{eday}', '{bday}', {chprob}, {curqa},
-                {blcoef}, {blint}, {blmag}, {blrmse},
-                {grcoef}, {grint}, {grmag}, {grrmse},
-                {nicoef}, {niint}, {nimag}, {nirmse},
-                {recoef}, {reint}, {remag}, {rermse},
-                {s1coef}, {s1int}, {s1mag}, {s1rmse},
-                {s2coef}, {s2int}, {s2mag}, {s2rmse},
-                {thcoef}, {thint}, {thmag}, {thrmse});'''
-    return s.format(keyspace=cfg['cassandra_keyspace'], **detection)
+        chunks = partition_all(cfg['cassandra_batch_size'], detections)
+        
+        batches = []
 
+        for chunk in chunks:
+            batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+
+            for c in chunk:
+                batch.add(stmt, [c['cx'], c['cy'], c['px'], c['py'], c['sday'], c['eday'], c['bday'], c['chprob'], c['curqa'],
+                                 c['blcoef'], c['blint'], c['blmag'], c['blrmse'],
+                                 c['grcoef'], c['grint'], c['grmag'], c['grrmse'],
+                                 c['nicoef'], c['niint'], c['nimag'], c['nirmse'],
+                                 c['recoef'], c['reint'], c['remag'], c['rermse'],
+                                 c['s1coef'], c['s1int'], c['s1mag'], c['s1rmse'],
+                                 c['s2coef'], c['s2int'], c['s2mag'], c['s2rmse'],
+                                 c['thcoef'], c['thint'], c['thmag'], c['thrmse']])
+            batches.append(batch)
+           
+        return [conn['session'].execute(b) for b in batches]
+
+    finally:
+        if conn:
+            if conn['session']:
+                conn['session'].shutdown()
+            if conn['cluster']:
+                conn['cluster'].shutdown()
+            
 
 def delete_chip(cfg, cx, cy):
     s = 'DELETE FROM {keyspace}.chip WHERE cx={cx} AND cy={cy};'

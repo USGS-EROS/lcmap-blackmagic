@@ -40,14 +40,14 @@ Start BlackMagic
                --rm \
                --net=host \
                --pid=host \
+	       -e CASSANDRA_BATCH_SIZE=1000 \
 	       -e CASSANDRA_HOST=localhost \
 	       -e CASSANDRA_PORT=9042 \
 	       -e CASSANDRA_USER=cassandra \
 	       -e CASSANDRA_PASS=cassandra \
 	       -e CASSANDRA_KEYSPACE=some_keyspace \
 	       -e CASSANDRA_TIMEOUT=600 \
-	       -e CASSANDRA_CONSISTENCY=QUORUM \
-	       -e CASSANDRA_CONCURRENT_WRITES=1 \
+	       -e CASSANDRA_CONSISTENCY=ALL \
 	       -e CHIPMUNK_URL=http://host:port/path \
 	       -e CPUS_PER_WORKER=4 \
 	       -e HTTP_PORT=5000 \
@@ -60,7 +60,7 @@ Send a request
 
 .. code-block:: bash
 
-    http --timeout=12000 POST http://localhost:5000/segment cx:=1556415 cy:=2366805 --acquired 1980/2017
+    http --timeout=12000 POST http://localhost:5000/segment cx:=1556415.0 cy:=2366805.0 acquired=1980/2017
 
 URLs
 ----
@@ -81,15 +81,12 @@ URLs
     
 Tuning
 ------
-Blackmagic has three primary controls that determine the nature of its parallelism and concurrency: ``WORKERS``, ``CPUS_PER_WORKER`` & ``CASSANDRA_CONCURRENT_WRITES``.
+Blackmagic has two primary controls that determine the nature of its parallelism and concurrency: ``WORKERS`` and ``CPUS_PER_WORKER``.
 
 ``WORKERS`` controls the number of HTTP listener processes (gunicorn workers) and thus, the number of simultaneous HTTP requests that can be serviced.
 
 ``CPUS_PER_WORKER`` controls the number of cores available to each ``WORKER``.
 
-``CASSANDRA_CONCURRENT_WRITES`` controls the number of parallel cassandra writes from each worker.
-
-``CPUS_PER_WORKER`` & ``CASSANDRA_CONCURRENT_WRITES`` combined determine how quickly an individual request is completed.
 
 Deployment Examples
 ~~~~~~~~~~~~~~~~~~~
@@ -100,13 +97,11 @@ Deployment Examples
 
     -e WORKERS=<number of cores available>
     -e CPUS_PER_WORKER=1
-    -e CASSANDRA_CONCURRENT_WRITES=1
 
     # One fast HTTP request
     
     -e WORKERS=1
     -e CPUS_PER_WORKER=<number of cores available>
-    -e CASSANDRA_CONCURRENT_WRITES=1  #unless memory is climbing in WORKER process.
 
     
 Requirements
@@ -207,20 +202,20 @@ HTTP Requests & Responses
 
     # Database errors reported with HTTP 500 and the first error that occurred, with request parameters as JSON
     
-    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
+    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
     HTTP/1.1 500 INTERNAL SERVER ERROR
     Connection: close
     Content-Length: 89
     Content-Type: application/json
     Date: Thu, 31 Jan 2019 22:04:57 GMT
     Server: gunicorn/19.9.0
-     {
+    
+    {
         "acquired": "1980/2017-12-31", 
         "cx": "1484415", 
         "cy": "2414805", 
         "msg": "db connection error"
     }
-
     
 Versioning
 ----------
