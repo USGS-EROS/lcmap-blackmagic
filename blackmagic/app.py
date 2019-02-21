@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from blackmagic import cfg
 from blackmagic import db
 from cassandra import ConsistencyLevel
 from cytoolz import assoc
@@ -21,8 +22,6 @@ from multiprocessing import Pool
 from multiprocessing import Process
 from multiprocessing import Manager
 
-import ccd
-import json
 import logging
 import merlin
 import os

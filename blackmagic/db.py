@@ -28,6 +28,7 @@ def connect(cfg, keyspace=None):
     
     session = cluster.connect(keyspace=keyspace)
     session.default_timeout = cfg['cassandra_timeout']
+    session.default_fetch_size = None
 
     return {'cluster': cluster, 'session': session}
 
@@ -388,3 +389,6 @@ def delete_segment(cfg, cx, cy):
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
+def select_segment(cfg, cx, cy):
+    s = 'SELECT * FROM {keyspace}.segment WHERE cx={cx} AND cy={cy};'
+    return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)

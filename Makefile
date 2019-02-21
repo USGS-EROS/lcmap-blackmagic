@@ -18,7 +18,7 @@ deps-down:
 	docker-compose -f resources/docker-compose.yml down blackmagic-cassandra
 
 clean:
-	rm -rf lcmap_blackmagic.egg-info *pyc *~
+	@rm -rf lcmap_blackmagic.egg-info *pyc *~ *__pycache__*
 
 test:
 	pytest

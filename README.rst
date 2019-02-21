@@ -119,7 +119,7 @@ HTTP Requests & Responses
     # /segment resource expects cx (chip x) and cy (chip y) as parameters
     # If parameters are missing /segment returns HTTP 400 with JSON message
 		
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 
+    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 67
@@ -134,7 +134,7 @@ HTTP Requests & Responses
         "msg": "cx, cy, and acquired are required parameters"
     }
 
-    [user@machine]$ http --timeout 1200 POST http://localhost:9876/segment cy=1484415 
+    [user@machine]$ http --timeout 12000 POST http://localhost:9876/segment cy=1484415 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 67
@@ -149,7 +149,7 @@ HTTP Requests & Responses
         "msg": "cx, cy, and acquired are required parameters"
     }
 
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment 
+    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 64
@@ -167,7 +167,7 @@ HTTP Requests & Responses
     # if no input data was available from Chipmunk for cx/cy & acquired date range,
     # /segment returns HTTP 400 with msg = "no input data"
     
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=-99999999 acquired=1980-01-01/2017-12-31
+    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=-99999999 acquired=1980-01-01/2017-12-31
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 52
@@ -185,7 +185,7 @@ HTTP Requests & Responses
 
     # Successful POST to /segment returns HTTP 200 and cx/cy as JSON
     
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
+    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
     HTTP/1.1 200 OK
     Connection: close
     Content-Length: 28
@@ -199,6 +199,7 @@ HTTP Requests & Responses
         "cy": 2414805,
     }
 
+
     # Database errors reported with HTTP 500 and the first error that occurred, with request parameters as JSON
     
     [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
@@ -208,15 +209,13 @@ HTTP Requests & Responses
     Content-Type: application/json
     Date: Thu, 31 Jan 2019 22:04:57 GMT
     Server: gunicorn/19.9.0
-
+    
     {
         "acquired": "1980/2017-12-31", 
         "cx": "1484415", 
         "cy": "2414805", 
         "msg": "db connection error"
     }
-
-
     
 Versioning
 ----------
