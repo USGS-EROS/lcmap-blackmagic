@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from blackmagic import cfg
 from blackmagic import db
 from cassandra import ConsistencyLevel
 from cytoolz import assoc
@@ -22,13 +21,14 @@ from multiprocessing import Pool
 from multiprocessing import Process
 from multiprocessing import Manager
 
+import ccd
 import logging
 import merlin
 import os
 import sys
 
 
-cfg = {'cassandra_batch_size': int(os.environ.get('CASSSANDRA_BATCH_SIZE', 1000)),
+cfg = {'cassandra_batch_size': int(os.environ.get('CASSANDRA_BATCH_SIZE', 1000)),
        'cassandra_host': str(os.environ['CASSANDRA_HOST']).split(','),
        'cassandra_port': int(os.environ.get('CASSANDRA_PORT', 9042)),
        'cassandra_user': os.environ.get('CASSANDRA_USER', 'cassandra'),
@@ -127,7 +127,7 @@ def format(cx, cy, px, py, dates, ccdresult):
               'dates'  : [date.fromordinal(o).isoformat() for o in dates],
               'mask'   : get('processing_mask', ccdresult)}
         
-             for cm in defaults(get('change_models', ccdresult, [{},]))]
+             for cm in defaults(get('change_models', ccdresult, None))]
 
 
 def detect(timeseries):
