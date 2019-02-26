@@ -18,10 +18,6 @@ def log_messages_ok(expected_message):
     pass
 
 
-def return_code_ok(expected_code):
-    pass
-
-
 def values_are_in_cassandra(cx, cy):
     pass
 
