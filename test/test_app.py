@@ -7,6 +7,7 @@ from blackmagic import app
 from blackmagic import db
 from cassandra.cluster import Cluster
 from cytoolz import get
+from cytoolz import reduce
 
 
 @pytest.fixture
@@ -38,11 +39,6 @@ def test_segment_runs_as_expected(client):
     response = client.post('/segment',
                            json={'cx': cx, 'cy': cy, 'acquired': a})
 
-    assert response.status == '200 OK'
-    assert get('cx', response.get_json()) == cx
-    assert get('cy', response.get_json()) == cy
-    assert get('acquired', response.get_json()) == a
-
     chips = db.execute_statement(cfg=app.cfg,
                                  stmt=db.select_chip(cfg=app.cfg,
                                                      cx=cx,
@@ -57,7 +53,11 @@ def test_segment_runs_as_expected(client):
                                     stmt=db.select_segment(cfg=app.cfg,
                                                            cx=cx,
                                                            cy=cy))
-        
+    assert response.status == '200 OK'
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == a
+
     assert len(list(map(lambda x: x, pixels))) == 10000
     assert len(list(map(lambda x: x, segments))) == 10000
     assert len(list(map(lambda x: x, chips))) == 1
