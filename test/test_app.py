@@ -1,10 +1,16 @@
-import cassandra
 import os
 import pytest
 import test
-import vcrpy
+import vcr
 
+from blackmagic import app
+from cassandra.cluster import Cluster
 
+@pytest.fixture
+def client():
+    yield app.test_client()
+
+    
 def log_messages_ok(expected_message):
     pass
 
@@ -24,7 +30,7 @@ def test_segment_runs_as_expected():
     so that they can be retrieved later.
     '''
     
-    assert 1 > 0
+    pass
     # make sure return is 200 with expected body
     # make sure values are in Cassandra as expected
     # make sure log messages are as expected
