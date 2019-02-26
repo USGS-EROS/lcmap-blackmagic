@@ -58,12 +58,10 @@ def test_segment_runs_as_expected(client):
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
 
+    assert len(list(map(lambda x: x, chips))) == 1
     assert len(list(map(lambda x: x, pixels))) == 10000
     assert len(list(map(lambda x: x, segments))) == 10000
-    assert len(list(map(lambda x: x, chips))) == 1
 
-
-    
     
 def test_segment_bad_parameters():
     '''
