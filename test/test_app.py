@@ -1,13 +1,16 @@
+import json
 import os
 import pytest
 import test
-import vcr
 
-from blackmagic import app
+from blackmagic.app import app
 from cassandra.cluster import Cluster
+from cytoolz import get
+
 
 @pytest.fixture
 def client():
+    app.config['TESTING'] = True
     yield app.test_client()
 
     
@@ -23,18 +26,26 @@ def values_are_in_cassandra(cx, cy):
     pass
 
 
-def test_segment_runs_as_expected():
+@test.vcr.use_cassette(test.cassette)    
+def test_segment_runs_as_expected(client):
     '''
     As a blackmagic user, when I send cx, cy, & acquired range
     via HTTP POST, change segments are detected and saved to Cassandra
     so that they can be retrieved later.
     '''
-    
-    pass
-    # make sure return is 200 with expected body
-    # make sure values are in Cassandra as expected
-    # make sure log messages are as expected
 
+    cx = -2061585
+    cy = 1922805
+    a  = '1980/2019'
+    
+    response = client.post('/segment',
+                           json={'cx': cx, 'cy': cy, 'acquired': a})
+
+    assert response.status == '200 OK'
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == a
+    
     
 def test_segment_bad_parameters():
     '''
