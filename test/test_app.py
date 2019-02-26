@@ -43,12 +43,25 @@ def test_segment_runs_as_expected(client):
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
 
-    records = db.execute_statement(cfg=app.cfg,
-                                   stmt=db.select_segment(cfg=app.cfg,
-                                                          cx=cx,
-                                                          cy=cy))
+    chips = db.execute_statement(cfg=app.cfg,
+                                 stmt=db.select_chip(cfg=app.cfg,
+                                                     cx=cx,
+                                                     cy=cy))
+    
+    pixels = db.execute_statement(cfg=app.cfg,
+                                  stmt=db.select_pixel(cfg=app.cfg,
+                                                       cx=cx,
+                                                       cy=cy))
+    
+    segments = db.execute_statement(cfg=app.cfg,
+                                    stmt=db.select_segment(cfg=app.cfg,
+                                                           cx=cx,
+                                                           cy=cy))
+        
+    assert len(list(map(lambda x: x, pixels))) == 10000
+    assert len(list(map(lambda x: x, segments))) == 10000
+    assert len(list(map(lambda x: x, chips))) == 1
 
-    assert len(list(map(lambda x: x, records))) == 10000
 
     
     
