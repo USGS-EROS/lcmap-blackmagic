@@ -15,15 +15,7 @@ def client():
     app.app.config['TESTING'] = True
     yield app.app.test_client()
 
-           
-def log_messages_ok(expected_message):
-    pass
-
-
-def values_are_in_cassandra(cx, cy):
-    pass
-
-
+    
 @test.vcr.use_cassette(test.cassette)    
 def test_segment_runs_as_expected(client):
     '''
