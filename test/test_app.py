@@ -3,17 +3,18 @@ import os
 import pytest
 import test
 
-from blackmagic.app import app
+from blackmagic import app
+from blackmagic import db
 from cassandra.cluster import Cluster
 from cytoolz import get
 
 
 @pytest.fixture
 def client():
-    app.config['TESTING'] = True
-    yield app.test_client()
+    app.app.config['TESTING'] = True
+    yield app.app.test_client()
 
-    
+           
 def log_messages_ok(expected_message):
     pass
 
@@ -41,6 +42,14 @@ def test_segment_runs_as_expected(client):
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
+
+    records = db.execute_statement(cfg=app.cfg,
+                                   stmt=db.select_segment(cfg=app.cfg,
+                                                          cx=cx,
+                                                          cy=cy))
+
+    assert len(list(map(lambda x: x, records))) == 10000
+
     
     
 def test_segment_bad_parameters():
