@@ -20,7 +20,7 @@ deps-down:
 clean:
 	@rm -rf lcmap_blackmagic.egg-info *pyc *~ *__pycache__*
 
-test:
+tests:
 	pytest
 
 docker-build:

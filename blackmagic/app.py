@@ -185,6 +185,9 @@ def segment():
     y = get('cy', r, None)
     a = get('acquired', r, None)
     n = int(get('n', r, 10000))
+
+    test_detection_exception = get('test_detection_exception', r, None)
+    test_cassandra_exception = get('test_cassandra_exception', r, None)
     
     if (x is None or y is None or a is None):
         response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'cx, cy, and acquired are required parameters'})
@@ -220,9 +223,13 @@ def segment():
     cassandra_start = None
     detections = None
 
-    try:
+    try:        
         with workers(cfg) as __workers:
             detection_start = datetime.now()
+
+            if test_detection_exception:
+                raise Exception('test_detection_exception')
+        
             detections = list(flatten(__workers.map(detect, take(n, delete_detections(timeseries)))))
             measure('detection', detection_start, x, y, a)
     except Exception as ex:
@@ -234,6 +241,10 @@ def segment():
     
     try:    
         cassandra_start = datetime.now()
+
+        if test_cassandra_exception:
+                raise Exception('test_detection_exception')
+            
         save_segments(save_pixels(save_chip(detections)))
         measure('cassandra', cassandra_start, x, y, a)    
         return jsonify({'cx': x, 'cy': y, 'acquired': a})

@@ -389,6 +389,16 @@ def delete_segment(cfg, cx, cy):
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
+def select_chip(cfg, cx, cy):
+    s = 'SELECT * FROM {keyspace}.chip WHERE cx={cx} AND cy={cy};'
+    return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
+
+
+def select_pixel(cfg, cx, cy):
+    s = 'SELECT * FROM {keyspace}.pixel WHERE cx={cx} AND cy={cy};'
+    return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
+
+
 def select_segment(cfg, cx, cy):
     s = 'SELECT * FROM {keyspace}.segment WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
