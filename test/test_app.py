@@ -98,28 +98,45 @@ def test_segment_bad_parameters(client):
     assert len(list(map(lambda x: x, segments))) == 0
 
     
-    # make sure return is 400 with expected body
-    # make sure detection did not run or save anything
-    # make sure log messages are as expected
-
-    
-
-
-def test_segment_merlin_exception():
+def test_segment_merlin_exception(client):
     '''
     As a blackmagic user, when an exception occurs creating a 
     timeseries from raster data, an HTTP 500 is issued with a 
     message describing the failure so that the issue may be resolved.
     '''
-    
-    # make sure return is 500 with expected body
-    # make sure detection did not run or save anything
-    # make sure log messages are as expected
 
-    # trigger exception by passing Merlin bad parameters
-    
-    pass
+    cx = 'not-an-integer'
+    cy = test.cy
+    a = test.a
 
+    delete_detections(test.cx, test.cy)
+    
+    response = client.post('/segment',
+                           json={'cx': cx, 'cy': cy, 'acquired': a})
+
+    chips = db.execute_statement(cfg=app.cfg,
+                                 stmt=db.select_chip(cfg=app.cfg,
+                                                     cx=test.cx,
+                                                     cy=test.cy))
+    
+    pixels = db.execute_statement(cfg=app.cfg,
+                                  stmt=db.select_pixel(cfg=app.cfg,
+                                                       cx=test.cx,
+                                                       cy=test.cy))
+    
+    segments = db.execute_statement(cfg=app.cfg,
+                                    stmt=db.select_segment(cfg=app.cfg,
+                                                           cx=test.cx,
+                                                           cy=test.cy))
+    assert response.status == '500 INTERNAL SERVER ERROR'
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == a
+
+    assert len(list(map(lambda x: x, chips))) == 0
+    assert len(list(map(lambda x: x, pixels))) == 0
+    assert len(list(map(lambda x: x, segments))) == 0
+    
 
 def test_segment_merlin_no_input_data():
     '''
