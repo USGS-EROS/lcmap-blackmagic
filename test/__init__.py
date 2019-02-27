@@ -17,3 +17,7 @@ os.environ['WORKER_TIMEOUT']     = '12000'
 
 cassette = 'test/resources/chipmunk-cassette.yaml'
 vcr = _vcr.VCR(record_mode='new_episodes')
+
+cx = -2061585
+cy = 1922805
+a  = '1980/2019'
