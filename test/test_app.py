@@ -94,7 +94,7 @@ def test_segment_bad_parameters(client):
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
     assert type(get('msg', response.get_json())) is str
-    assert len(get('msg', response.get_json()))> 0
+    assert len(get('msg', response.get_json())) > 0
 
     assert len(list(map(lambda x: x, chips))) == 0
     assert len(list(map(lambda x: x, pixels))) == 0
@@ -136,7 +136,7 @@ def test_segment_merlin_exception(client):
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
     assert type(get('msg', response.get_json())) is str
-    assert len(get('msg', response.get_json()))> 0
+    assert len(get('msg', response.get_json())) > 0
 
     assert len(list(map(lambda x: x, chips))) == 0
     assert len(list(map(lambda x: x, pixels))) == 0
@@ -179,7 +179,7 @@ def test_segment_merlin_no_input_data(client):
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
     assert type(get('msg', response.get_json())) is str
-    assert len(get('msg', response.get_json()))> 0
+    assert len(get('msg', response.get_json())) > 0
 
     assert len(list(map(lambda x: x, chips))) == 0
     assert len(list(map(lambda x: x, pixels))) == 0
@@ -225,7 +225,7 @@ def test_segment_detection_exception(client):
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
     assert type(get('msg', response.get_json())) is str
-    assert len(get('msg', response.get_json()))> 0
+    assert len(get('msg', response.get_json())) > 0
 
     assert len(list(map(lambda x: x, chips))) == 0
     assert len(list(map(lambda x: x, pixels))) == 0
@@ -271,10 +271,8 @@ def test_segment_cassandra_exception(client):
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
     assert type(get('msg', response.get_json())) is str
-    assert len(get('msg', response.get_json()))> 0
+    assert len(get('msg', response.get_json())) > 0
 
     assert len(list(map(lambda x: x, chips))) == 0
     assert len(list(map(lambda x: x, pixels))) == 0
     assert len(list(map(lambda x: x, segments))) == 0
-
-

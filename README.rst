@@ -216,7 +216,37 @@ HTTP Requests & Responses
         "cy": "2414805", 
         "msg": "db connection error"
     }
-    
+
+Testing
+-------
+Tests are available in the tests/ directory.  To properly test blackmagic
+operations, input data and a local Cassandra database are needed.
+
+Input data is captured in a VCRPY cassette, stored under test/resources.
+To update this data, follow the instructions to download, run and
+load test data into `lcmap-chipmunk <http://github.com/usgs-eros/lcmap-chipmunk>`_
+on your local machine.  lcmap-blackmagic expects Chipmunk to be
+running on http://localhost:5656 as configued in test/__init__.py.
+
+Do not modify this URL to point to a production Chipmunk instance and commit the
+change to version control.  This will publish sensitive internal URLs and is
+considered a security violation.
+
+Read the documentation on `VCRPY <https://vcrpy.readthedocs.io/en/latest/usage.html>`_
+to learn how to use it.
+
+To run tests manually:
+
+.. code-block:: bash
+
+    $ make deps-up (or make deps-up-d in the background)
+    $ make tests (or just pytest)
+
+Tests run automatically on every pushed commit to GitHub. (see .travis.yml).
+
+Travis-CI builds will fail and no Docker image will be pushed if tests do not pass.
+
+
 Versioning
 ----------
 lcmap-blackmagic follows semantic versioning: http://semver.org/
