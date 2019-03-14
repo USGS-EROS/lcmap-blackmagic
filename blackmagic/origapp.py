@@ -1,6 +1,7 @@
-from blackmagic import cfg
+#!/usr/bin/env python3
+
 from blackmagic import db
-from blackmagic import parallel
+from cassandra import ConsistencyLevel
 from cytoolz import assoc
 from cytoolz import count
 from cytoolz import excepts
@@ -12,7 +13,7 @@ from cytoolz import second
 from cytoolz import take
 from datetime import date
 from datetime import datetime
-from flask import Blueprint
+from flask import Flask
 from flask import jsonify
 from flask import request
 from merlin.functions import flatten
@@ -26,8 +27,33 @@ import merlin
 import os
 import sys
 
-logger  = logging.getLogger('blackmagic.segment')
-segment = Blueprint('segment', __name__)
+
+cfg = {'cassandra_batch_size': int(os.environ.get('CASSANDRA_BATCH_SIZE', 1000)),
+       'cassandra_host': str(os.environ['CASSANDRA_HOST']).split(','),
+       'cassandra_port': int(os.environ.get('CASSANDRA_PORT', 9042)),
+       'cassandra_user': os.environ.get('CASSANDRA_USER', 'cassandra'),
+       'cassandra_pass': os.environ.get('CASSANDRA_PASS', 'cassandra'),
+       'cassandra_keyspace': os.environ['CASSANDRA_KEYSPACE'],
+       'cassandra_timeout': float(os.environ.get('CASSANDRA_TIMEOUT', 600)),
+       'cassandra_consistency': ConsistencyLevel.name_to_value[os.environ.get('CASSANDRA_CONSISTENCY', 'ALL')],
+       'chipmunk_url': os.environ['CHIPMUNK_URL'],
+       'log_level': logging.INFO,
+       'cpus_per_worker': int(os.environ.get('CPUS_PER_WORKER', 1))}
+
+logging.basicConfig(format='%(asctime)-15s %(name)-15s %(levelname)-8s - %(message)s', level=cfg['log_level'])
+logging.getLogger('cassandra.connection').setLevel(logging.ERROR)
+logging.getLogger('cassandra.cluster').setLevel(logging.ERROR)
+logging.getLogger('cassandra.pool').setLevel(logging.ERROR)
+logging.getLogger('cassandra.io').setLevel(logging.ERROR)
+logging.getLogger('ccd.procedures').setLevel(logging.ERROR)
+logging.getLogger('ccd.change').setLevel(logging.ERROR)
+logging.getLogger('lcmap-pyccd').setLevel(logging.ERROR)
+logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
+logger = logging.getLogger('blackmagic.app')
+
+db.setup(cfg)
+
+app = Flask('blackmagic')
 
 
 def save_chip(detections):
@@ -43,6 +69,10 @@ def save_pixels(detections):
 def save_segments(detections):
     db.insert_segments(cfg, detections)
     return detections
+
+
+def save_predictions(preds):
+    pass
 
 
 def defaults(cms):
@@ -138,7 +168,17 @@ def measure(name, start_time, cx, cy, acquired):
     return d
 
 
-@segment.route('/oldsegment', methods=['POST'])
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify(True)
+
+
+@app.route('/annual_prediction')
+def prediction():
+    return jsonify('annual_prediction')
+
+
+@app.route('/appsegment', methods=['POST'])
 def segment():
     r = request.json
     x = get('cx', r, None)
