@@ -5,7 +5,7 @@ from blackmagic import db
 #from blackmagic.blueprints.annual_prediction import annual_prediction
 from blackmagic.blueprints.health import health
 from blackmagic.blueprints.segment import segment
-#from blackmagic.blueprints.tile import tile
+from blackmagic.blueprints.tile import tile
 from flask import Flask
 
 import logging
