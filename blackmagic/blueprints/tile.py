@@ -1,6 +1,7 @@
 from blackmagic import cfg
 from blackmagic import db
 from blackmagic import parallel
+from cytoolz import do
 from cytoolz import drop
 from cytoolz import first
 from cytoolz import get
@@ -8,6 +9,7 @@ from cytoolz import merge
 from cytoolz import partial
 from cytoolz import reduce
 from cytoolz import second
+from cytoolz import thread_first
 from flask import Blueprint
 from flask import jsonify
 from flask import request
@@ -177,13 +179,21 @@ def sample(npdata):
     pass
 
 
-def pipeline(chip, date):
+def pipeline(chip, date, cfg):
     cx=first(chip)
     cy=second(chip)
     
     return format(combine(segments=datefilter(date=date, segments=segments(cx=cx, cy=cy)),
-                          aux=aux(cx=cx, cy=cy)))
+                          aux=aux(cx=cx, cy=cy, cfg)))
 
+
+def data(ctx, cfg):
+
+    p = partial(pipeline, date=ctx['date'], cfg=cfg)
+    
+    with workers(cfg) as w:
+        return numpy.array(list(flatten(w.map(p, ctx['chips']))))
+    
 
 def save(tx, ty, model):
     '''Saves a model to Cassandra given primary key tx & ty'''
@@ -195,41 +205,97 @@ def save(tx, ty, model):
     return {'tx': tx, 'ty': ty, 'model': model}
 
 
-@tile.route('/tile', methods=['POST'])
-def tile_fn():
-    r = request.json
-    x = get('tx', r, None)
-    y = get('ty', r, None)
-    c = get('chips', r, None)
-    d = get('date', r, None)
+#@tile.route('/tile', methods=['POST'])
+#def tile_fn():
+#    r = request.json
+#    x = get('tx', r, None)
+#    y = get('ty', r, None)
+#    c = get('chips', r, None)
+#    d = get('date', r, None)
+#
+#    if (x is None or y is None or c is None or d is None):
+#        response = jsonify({'tx': tx, 'ty': ty, 'chips': chips, 'date': date,
+#                            'msg': 'tx, ty, chips and date are required parameters'})
+#        response.status_code = 400
+#        return response
+#
+#    logger.info('POST /tile {x},{y},{d},{c}'.format(x=x, y=y, d=d, c=c))
+#    
+#    try:
+#        __queue   = parallel.queue()
+#        __workers = parallel.workers(cfg)
+#
+#        # data is going to be about 20GB
+#        f = partial(pipeline, date=d)
+#        data = __workers.map(f, c)
+#        
+#        _ = save(tx=x,
+#                 ty=y,
+#                 model=train(sample(numpy.array(list(flatten(data)), parameters()))))
+#
+#        return jsonify({'tx': x, 'ty': y, 'date': d, 'chips': c})
+#    
+#    except Exception as e:
+#        logger.exception(e)
+#        raise e
+#    finally:
+#
+#        logger.debug('stopping workers')
+#        __workers.terminate()
+#        __workers.join()
 
-    if (x is None or y is None or c is None or d is None):
-        response = jsonify({'tx': tx, 'ty': ty, 'chips': chips, 'date': date,
-                            'msg': 'tx, ty, chips and date are required parameters'})
-        response.status_code = 400
-        return response
-
-    logger.info('POST /tile {x},{y},{d},{c}'.format(x=x, y=y, d=d, c=c))
-    
-    try:
-        __queue   = parallel.queue()
-        __workers = parallel.workers(cfg)
-
-        # data is going to be about 20GB
-        f = partial(pipeline, date=d)
-        data = __workers.map(f, c)
         
-        _ = save(tx=x,
-                 ty=y,
-                 model=train(sample(numpy.array(list(flatten(data)), parameters()))))
-
-        return jsonify({'tx': x, 'ty': y, 'date': d, 'chips': c})
+def parameters(r):
+    tx       = get('cx', r, None)
+    ty       = get('cy', r, None)
+    chips    = get('chips', r, None)
+    date     = get('date', r, None)
     
-    except Exception as e:
-        logger.exception(e)
-        raise e
-    finally:
+    test_pixel_count         = int(get('test_pixel_count', r, 10000))
+    test_detection_exception = get('test_detection_exception', r, None)
+    test_cassandra_exception = get('test_cassandra_exception', r, None)
+    
+    if (tx is None or ty is None or chips is None or date is None):
+        raise Exception('tx, ty, chips and date are required parameters')
+    else:
+        return {'tx': int(cx),
+                'ty': int(cy),
+                'date': d,
+                'chips': c}
 
-        logger.debug('stopping workers')
-        __workers.terminate()
-        __workers.join()
+
+def log_request(ctx):
+
+    cx = get('tx', ctx, None)
+    cy = get('ty', ctx, None)
+    d  = get('date', ctx, None)
+    c  = get('chips', ctx, None)
+    
+    logger.info('POST /tile {x},{y},{d},{c}'.format(x=tx, y=ty, d=d, c=c))
+        
+    return ctx
+
+
+def exception_handler(ctx, http_status, name, fn):
+    try:
+        return fn(ctx)
+    except Exception as e:
+        
+        return do(logger.error, {'tx': get('tx', ctx, None),
+                                 'ty': get('ty', ctx, None),
+                                 'date': get('date', ctx, None),
+                                 'chips': get('chips', ctx, None),
+                                 'exception': '{name} exception: {ex}'.format(name=name, ex=e),
+                                 'http_status': http_status})
+
+
+@tile.route('/train', methods=['POST'])        
+def tiles():
+    return thread_first(request.json,
+                        partial(exception_handler, http_status=500, name='log_request', fn=log_request),
+                        partial(exception_handler, http_status=400, name='parameters', fn=parameters),
+                        partial(exception_handler, http_status=500, name='data', fn=data),
+                        sample,
+                        train,
+                        save,
+                        respond)

@@ -1,24 +1,26 @@
 from blackmagic import cfg
 from blackmagic import db
-from blackmagic import parallel
+from blackmagic import skip_on_exception
+from blackmagic import workers
 from cytoolz import assoc
 from cytoolz import count
+from cytoolz import do
 from cytoolz import excepts
 from cytoolz import first
 from cytoolz import get
 from cytoolz import get_in
+from cytoolz import merge
 from cytoolz import partial
 from cytoolz import second
 from cytoolz import take
+from cytoolz import thread_first
 from datetime import date
 from datetime import datetime
 from flask import Blueprint
 from flask import jsonify
 from flask import request
+from functools import wraps
 from merlin.functions import flatten
-from multiprocessing import Pool
-from multiprocessing import Process
-from multiprocessing import Manager
 
 import ccd
 import logging
@@ -30,19 +32,19 @@ logger  = logging.getLogger('blackmagic.segment')
 segment = Blueprint('segment', __name__)
 
 
-def save_chip(detections):
-    db.insert_chips(cfg, detections)
-    return detections
+def save_chip(ctx, cfg):
+    db.insert_chips(cfg, ctx['detections'])
+    return ctx
     
 
-def save_pixels(detections):
-    db.insert_pixels(cfg, detections)
-    return detections
+def save_pixels(ctx, cfg):
+    db.insert_pixels(cfg, ctx['detections'])
+    return ctx
 
 
-def save_segments(detections):
-    db.insert_segments(cfg, detections)
-    return detections
+def save_segments(ctx, cfg):
+    db.insert_segments(cfg, ctx['detections'])
+    return ctx
 
 
 def defaults(cms):
@@ -111,106 +113,148 @@ def detect(timeseries):
                   dates=get('dates', second(timeseries)),
                   ccdresult=ccd.detect(**second(timeseries)))
 
-
-def delete_detections(timeseries):
-    cx, cy, _, _ = first(first(timeseries))
-    try:
-        x = int(cx)
-        y = int(cy)
-        db.execute_statements(cfg, [db.delete_chip(cfg, x, y),
-                                    db.delete_pixel(cfg, x, y),
-                                    db.delete_segment(cfg, x, y)])
-    except Exception as e:
-        logger.exception('Exception deleting partition for cx:{cx} cy:{cy}'.format(cx=x, cy=y))
-        raise e
-    return timeseries
-
-
-def workers(cfg):
-    return Pool(cfg['cpus_per_worker'])
+def measure(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        start = datetime.now()
+        ctx = fn(*args, **kwargs)
+        
+        d = {'cx': get('cx', ctx, None),
+             'cy': get('cy', ctx, None),
+             'acquired': get('acquired', ctx, None)}
+            
+        logger.info(assoc(d,
+                          '{name}_elapsed_seconds'.format(name=fn.__name__),
+                          (datetime.now() - start).total_seconds()))            
+        return ctx
+    return wrapper
 
 
-def measure(name, start_time, cx, cy, acquired):
-    e = datetime.now()
-    d = {'cx': cx, 'cy': cy, 'acquired': acquired}
-    d = assoc(d, '{name}_elapsed_seconds'.format(name=name), (e - start_time).total_seconds())
-    logger.info(d)
-    return d
+def log_request(ctx):
+
+    cx = get('cx', ctx, None)
+    cy = get('cy', ctx, None)
+    a  = get('acquired', ctx, None)
+    
+    logger.info('POST /segment {cx}, {cy}, {a}'.format(cx=cx, cy=cy, a=a))
+    
+    return ctx
 
 
-@segment.route('/oldsegment', methods=['POST'])
-def segment():
-    r = request.json
-    x = get('cx', r, None)
-    y = get('cy', r, None)
-    a = get('acquired', r, None)
-    n = int(get('n', r, 10000))
+def parameters(r):
+    cx       = get('cx', r, None)
+    cy       = get('cy', r, None)
+    acquired = get('acquired', r, None)
 
+    test_pixel_count         = int(get('test_pixel_count', r, 10000))
     test_detection_exception = get('test_detection_exception', r, None)
     test_cassandra_exception = get('test_cassandra_exception', r, None)
     
-    if (x is None or y is None or a is None):
-        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'cx, cy, and acquired are required parameters'})
-        response.status_code = 400
-        return response
+    if (cx is None or cy is None or acquired is None):
+        raise Exception('cx, cy and acquired are required parameters')
+    else:
+        return {'cx': int(cx),
+                'cy': int(cy),
+                'acquired': acquired,
+                'test_pixel_count': test_pixel_count,
+                'test_detection_exception': test_detection_exception,
+                'test_cassandra_exception': test_cassandra_exception}
 
-    logger.info('POST /segment {x},{y},{a}'.format(x=x, y=y, a=a))
 
-    merlin_start = datetime.now()
+@skip_on_exception
+@measure
+def timeseries(ctx, cfg):
+    
+    return merge(ctx,
+                 {'timeseries': merlin.create(x=ctx['cx'],
+                                              y=ctx['cy'],
+                                              acquired=ctx['acquired'],
+                                              cfg=merlin.cfg.get(profile='chipmunk-ard',
+                                                                 env={'CHIPMUNK_URL': cfg['ard_url']}))})
+
+
+@skip_on_exception
+def nodata(ctx, cfg):
+    
+    if len(ctx['timeseries']) == 0:
+        raise Exception('No timeseries data available')
+    else:
+        return ctx
+    
+
+@skip_on_exception
+@measure
+def detection(ctx, cfg):
+
+    with workers(cfg) as w:
+        if get('test_detection_exception', ctx, None) is not None:
+            return merge(ctx, exception(msg='test_detection_exception', http_status=500))
+        else:
+            return merge(ctx, {'detections': list(flatten(w.map(detect, take(ctx['test_pixel_count'], ctx['timeseries']))))})
+
+    
+@skip_on_exception
+def delete(ctx, cfg):
+    cx = int(get('cx', ctx))
+    cy = int(get('cy', ctx))
+    db.execute_statements(cfg, [db.delete_chip(cfg, cx, cy),
+                                db.delete_pixel(cfg, cx, cy),
+                                db.delete_segment(cfg, cx, cy)])
+    return ctx
+
+
+@skip_on_exception
+@measure
+def save(ctx, cfg):
+    
+    if get('test_cassandra_exception', ctx, None) is not None:
+        raise Exception('test_cassandra_exception')
+    else:
+        save_chip(ctx, cfg)
+        save_pixels(ctx, cfg)
+        save_segments(ctx, cfg)
+        return ctx
+
+
+def respond(ctx):
+    
+    body = {'cx': get('cx', ctx, None),
+            'cy': get('cy', ctx, None),
+            'acquired': get('acquired', ctx, None)}
+
+    e = get('exception', ctx, None)
+    
+    if e:
+        response = jsonify(assoc(body, 'exception', e))
+    else:
+        response = jsonify(body)
+
+    response.status_code = get('http_status', ctx, 200)
+
+    return response
+
+
+def exception_handler(ctx, http_status, name, fn):
     try:
-        timeseries = merlin.create(x=x,
-                                   y=y,
-                                   acquired=a,
-                                   cfg=merlin.cfg.get(profile='chipmunk-ard',
-                                                      env={'CHIPMUNK_URL': cfg['chipmunk_url']}))
-    except Exception as ex:
-        measure('merlin_exception', merlin_start, x, y, a)
-        logger.exception('Merlin exception in /segment:{}'.format(ex))
-        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
-        response.status_code = 500
-        return response
-    
-    if count(timeseries) == 0:
-        measure('merlin_no_input_data_exception', merlin_start, x, y, a)
-        logger.warning('No input data for {cx},{cy},{a}'.format(cx=x, cy=y, a=a))
-        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': 'no input data'})
-        response.status_code = 500
-        return response
-    
-    measure('merlin', merlin_start, x, y, a)
-
-    detection_start = None
-    cassandra_start = None
-    detections = None
-
-    try:        
-        with workers(cfg) as __workers:
-            detection_start = datetime.now()
-
-            if test_detection_exception:
-                raise Exception('test_detection_exception')
+        return fn(ctx)
+    except Exception as e:
         
-            detections = list(flatten(__workers.map(detect, take(n, delete_detections(timeseries)))))
-            measure('detection', detection_start, x, y, a)
-    except Exception as ex:
-        measure('detection_exception', detection_start, x, y, a)
-        logger.exception("Detection exception in /segment:{}".format(ex))
-        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
-        response.status_code = 500
-        return response
-    
-    try:    
-        cassandra_start = datetime.now()
+        return do(logger.error, {'cx': get('cx', ctx, None),
+                                 'cy': get('cy', ctx, None),
+                                 'acquired': get('acquired', ctx, None),
+                                 'exception': '{name} exception: {ex}'.format(name=name, ex=e),
+                                 'http_status': http_status})
 
-        if test_cassandra_exception:
-                raise Exception('test_detection_exception')
-            
-        save_segments(save_pixels(save_chip(detections)))
-        measure('cassandra', cassandra_start, x, y, a)    
-        return jsonify({'cx': x, 'cy': y, 'acquired': a})
-    except Exception as ex:
-        measure('cassandra_exception', cassandra_start, x, y, a)
-        logger.exception("Cassandra exception in /segment:{}".format(ex))
-        response = jsonify({'cx': x, 'cy': y, 'acquired': a, 'msg': str(ex)})
-        response.status_code = 500
-        return response
+    
+@segment.route('/segment', methods=['POST'])
+def segments():
+
+    return thread_first(request.json,
+                        partial(exception_handler, http_status=500, name='log_request', fn=log_request),
+                        partial(exception_handler, http_status=400, name='parameters', fn=parameters),
+                        partial(exception_handler, http_status=500, name='timeseries', fn=partial(timeseries, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='nodata', fn=partial(nodata, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='detection', fn=partial(detection, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='delete', fn=partial(delete, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
+                        respond)

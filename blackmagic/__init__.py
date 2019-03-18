@@ -1,4 +1,8 @@
 from cassandra import ConsistencyLevel
+from cytoolz import first
+from cytoolz import get
+from functools import wraps
+from multiprocessing import Pool
 
 import logging
 import os
@@ -16,3 +20,19 @@ cfg = {'cassandra_batch_size': int(os.environ.get('CASSANDRA_BATCH_SIZE', 1000))
        'aux_url': os.environ['AUX_URL'],
        'log_level': logging.INFO,
        'cpus_per_worker': int(os.environ.get('CPUS_PER_WORKER', 1))}
+
+
+def workers(cfg):
+    return Pool(cfg['cpus_per_worker'])
+
+
+def skip_on_exception(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        
+        if get('exception', first(args), None) is None:
+            return fn(*args, **kwargs)
+        else:
+            return first(args)
+        
+    return wrapper
