@@ -21,5 +21,4 @@ app = Flask('blackmagic')
 #app.register_blueprint(annual_prediction)
 app.register_blueprint(health)
 app.register_blueprint(segment)
-#app.register_blueprint(tile)
-
+app.register_blueprint(tile)
