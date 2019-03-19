@@ -242,11 +242,11 @@ def statistics(ctx, cfg):
 def randomize(ctx, cfg):
     '''Randomize the order of training data'''
 
-    # return assoc(ctx, 'data', np.random.RandomState().permutation(ctx['data']))
+    return assoc(ctx,
+                 'data',
+                 numpy.random.RandomState().permutation(ctx['data']))
 
-    return ctx
 
-    
 @skip_on_exception
 def sample(ctx, cfg):
     '''Return leveled data sample based on label values'''
@@ -301,8 +301,7 @@ def save(ctx, cfg):
     db.execute2(cfg, **db.insert_tile(cfg,
                                       ctx['tx'],
                                       ctx['ty'],
-                                      ctx['model'].save_raw()))
-    
+                                      ctx['model'].save_raw()))    
     return ctx
 
 
