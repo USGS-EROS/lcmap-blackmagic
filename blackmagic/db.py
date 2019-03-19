@@ -67,7 +67,7 @@ def execute2(cfg, statement, parameters, keyspace=None):
         return conn['session'].execute(statement, parameters)
     except Exception as e:
         logger.error('statement:{} parameters:{}'.format(statement, parameters))
-        logger.exception('db execution exception:{}'.format(e))
+        raise e
     finally:
         if conn:
             if conn['session']:
@@ -338,9 +338,10 @@ def insert_tile(cfg, tx, ty, model):
 
     p = {"tx":       tx,
          "ty":       ty,
-         "model":    bytes(model)}
+         "model":    model}
     
-    return {'statement': s.format(keyspace=cfg['cassandra_keyspace']), 'parameters': p}
+    return {'statement': s.format(keyspace=cfg['cassandra_keyspace']),
+            'parameters': p}
               
 
     #model=model.hex())

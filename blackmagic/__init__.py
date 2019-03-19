@@ -19,7 +19,18 @@ cfg = {'cassandra_batch_size': int(os.environ.get('CASSANDRA_BATCH_SIZE', 1000))
        'ard_url': os.environ['ARD_URL'],
        'aux_url': os.environ['AUX_URL'],
        'log_level': logging.INFO,
-       'cpus_per_worker': int(os.environ.get('CPUS_PER_WORKER', 1))}
+       'cpus_per_worker': int(os.environ.get('CPUS_PER_WORKER', 1)),
+       'xgboost': {'num_round': 500,
+                   'test_size': 0.2,
+                   'early_stopping_rounds': 10,
+                   'verbose_eval': False,
+                   'parameters': {'objective': 'multi:softprob',
+                                  'num_class': 9,
+                                  'max_depth': 8,
+                                  'tree_method': 'hist',
+                                  'eval_metric': 'mlogloss',
+                                  'silent': 1,
+                                  'nthread': -1}}}
 
 
 def workers(cfg):

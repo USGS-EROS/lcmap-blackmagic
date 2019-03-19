@@ -1,10 +1,13 @@
 from blackmagic import cfg
 from blackmagic import db
-from blackmagic import parallel
+from blackmagic import skip_on_exception
+from blackmagic import workers
+from cytoolz import assoc
 from cytoolz import do
 from cytoolz import drop
 from cytoolz import first
 from cytoolz import get
+from cytoolz import get_in
 from cytoolz import merge
 from cytoolz import partial
 from cytoolz import reduce
@@ -27,7 +30,7 @@ logger = logging.getLogger('blackmagic.tile')
 tile = Blueprint('tile', __name__)
 
 
-def aux(cx, cy):
+def aux(cx, cy, cfg):
     '''Retrieve aux data'''
     
     data = merlin.create(x=cx,
@@ -39,23 +42,14 @@ def aux(cx, cy):
     return {first(d): second(d) for d in merlin.functions.denumpify(data)}
 
     
-def segments(cx, cy):
+def segments(cx, cy, cfg):
     '''Return segments stored in Cassandra'''
     
-    results = []
-    try:
-        for r in db.execute(cfg, db.select_segment(cfg, cx, cy)):
-            results.append(r)
-    except Exception as e:
-        logger.debug('segments query result exception:{}'.format(e))
-    return results
+    return [r for r in db.execute_statement(cfg, db.select_segment(cfg, cx, cy))]
 
 
 def datefilter(date, segments):
     '''Yield segments that span the supplied date'''
-
-    #rint("datefilter date:{}".format(date))
-
 
     d = arrow.get(date).datetime
     
@@ -143,66 +137,28 @@ def dependent(data):
     return numpy.delete(data, numpy.s_[1:], 1).flatten()
 
 
-def parameters():
-    '''Parameters for xgboost training'''
-    return {'objective': 'multi:softprob',
-            'num_class': 9,
-            'max_depth': 8,
-            'tree_method': 'hist',
-            'eval_metric': 'mlogloss',
-            'silent': 1,
-            'nthread': -1}
+#def parameters():
+#    '''Parameters for xgboost training'''
+#    return {'objective': 'multi:softprob',
+#            'num_class': 9,
+#            'max_depth': 8,
+#            'tree_method': 'hist',
+#            'eval_metric': 'mlogloss',
+#            'silent': 1,
+#            'nthread': -1}
 
 
 def watchlist(training_data, eval_data):
     return [(training_data, 'train'), (eval_data, 'eval')]
 
 
-def train(data, params):
-    num_round  = 500
-    test_size  = 0.2
-    itrain, itest, dtrain, dtest = train_test_split(independent(numpy_data),
-                                                    dependent(numpy_data),
-                                                    test_size=test_size)
-    train_matrix = xgb.DMatrix(itrain, label=dtrain)
-    test_matrix  = xgb.DMatrix(itest, label=dtest)
-    
-    return xgb.train(params,
-                     train_matrix,
-                     num_round,
-                     watchlist(train_matrix, test_matrix),
-                     early_stopping_rounds=10,
-                     verbose_eval=False)
-
-
-def sample(npdata):
-    pass
-
-
 def pipeline(chip, date, cfg):
+    '''Retrieve segment and label data for one chip'''
     cx=first(chip)
     cy=second(chip)
     
-    return format(combine(segments=datefilter(date=date, segments=segments(cx=cx, cy=cy)),
-                          aux=aux(cx=cx, cy=cy, cfg)))
-
-
-def data(ctx, cfg):
-
-    p = partial(pipeline, date=ctx['date'], cfg=cfg)
-    
-    with workers(cfg) as w:
-        return numpy.array(list(flatten(w.map(p, ctx['chips']))))
-    
-
-def save(tx, ty, model):
-    '''Saves a model to Cassandra given primary key tx & ty'''
-
-    # model.save_raw() is a bytearray
-    
-    db.execute2(cfg, **db.insert_tile(cfg, tx, ty, model.save_raw()))
-    
-    return {'tx': tx, 'ty': ty, 'model': model}
+    return format(combine(segments=datefilter(date=date, segments=segments(cx=cx, cy=cy, cfg=cfg)),
+                          aux=aux(cx=cx, cy=cy, cfg=cfg)))
 
 
 #@tile.route('/tile', methods=['POST'])
@@ -244,10 +200,13 @@ def save(tx, ty, model):
 #        __workers.terminate()
 #        __workers.join()
 
-        
+
+@skip_on_exception
 def parameters(r):
-    tx       = get('cx', r, None)
-    ty       = get('cy', r, None)
+    '''Check HTTP request parameters'''
+    
+    tx       = get('tx', r, None)
+    ty       = get('ty', r, None)
     chips    = get('chips', r, None)
     date     = get('date', r, None)
     
@@ -258,16 +217,17 @@ def parameters(r):
     if (tx is None or ty is None or chips is None or date is None):
         raise Exception('tx, ty, chips and date are required parameters')
     else:
-        return {'tx': int(cx),
-                'ty': int(cy),
-                'date': d,
-                'chips': c}
+        return {'tx': int(tx),
+                'ty': int(ty),
+                'date': date,
+                'chips': chips}
 
 
 def log_request(ctx):
+    '''Create log message for HTTP request'''
 
-    cx = get('tx', ctx, None)
-    cy = get('ty', ctx, None)
+    tx = get('tx', ctx, None)
+    ty = get('ty', ctx, None)
     d  = get('date', ctx, None)
     c  = get('chips', ctx, None)
     
@@ -279,14 +239,87 @@ def log_request(ctx):
 def exception_handler(ctx, http_status, name, fn):
     try:
         return fn(ctx)
-    except Exception as e:
-        
-        return do(logger.error, {'tx': get('tx', ctx, None),
+    except Exception as e:        
+        return do(logger.exception, {'tx': get('tx', ctx, None),
                                  'ty': get('ty', ctx, None),
                                  'date': get('date', ctx, None),
                                  'chips': get('chips', ctx, None),
                                  'exception': '{name} exception: {ex}'.format(name=name, ex=e),
                                  'http_status': http_status})
+    
+
+@skip_on_exception
+def data(ctx, cfg):
+    '''Retrieve training data for all chips in parallel'''
+    
+    p = partial(pipeline, date=ctx['date'], cfg=cfg)
+    
+    with workers(cfg) as w:
+        return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips'])))))
+
+    
+@skip_on_exception
+def sample(ctx, cfg):
+    '''Return leveled data sample based on label values'''
+
+    #logger.info('SAMPLE:{}'.format(ctx))
+    
+    #return assoc(ctx, 'data', 'sampled data')
+
+    return ctx
+
+
+@skip_on_exception
+def train(ctx, cfg):
+    '''Train an xgboost model'''
+
+    logger.info('TRAIN:{}'.format(ctx))
+    
+    itrain, itest, dtrain, dtest = train_test_split(independent(ctx['data']),
+                                                    dependent(ctx['data']),
+                                                    test_size=get_in(['xgboost', 'test_size'], cfg))
+    
+    train_matrix = xgb.DMatrix(data=itrain, label=dtrain)
+    test_matrix  = xgb.DMatrix(data=itest, label=dtest)
+    
+    return assoc(ctx, 'model', xgb.train(params=get_in(['xgboost', 'parameters'], cfg),
+                                         dtrain=train_matrix,
+                                         num_boost_round=get_in(['xgboost', 'num_round'], cfg),
+                                         evals=watchlist(train_matrix, test_matrix),
+                                         early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
+                                         verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg)))
+
+
+@skip_on_exception
+def save(ctx, cfg):                                                
+    '''Saves an xgboost model to Cassandra for this tx & ty'''
+   
+    db.execute2(cfg, **db.insert_tile(cfg,
+                                      ctx['tx'],
+                                      ctx['ty'],
+                                      ctx['model'].save_raw()))
+    
+    return ctx
+
+
+def respond(ctx):
+    '''Send the HTTP response'''
+
+    body = {'tx': get('tx', ctx, None),
+            'ty': get('ty', ctx, None),
+            'date': get('date', ctx, None),
+            'chips': get('chips', ctx, None)}
+
+    e = get('exception', ctx, None)
+    
+    if e:
+        response = jsonify(assoc(body, 'exception', e))
+    else:
+        response = jsonify(body)
+
+    response.status_code = get('http_status', ctx, 200)
+
+    return response
 
 
 @tile.route('/train', methods=['POST'])        
@@ -294,8 +327,8 @@ def tiles():
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
-                        partial(exception_handler, http_status=500, name='data', fn=data),
-                        sample,
-                        train,
-                        save,
+                        partial(exception_handler, http_status=500, name='data', fn=partial(data, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
                         respond)
