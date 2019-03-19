@@ -326,7 +326,7 @@ def respond(ctx):
     return response
 
 
-@tile.route('/train', methods=['POST'])        
+@tile.route('/tile', methods=['POST'])        
 def tiles():
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
