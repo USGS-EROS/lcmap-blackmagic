@@ -257,12 +257,69 @@ def data(ctx, cfg):
     with workers(cfg) as w:
         return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips'])))))
 
+
+def counts(data):
+    '''Count the occurance of each label in data'''
+    
+    c = Counter()
+    
+    for d in data:
+        c[first(d)] += 1
+        
+    return c
+
+    
+@skip_on_exception
+def statistics(ctx, cfg):
+    '''Count label occurences'''
+
+    # 1.
+    # generate class statistics... how many labels of each type exist in the dataset, and what
+    # % are they of the whole
+    #
+    #     with workers(cfg) as w:
+    #         counters = w.map(counts, ctx['data'])
+    #         c = Counter()
+    #         map(c.update, counters)
+    #         return assoc(ctx, 'statistics', c)
+    #
+    #
+    # see collections.Counter
+
+    return ctx
+
+
+@skip_on_exception
+def randomize(ctx, cfg):
+    '''Randomize the order of training data'''
+
+    # return assoc(ctx, 'data', np.random.RandomState().permutation(ctx['data']))
+
+    return ctx
+
     
 @skip_on_exception
 def sample(ctx, cfg):
     '''Return leveled data sample based on label values'''
 
-    #logger.info('SAMPLE:{}'.format(ctx))
+    # See xg-train-annualized.py in lcmap-science/classification as reference.
+    
+    # 1.
+    # generate class statistics... how many labels of each type exist in the dataset, and what
+    # % are they of the whole
+
+    # 2.
+    # parameterize the number of desired total samples (as a request parameter, it depends on the area being sampled).
+    # multiply the desired sample size by each percentage to determine how many samples
+    # to take from each label.
+
+    # 3.
+    # Randomize ctx['data'] and select up to the proper count for each label
+
+    # 4.
+    # Reassigned ctx['data'] to the sampled data.
+
+    #     ctx['statistics']
     
     #return assoc(ctx, 'data', 'sampled data')
 
@@ -272,8 +329,6 @@ def sample(ctx, cfg):
 @skip_on_exception
 def train(ctx, cfg):
     '''Train an xgboost model'''
-
-    logger.info('TRAIN:{}'.format(ctx))
     
     itrain, itest, dtrain, dtest = train_test_split(independent(ctx['data']),
                                                     dependent(ctx['data']),
@@ -328,6 +383,8 @@ def tiles():
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
                         partial(exception_handler, http_status=500, name='data', fn=partial(data, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='statistics', fn=partial(statistics, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='randomize', fn=partial(randomize, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
