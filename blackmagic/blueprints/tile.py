@@ -137,17 +137,6 @@ def dependent(data):
     return numpy.delete(data, numpy.s_[1:], 1).flatten()
 
 
-#def parameters():
-#    '''Parameters for xgboost training'''
-#    return {'objective': 'multi:softprob',
-#            'num_class': 9,
-#            'max_depth': 8,
-#            'tree_method': 'hist',
-#            'eval_metric': 'mlogloss',
-#            'silent': 1,
-#            'nthread': -1}
-
-
 def watchlist(training_data, eval_data):
     return [(training_data, 'train'), (eval_data, 'eval')]
 
@@ -159,46 +148,6 @@ def pipeline(chip, date, cfg):
     
     return format(combine(segments=datefilter(date=date, segments=segments(cx=cx, cy=cy, cfg=cfg)),
                           aux=aux(cx=cx, cy=cy, cfg=cfg)))
-
-
-#@tile.route('/tile', methods=['POST'])
-#def tile_fn():
-#    r = request.json
-#    x = get('tx', r, None)
-#    y = get('ty', r, None)
-#    c = get('chips', r, None)
-#    d = get('date', r, None)
-#
-#    if (x is None or y is None or c is None or d is None):
-#        response = jsonify({'tx': tx, 'ty': ty, 'chips': chips, 'date': date,
-#                            'msg': 'tx, ty, chips and date are required parameters'})
-#        response.status_code = 400
-#        return response
-#
-#    logger.info('POST /tile {x},{y},{d},{c}'.format(x=x, y=y, d=d, c=c))
-#    
-#    try:
-#        __queue   = parallel.queue()
-#        __workers = parallel.workers(cfg)
-#
-#        # data is going to be about 20GB
-#        f = partial(pipeline, date=d)
-#        data = __workers.map(f, c)
-#        
-#        _ = save(tx=x,
-#                 ty=y,
-#                 model=train(sample(numpy.array(list(flatten(data)), parameters()))))
-#
-#        return jsonify({'tx': x, 'ty': y, 'date': d, 'chips': c})
-#    
-#    except Exception as e:
-#        logger.exception(e)
-#        raise e
-#    finally:
-#
-#        logger.debug('stopping workers')
-#        __workers.terminate()
-#        __workers.join()
 
 
 @skip_on_exception
