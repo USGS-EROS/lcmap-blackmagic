@@ -47,3 +47,15 @@ def skip_on_exception(fn):
             return first(args)
         
     return wrapper
+
+
+def raise_on(name):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            if get(name, first(args), None) is not None:
+                raise Exception(name)
+            else:
+                return fn(*args, **kwargs)
+        return wrapper
+    return decorator

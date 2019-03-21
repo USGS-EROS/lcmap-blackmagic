@@ -1,5 +1,6 @@
 from blackmagic import cfg
 from blackmagic import db
+from blackmagic import raise_on
 from blackmagic import skip_on_exception
 from blackmagic import workers
 from cytoolz import assoc
@@ -159,8 +160,8 @@ def parameters(r):
     chips    = get('chips', r, None)
     date     = get('date', r, None)
     
-    test_pixel_count         = int(get('test_pixel_count', r, 10000))
-    test_detection_exception = get('test_detection_exception', r, None)
+    test_data_exception      = get('test_data_exception', r, None)
+    test_training_exception  = get('test_training_exception', r, None)
     test_cassandra_exception = get('test_cassandra_exception', r, None)
     
     if (tx is None or ty is None or chips is None or date is None):
@@ -198,6 +199,7 @@ def exception_handler(ctx, http_status, name, fn):
     
 
 @skip_on_exception
+@raise_on('test_data_exception')
 def data(ctx, cfg):
     '''Retrieve training data for all chips in parallel'''
     
@@ -276,6 +278,7 @@ def sample(ctx, cfg):
 
 
 @skip_on_exception
+@raise_on('test_training_exception')
 def train(ctx, cfg):
     '''Train an xgboost model'''
     
@@ -295,6 +298,7 @@ def train(ctx, cfg):
 
 
 @skip_on_exception
+@raise_on('test_cassandra_exception')
 def save(ctx, cfg):                                                
     '''Saves an xgboost model to Cassandra for this tx & ty'''
    
