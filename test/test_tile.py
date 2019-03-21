@@ -51,7 +51,7 @@ def test_tile_bad_parameters(client):
     me the required parameters so that I can send a good request.
     '''
 
-    tx    = test.tx
+    tx    = "not-a-coordinate"
     ty    = test.ty
     chips = test.chips
     date  = test.date
