@@ -3,6 +3,7 @@ from blackmagic import db
 from blackmagic import raise_on
 from blackmagic import skip_on_exception
 from blackmagic import workers
+from collections import Counter
 from cytoolz import assoc
 from cytoolz import do
 from cytoolz import drop
@@ -31,44 +32,110 @@ logger = logging.getLogger('blackmagic.tile')
 tile = Blueprint('tile', __name__)
 
 
-def aux(cx, cy, cfg):
+def dmatrix(data, labels):
+    '''Transforms independent and dependent variables into an xgboost dmatrix'''
+
+    return xgb.DMatrix(data, labels)
+
+
+def independent(data):
+    '''Independent variable is (are) all the values except the labels
+        data: 2d numpy array
+        return: 2d numpy array minus the labels (first element of every row)
+    '''
+    
+    return numpy.delete(data, 0, 1)
+
+
+def dependent(data):
+    '''Dependent variable is (are) the labels
+       data: 2d numpy array
+       return: 1d numpy array of labels
+    '''
+    
+    return numpy.delete(data, numpy.s_[1:], 1).flatten()
+
+
+def watchlist(training_data, eval_data):
+    return [(training_data, 'train'), (eval_data, 'eval')]
+
+
+def aux(ctx, cfg):
     '''Retrieve aux data'''
     
-    data = merlin.create(x=cx,
-                         y=cy,
-                         acquired='1982/2018',
+    data = merlin.create(x=ctx['cx'],
+                         y=ctx['cy'],
+                         acquired=ctx['acquired'],  #'1982/2018',
                          cfg=merlin.cfg.get(profile='chipmunk-aux',
                                             env={'CHIPMUNK_URL': cfg['aux_url']}))
-    
-    return {first(d): second(d) for d in merlin.functions.denumpify(data)}
 
-    
-def segments(cx, cy, cfg):
+    return assoc(ctx,
+                 'aux',
+                 {first(d): second(d) for d in merlin.functions.denumpify(data)})
+
+
+def segments(ctx, cfg):
     '''Return segments stored in Cassandra'''
     
-    return [r for r in db.execute_statement(cfg, db.select_segment(cfg, cx, cy))]
+    return assoc(ctx,
+                 'segments',
+                 [r for r in db.execute_statement(cfg,
+                                                  db.select_segment(cfg,
+                                                                    ctx['cx'],
+                                                                    ctx['cy']))])
+                 
+def aux_not_empty(ctx):
+    '''raise Exception with message if no aux present'''
 
+    a = get('aux', ctx, None)
+                 
+    if (a is None or len(a) < 1):
+        raise Exception('No aux data found for cx:{} cy:{}'.format(ctx['cx'], ctx['cy']))
+    else:
+        return ctx              
+    
 
-def datefilter(date, segments):
+def segs_not_empty(ctx):
+    '''raise Exception with message if no segments present'''
+
+    a = get('segments', ctx, None)
+                 
+    if (a is None or len(a) < 1):
+        raise Exception('No segments found for cx:{} cy:{}'.format(ctx['cx'], ctx['cy']))
+    else:
+        return ctx
+
+    
+def datefilter(ctx):
     '''Yield segments that span the supplied date'''
 
-    d = arrow.get(date).datetime
+    d = arrow.get(ctx['date']).datetime
+
+    segs = []
     
-    for s in segments:
+    for s in ctx['segments']:
         if (d >= arrow.get(s.sday).datetime and
             d <= arrow.get(s.eday).datetime):
-            yield s
+            segs.append(s)
 
-             
-def combine(segments, aux):
+    return assoc(ctx, 'segs', segs)
+
+
+def combine(ctx):
     '''Combine segments with matching aux entry'''
 
-    for s in segments:
+    data = []
+    
+    for s in ctx['segments']:
         key = (s.cx, s.cy, s.px, s.py)
-        yield merge(aux[key], s._asdict())
+        data.append(merge(ctx['aux'][key], s._asdict()))
+
+    return assoc(ctx, 'data', data)
 
 
-def format(entries):
+def format(ctx):
+
+    # return [[]] numpy array from ctx
     '''Properly format training entries'''
 
     '''
@@ -109,47 +176,29 @@ def format(entries):
                  get('thcoef' , e),
                  [get('thint'  , e)],
                  [get('thmag'  , e)],
-                 [get('thrmse' , e)]] for e in entries]
+                 [get('thrmse' , e)]] for e in ctx['data']]
 
     return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
 
 
-def dmatrix(data, labels):
-    '''Transforms independent and dependent variables into an xgboost dmatrix'''
+def pipeline(chip, date, acquired, cfg):
 
-    return xgb.DMatrix(data, labels)
+    ctx = {'cx': first(chip),
+           'cy': second(chip),
+           'date': date,
+           'acquired': acquired}
 
-
-def independent(data):
-    '''Independent variable is (are) all the values except the labels
-        data: 2d numpy array
-        return: 2d numpy array minus the labels (first element of every row)
-    '''
+    # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001/07/01', aux:{}, segments:[], data:[]}
     
-    return numpy.delete(data, 0, 1)
-
-
-def dependent(data):
-    '''Dependent variable is (are) the labels
-       data: 2d numpy array
-       return: 1d numpy array of labels
-    '''
-    
-    return numpy.delete(data, numpy.s_[1:], 1).flatten()
-
-
-def watchlist(training_data, eval_data):
-    return [(training_data, 'train'), (eval_data, 'eval')]
-
-
-def pipeline(chip, date, cfg):
-    '''Retrieve segment and label data for one chip'''
-    cx=first(chip)
-    cy=second(chip)
-    
-    return format(combine(segments=datefilter(date=date, segments=segments(cx=cx, cy=cy, cfg=cfg)),
-                          aux=aux(cx=cx, cy=cy, cfg=cfg)))
-
+    return thread_first(ctx,
+                        partial(aux, cfg=cfg),
+                        aux_not_empty,
+                        partial(segments, cfg=cfg),
+                        segs_not_empty,
+                        datefilter,
+                        combine,
+                        format)
+                 
 
 @skip_on_exception
 def parameters(r):
@@ -157,31 +206,36 @@ def parameters(r):
     
     tx       = get('tx', r, None)
     ty       = get('ty', r, None)
+    acquired = get('acquired', r, None)
     chips    = get('chips', r, None)
     date     = get('date', r, None)
     
-    test_data_exception      = get('test_data_exception', r, None)
-    test_training_exception  = get('test_training_exception', r, None)
-    test_cassandra_exception = get('test_cassandra_exception', r, None)
+    test_exceptions = {'test_data_exception': get('test_data_exception', r, None),
+                       'test_training_exception': get('test_training_exception', r, None),
+                       'test_cassandra_exception': get('test_cassandra_exception', r, None)}
     
-    if (tx is None or ty is None or chips is None or date is None):
-        raise Exception('tx, ty, chips and date are required parameters')
+    if (tx is None or ty is None or acquired is None or chips is None or date is None):
+        raise Exception('tx, ty, acquired, chips and date are required parameters')
     else:
-        return {'tx': int(tx),
-                'ty': int(ty),
-                'date': date,
-                'chips': chips}
+        p = {'tx': int(tx),
+             'ty': int(ty),
+             'acquired': acquired,
+             'date': date,
+             'chips': chips}
 
+        return merge(p, test_exceptions)
+     
 
 def log_request(ctx):
     '''Create log message for HTTP request'''
 
     tx = get('tx', ctx, None)
     ty = get('ty', ctx, None)
+    a  = get('acquired', ctx, None)
     d  = get('date', ctx, None)
     c  = get('chips', ctx, None)
     
-    logger.info('POST /tile {x},{y},{d},{c}'.format(x=tx, y=ty, d=d, c=c))
+    logger.info('POST /tile {x},{y},{a},{d},{c}'.format(x=tx, y=ty, a=a, d=d, c=c))
         
     return ctx
 
@@ -191,11 +245,12 @@ def exception_handler(ctx, http_status, name, fn):
         return fn(ctx)
     except Exception as e:        
         return do(logger.exception, {'tx': get('tx', ctx, None),
-                                 'ty': get('ty', ctx, None),
-                                 'date': get('date', ctx, None),
-                                 'chips': get('chips', ctx, None),
-                                 'exception': '{name} exception: {ex}'.format(name=name, ex=e),
-                                 'http_status': http_status})
+                                     'ty': get('ty', ctx, None),
+                                     'acquired': get('acquired', ctx, None),
+                                     'date': get('date', ctx, None),
+                                     'chips': get('chips', ctx, None),
+                                     'exception': '{name} exception: {ex}'.format(name=name, ex=e),
+                                     'http_status': http_status})
     
 
 @skip_on_exception
@@ -203,7 +258,7 @@ def exception_handler(ctx, http_status, name, fn):
 def data(ctx, cfg):
     '''Retrieve training data for all chips in parallel'''
     
-    p = partial(pipeline, date=ctx['date'], cfg=cfg)
+    p = partial(pipeline, date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
     
     with workers(cfg) as w:
         return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips'])))))
@@ -211,12 +266,9 @@ def data(ctx, cfg):
 
 def counts(data):
     '''Count the occurance of each label in data'''
-    
+   
     c = Counter()
-    
-    for d in data:
-        c[first(d)] += 1
-        
+    c[first(data)] += 1
     return c
 
     
@@ -237,6 +289,12 @@ def statistics(ctx, cfg):
     #
     # see collections.Counter
 
+    with workers(cfg) as w:
+        counters = w.map(counts, ctx['data'])
+        c = Counter()
+        list(map(c.update, counters))
+        return assoc(ctx, 'statistics', c)
+    
     return ctx
 
 
@@ -314,6 +372,7 @@ def respond(ctx):
 
     body = {'tx': get('tx', ctx, None),
             'ty': get('ty', ctx, None),
+            'acquired': get('acquired', ctx, None),
             'date': get('date', ctx, None),
             'chips': get('chips', ctx, None)}
 

@@ -24,47 +24,94 @@ def test_tile_runs_as_expected(client):
     to Cassandra so that change segments may be classified.
     '''
 
-    tx    = test.tx
-    ty    = test.ty
-    chips = test.chips
-    date  = test.date
-    
+    tx       = test.tx
+    ty       = test.ty
+    cx       = test.cx
+    cy       = test.cy
+    acquired = test.a
+    chips    = test.chips
+    date     = test.date
+
+
+    # run change detection so there are segments in
+    # cassandra
+
+    response = client.post('/segment',
+                           json={'cx': cx,
+                                 'cy': cy,
+                                 'acquired': acquired})
+
+    assert response.status == '200 OK' 
+                      
+
+    # now train a model based on those segments and
+    # the aux data
     response = client.post('/tile',
                            json={'tx': tx,
                                  'ty': ty,
+                                 'acquired': acquired,
                                  'chips': chips,
                                  'date': date})
 
     assert response.status == '200 OK'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
+    assert get('acquired', response.get_json()) == acquired
     assert get('date', response.get_json()) == date
     assert get('chips', response.get_json()) == chips
     assert get('exception', response.get_json(), None) == None
 
 
 @test.vcr.use_cassette(test.cassette)
+def test_tile_missing_segments(client):
+    '''
+    As a blackmagic user, when there are no segments available
+    to match up with aux data, HTTP 500 is issued with a message
+    indicating no segments were found so that the issue may be 
+    resolved (by repairing the database, running change detection,
+    etc)
+    '''
+    
+    pass
+
+
+@test.vcr.use_cassette(test.cassette)
+def test_tile_missing_aux(client):
+    '''
+    As a blackmagic user, when there is no aux data available
+    to match up with segments, HTTP 500 is issued with a message
+    indicating missing aux data so that the issue may be 
+    corrected.
+    '''
+    
+    pass
+
+
+@test.vcr.use_cassette(test.cassette)
 def test_tile_bad_parameters(client):
     '''
-    As a blackmagic user, when I don't send tx, ty, date & chips
+    As a blackmagic user, when I don't send tx, ty, acquired, date & chips
     via HTTP POST the HTTP status is 400 and the response body tells
     me the required parameters so that I can send a good request.
     '''
 
-    tx    = "not-a-coordinate"
-    ty    = test.ty
-    chips = test.chips
-    date  = test.date
+    tx       = "not-an-integer"
+    ty       = test.ty
+    acquired = test.a
+    chips    = test.chips
+    date     = test.date
     
     response = client.post('/tile',
                            json={'tx': tx,
                                  'ty': ty,
+                                 'acquired': acquired,
                                  'chips': chips,
                                  'date': date})
 
     assert response.status == '400 BAD REQUEST'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
+    assert get('acquired', response.get_json()) == acquired
     assert get('date', response.get_json()) == date
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
@@ -79,14 +126,16 @@ def test_tile_data_exception(client):
     message describing the failure so that the issue may be resolved.
     '''
 
-    tx    = test.tx
-    ty    = test.ty
-    chips = test.chips
-    date  = test.date
+    tx       = test.tx
+    ty       = test.ty
+    acquired = test.a
+    chips    = test.chips
+    date     = test.date
     
     response = client.post('/tile',
                            json={'tx': tx,
                                  'ty': ty,
+                                 'acquired': acquired,
                                  'chips': chips,
                                  'date': date,
                                  'test_data_exception': True})
@@ -94,6 +143,7 @@ def test_tile_data_exception(client):
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
+    assert get('acquired', response.get_json()) == acquired
     assert get('date', response.get_json()) == date
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
@@ -108,14 +158,16 @@ def test_tile_training_exception(client):
     the failure so that the issue may be investigated & resolved.
     '''
 
-    tx    = test.tx
-    ty    = test.ty
-    chips = test.chips
-    date  = test.date
-    
+    tx       = test.tx
+    ty       = test.ty
+    acquired = test.a
+    chips    = test.chips
+    date     = test.date
+     
     response = client.post('/tile',
                            json={'tx': tx,
                                  'ty': ty,
+                                 'acquired': acquired,
                                  'chips': chips,
                                  'date': date,
                                  'test_training_exception': True})
@@ -123,6 +175,7 @@ def test_tile_training_exception(client):
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
+    assert get('acquired', response.get_json()) == acquired
     assert get('date', response.get_json()) == date
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
@@ -138,14 +191,16 @@ def test_tile_cassandra_exception(client):
     investigated, corrected & retried.
     '''
 
-    tx    = test.tx
-    ty    = test.ty
-    chips = test.chips
-    date  = test.date
+    tx       = test.tx
+    ty       = test.ty
+    acquired = test.a
+    chips    = test.chips
+    date     = test.date
     
     response = client.post('/tile',
                            json={'tx': tx,
                                  'ty': ty,
+                                 'acquired': acquired,
                                  'chips': chips,
                                  'date': date,
                                  'test_cassandra_exception': True})
@@ -153,6 +208,7 @@ def test_tile_cassandra_exception(client):
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
+    assert get('acquired', response.get_json()) == acquired
     assert get('date', response.get_json()) == date
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
