@@ -16,7 +16,7 @@ def client():
     yield app.app.test_client()
 
 
-@test.vcr.use_cassette(test.cassette)
+@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_runs_as_expected(client):
     '''
     As a blackmagic user, when I send tx, ty, date & chips
@@ -62,7 +62,7 @@ def test_tile_runs_as_expected(client):
     assert get('exception', response.get_json(), None) == None
 
 
-@test.vcr.use_cassette(test.cassette)
+@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_missing_segments(client):
     '''
     As a blackmagic user, when there are no segments available
@@ -75,7 +75,7 @@ def test_tile_missing_segments(client):
     pass
 
 
-@test.vcr.use_cassette(test.cassette)
+@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_missing_aux(client):
     '''
     As a blackmagic user, when there is no aux data available
@@ -87,7 +87,7 @@ def test_tile_missing_aux(client):
     pass
 
 
-@test.vcr.use_cassette(test.cassette)
+@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_bad_parameters(client):
     '''
     As a blackmagic user, when I don't send tx, ty, acquired, date & chips
@@ -118,7 +118,7 @@ def test_tile_bad_parameters(client):
     assert len(get('exception', response.get_json())) > 0
 
 
-@test.vcr.use_cassette(test.cassette)
+@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_data_exception(client):
     '''
     As a blackmagic user, when an exception occurs retrieving 
@@ -150,7 +150,7 @@ def test_tile_data_exception(client):
     assert len(get('exception', response.get_json())) > 0
 
 
-@test.vcr.use_cassette(test.cassette)
+@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_training_exception(client):
     '''
     As a blackmagic user, when an exception occurs training 
@@ -182,7 +182,7 @@ def test_tile_training_exception(client):
     assert len(get('exception', response.get_json())) > 0
 
 
-@test.vcr.use_cassette(test.cassette)
+@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_cassandra_exception(client):
     '''
     As a blackmagic user, when an exception occurs saving 

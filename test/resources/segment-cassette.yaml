@@ -13,7 +13,7 @@ interactions:
     headers:
       Content-Length: ['129']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Server: [http-kit]
     status: {code: 200, message: OK}
 - request:
@@ -117,7 +117,7 @@ interactions:
     headers:
       Content-Length: ['24080']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Server: [http-kit]
     status: {code: 200, message: OK}
 - request:
@@ -136,7 +136,7 @@ interactions:
     headers:
       Content-Length: ['1317']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Server: [http-kit]
     status: {code: 200, message: OK}
 - request:
@@ -153,7 +153,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [c02aab0a600e73d8fb704f531a9970d6]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -171,7 +171,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [6117da3ee91e386f6c2e191167fb5825]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -189,7 +189,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [9a009842a1ef6ecf59edf78a768f31e6]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -207,7 +207,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [f2d78760d2602ee72f07816eef52d93f]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -225,7 +225,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [eb60ea5497c4cabefcda6282816783dd]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -243,7 +243,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [09ffbca14e341acc106b0918e8965a8c]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -261,7 +261,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [b98e27a2cc78175c3b38cc45d1be0789]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -279,7 +279,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [80b51191189c0fce2e9a1f3bb349fd12]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -297,7 +297,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [b57c3a377b84c7acda319563845f7313]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -315,7 +315,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [60541c91d469ffee254d3f29d737be3e]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -333,7 +333,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [df878e5ed5fe34536ad18ff07a0290d7]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -351,7 +351,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [70d1ee9addd98a8520a6ede3a8bbe34e]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -369,7 +369,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [69febcd5401a38a523045e0a30dfdf72]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -387,7 +387,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [b7a39e73e7e10fb4ff6b6df988cfc863]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -405,7 +405,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [8f5a945a40875f222299f3ae982344f7]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -423,7 +423,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [afa369a6b3d1c03f650c665b91498f0a]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -441,7 +441,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [60e9df20fb6a86b1cf6236eb84b4cbea]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -459,7 +459,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [1c70989b2a36878ffc5832d474dd395e]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -477,7 +477,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [c94fa68ddaa685971d48cd387fa83a4f]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -495,7 +495,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [0d8bd3abdb40a45e2aacda4ab9e07631]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -513,7 +513,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [d4af0b98108ffa341a777a8a3f802295]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -531,7 +531,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [10a9e686a308ee83b3a7980fc42e23db]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -549,7 +549,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:09 GMT']
       Etag: [e40d6653a252f5cb374e96ad4dce3d97]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -567,7 +567,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:10 GMT']
       Etag: [5852815c2e473bc6d4fe6282b392c70a]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -585,7 +585,7 @@ interactions:
     headers:
       Content-Length: ['80590']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:10 GMT']
       Etag: [88c7bec9cee10105049d374a049dc30f]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -603,7 +603,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:10 GMT']
       Etag: [27840e66b191e61f153786538303515f]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -621,7 +621,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:10 GMT']
       Etag: [13b511ab28f77e6e57a9c01742886b82]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -639,7 +639,7 @@ interactions:
     headers:
       Content-Length: ['80584']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:10 GMT']
       Etag: [36645da8ac1cf7b795513c3582a8c310]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -657,7 +657,7 @@ interactions:
     headers:
       Content-Length: ['80602']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:10 GMT']
       Etag: [a33113e2f0f6764d4954231c32fadf4d]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -675,7 +675,7 @@ interactions:
     headers:
       Content-Length: ['80602']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:10 GMT']
       Etag: [f11e4cddba433dcfcf3c8fe0fac55c99]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -693,7 +693,7 @@ interactions:
     headers:
       Content-Length: ['80602']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:10 GMT']
       Etag: [6a3e288653a522d299ad2cbb87429ee4]
       Server: [http-kit]
     status: {code: 200, message: OK}
@@ -711,8 +711,1096 @@ interactions:
     headers:
       Content-Length: ['80602']
       Content-Type: [application/json; charset=utf-8]
-      Date: ['Fri, 22 Mar 2019 17:46:43 GMT']
+      Date: ['Fri, 22 Mar 2019 18:38:10 GMT']
       Etag: [8668bd8cb562ae4b117601a253d036ea]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LC08_SRB4
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LE07_SRB3
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT04_SRB3
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT05_SRB3
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LC08_SRB3
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LE07_SRB2
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT04_SRB2
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT05_SRB2
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LC08_SRB2
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LE07_SRB1
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT04_SRB1
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT05_SRB1
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LC08_SRB5
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LE07_SRB4
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT04_SRB4
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT05_SRB4
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LC08_SRB6
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LE07_SRB5
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT04_SRB5
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT05_SRB5
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LC08_SRB7
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LE07_SRB7
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT04_SRB7
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT05_SRB7
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LC08_BTB10
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LE07_BTB6
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT04_BTB6
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT05_BTB6
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LC08_PIXELQA
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LE07_PIXELQA
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT04_PIXELQA
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=not-a-date&ubid=LT05_PIXELQA
+  response:
+    body: {string: '{"errors":["validation error"]}'}
+    headers:
+      Content-Length: ['31']
+      Date: ['Fri, 22 Mar 2019 18:38:27 GMT']
+      Server: [http-kit]
+    status: {code: 500, message: Internal Server Error}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LC08_SRB4
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LE07_SRB3
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT04_SRB3
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT05_SRB3
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LC08_SRB3
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LE07_SRB2
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT04_SRB2
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT05_SRB2
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LC08_SRB2
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LE07_SRB1
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT04_SRB1
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT05_SRB1
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LC08_SRB5
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LE07_SRB4
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT04_SRB4
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT05_SRB4
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LC08_SRB6
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LE07_SRB5
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT04_SRB5
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT05_SRB5
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LC08_SRB7
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LE07_SRB7
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT04_SRB7
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT05_SRB7
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LC08_BTB10
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LE07_BTB6
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT04_BTB6
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT05_BTB6
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LC08_PIXELQA
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LE07_PIXELQA
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT04_PIXELQA
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
+      Server: [http-kit]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.20.0]
+    method: GET
+    uri: http://localhost:5656/chips?x=-2061585.0&y=1922805.0&acquired=1975%2F1976&ubid=LT05_PIXELQA
+  response:
+    body: {string: '[]'}
+    headers:
+      Content-Length: ['2']
+      Content-Type: [application/json; charset=utf-8]
+      Date: ['Fri, 22 Mar 2019 18:38:33 GMT']
+      Etag: [d41d8cd98f00b204e9800998ecf8427e]
       Server: [http-kit]
     status: {code: 200, message: OK}
 version: 1
