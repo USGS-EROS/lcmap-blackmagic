@@ -220,7 +220,7 @@ def parameters(r):
                 'chips': chips,
                 'test_data_exception': get('test_data_exception', r, None),
                 'test_training_exception': get('test_training_exception', r, None),
-                'test_cassandra_exception': get('test_cassandra_exception', r, None) }
+                'test_cassandra_exception': get('test_cassandra_exception', r, None)}
 
         
 def log_request(ctx):
