@@ -209,23 +209,20 @@ def parameters(r):
     acquired = get('acquired', r, None)
     chips    = get('chips', r, None)
     date     = get('date', r, None)
-    
-    test_exceptions = {'test_data_exception': get('test_data_exception', r, None),
-                       'test_training_exception': get('test_training_exception', r, None),
-                       'test_cassandra_exception': get('test_cassandra_exception', r, None)}
-    
+        
     if (tx is None or ty is None or acquired is None or chips is None or date is None):
         raise Exception('tx, ty, acquired, chips and date are required parameters')
     else:
-        p = {'tx': int(tx),
-             'ty': int(ty),
-             'acquired': acquired,
-             'date': date,
-             'chips': chips}
+        return {'tx': int(tx),
+                'ty': int(ty),
+                'acquired': acquired,
+                'date': date,
+                'chips': chips,
+                'test_data_exception': get('test_data_exception', r, None),
+                'test_training_exception': get('test_training_exception', r, None),
+                'test_cassandra_exception': get('test_cassandra_exception', r, None) }
 
-        return merge(p, test_exceptions)
-     
-
+        
 def log_request(ctx):
     '''Create log message for HTTP request'''
 
@@ -275,19 +272,6 @@ def counts(data):
 @skip_on_exception
 def statistics(ctx, cfg):
     '''Count label occurences'''
-
-    # 1.
-    # generate class statistics... how many labels of each type exist in the dataset, and what
-    # % are they of the whole
-    #
-    #     with workers(cfg) as w:
-    #         counters = w.map(counts, ctx['data'])
-    #         c = Counter()
-    #         map(c.update, counters)
-    #         return assoc(ctx, 'statistics', c)
-    #
-    #
-    # see collections.Counter
 
     with workers(cfg) as w:
         counters = w.map(counts, ctx['data'])
