@@ -18,7 +18,8 @@ os.environ['WORKER_TIMEOUT']     = '12000'
 
 segment_cassette = 'test/resources/segment-cassette.yaml'
 tile_cassette = 'test/resources/tile-cassette.yaml'
-vcr = _vcr.VCR(record_mode='new_episodes')
+#vcr = _vcr.VCR(record_mode='new_episodes')
+vcr = _vcr.VCR(record_mode='once')
 
 tx = -2115585
 ty = 1964805

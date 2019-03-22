@@ -53,8 +53,6 @@ def raise_on(name):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            print("ARGS:{}".format(args))
-            print("KWARGS:{}".format(kwargs))
             
             if get(name, first(args), None) is not None:
                 raise Exception(name)
