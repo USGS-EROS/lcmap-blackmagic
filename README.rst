@@ -56,6 +56,7 @@ From PyPi:
 From Github:
 
 .. code-block:: bash
+		
     $ git clone https://github.com/usgs-eros/lcmap-blackmagic
     $ cd lcmap-blackmagic
     $ conda create --name=blackmagic python=3.7
