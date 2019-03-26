@@ -1,6 +1,7 @@
 import json
 import os
 import pytest
+import requests
 import test
 
 from blackmagic import app
@@ -16,7 +17,19 @@ def client():
     yield app.app.test_client()
 
 
-@test.vcr.use_cassette(test.tile_cassette)
+def test_always_run_first(client):
+
+    cx       = test.cx
+    cy       = test.cy
+    acquired = test.a
+   
+    # prepopulate a chip of segments
+    assert client.post('/segment',
+                       json={'cx': test.cx,
+                             'cy': test.cy,
+                             'acquired': test.a}).status == '200 OK'
+
+
 def test_tile_runs_as_expected(client):
     '''
     As a blackmagic user, when I send tx, ty, date & chips
@@ -31,21 +44,17 @@ def test_tile_runs_as_expected(client):
     acquired = test.a
     chips    = test.chips
     date     = test.date
-
-
-    # run change detection so there are segments in
-    # cassandra
-
-    response = client.post('/segment',
-                           json={'cx': cx,
-                                 'cy': cy,
-                                 'acquired': acquired})
-
-    assert response.status == '200 OK' 
-                      
-
-    # now train a model based on those segments and
+        
+    # train a model based on those segments and
     # the aux data
+
+
+        # prepopulate a chip of segments
+    assert client.post('/segment',
+                       json={'cx': test.cx,
+                             'cy': test.cy,
+                             'acquired': test.a}).status == '200 OK'
+    
     response = client.post('/tile',
                            json={'tx': tx,
                                  'ty': ty,
@@ -62,7 +71,6 @@ def test_tile_runs_as_expected(client):
     assert get('exception', response.get_json(), None) == None
 
 
-@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_missing_segments(client):
     '''
     As a blackmagic user, when there are no segments available
@@ -75,7 +83,6 @@ def test_tile_missing_segments(client):
     pass
 
 
-@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_missing_aux(client):
     '''
     As a blackmagic user, when there is no aux data available
@@ -87,7 +94,6 @@ def test_tile_missing_aux(client):
     pass
 
 
-@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_bad_parameters(client):
     '''
     As a blackmagic user, when I don't send tx, ty, acquired, date & chips
@@ -118,7 +124,6 @@ def test_tile_bad_parameters(client):
     assert len(get('exception', response.get_json())) > 0
 
 
-@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_data_exception(client):
     '''
     As a blackmagic user, when an exception occurs retrieving 
@@ -150,7 +155,6 @@ def test_tile_data_exception(client):
     assert len(get('exception', response.get_json())) > 0
 
 
-@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_training_exception(client):
     '''
     As a blackmagic user, when an exception occurs training 
@@ -182,7 +186,6 @@ def test_tile_training_exception(client):
     assert len(get('exception', response.get_json())) > 0
 
 
-@test.vcr.use_cassette(test.tile_cassette)
 def test_tile_cassandra_exception(client):
     '''
     As a blackmagic user, when an exception occurs saving 

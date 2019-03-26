@@ -13,17 +13,25 @@ On DockerHub
 https://hub.docker.com/r/usgseros/lcmap-blackmagic/
 
 
-On PyPi
--------
+Installing
+----------
 .. code-block:: bash
 
-    pip install lcmap-blackmagic
+    $ pip install lcmap-blackmagic
+
+For development, a conda environment is highly recommended:
+
+.. code-block:: bash
+
+    $ conda create --name=blackmagic python=3.7
+    $ pip install -e .
 
     
 Features
 --------
 * Exposes execution of PyCCD over HTTP
-* Saves results to Apache Cassandra
+* Trains xgboost models from PyCCD results
+* Saves outputs to Apache Cassandra
 * Automatic schema creation on startup
 * Highly tunable
 * Available as Python package or Docker image
@@ -48,7 +56,8 @@ Start BlackMagic
 	       -e CASSANDRA_KEYSPACE=some_keyspace \
 	       -e CASSANDRA_TIMEOUT=600 \
 	       -e CASSANDRA_CONSISTENCY=ALL \
-	       -e CHIPMUNK_URL=http://host:port/path \
+	       -e ARD_URL=http://host:port/path \
+     	       -e AUX_URL=http://host:port/path \
 	       -e CPUS_PER_WORKER=4 \
 	       -e HTTP_PORT=5000 \
 	       -e WORKERS=4 \
@@ -60,7 +69,7 @@ Send a request
 
 .. code-block:: bash
 
-    http --timeout=12000 POST http://localhost:5000/segment cx:=1556415 cy:=2366805 acquired=1980/2017
+    http --timeout=12000 POST http://localhost:5000/segment cx=1556415 cy=2366805 acquired=1980/2017
 
 
 URLs
@@ -70,8 +79,8 @@ URLs
 +========================+========================+====================================+
 | POST /segment          | cx, cy, acquired       | Save change detection segments     |
 +------------------------+------------------------+------------------------------------+
-| POST /tile             | tx, ty, date, chips    | Create and save xgboost model      |
-| (not yet implemented)  |                        | chips/date at tile x and tile y    | 
+| POST /tile             | tx, ty, acquired,      | Create and save xgboost model      |
+| (WIP)                  | date, chips            | chips/date at tile x and tile y    | 
 +------------------------+------------------------+------------------------------------+
 | POST /prediction       | cx, cy                 | Save xgboost predictions for       |
 | (not yet implemented)  |                        | chip x (cx) and chip y (cy)        |
@@ -223,30 +232,31 @@ Testing
 Tests are available in the ``test/`` directory.  To properly test blackmagic
 operations, input data and a local Cassandra database are needed.
 
-Input data is captured in a VCRPY cassette, stored under ``test/resources``.
-To update this data, follow the instructions to download, run and
-load test data into `lcmap-chipmunk <http://github.com/usgs-eros/lcmap-chipmunk>`_
-on your local machine.  lcmap-blackmagic expects Chipmunk to be
-running on ``http://localhost:5656`` as configued in ``test/__init__.py``.
+Input data originates from `lcmap-chipmunk <http://github.com/usgs-eros/lcmap-chipmunk>`_.
+Follow the instructions to download, run and load test data onto your local machine.
 
-Do not modify this URL to point to a production Chipmunk instance and commit the
-change to version control.  This will publish sensitive internal URLs and is
-considered a security violation.
+To support testing on external CICD servers, a reverse-proxy NGINX cache is set up
+as a project dependency.  Test HTTP requests are sent to NGINX which then serves
+lcmap-chipmunk data to the test code.  Responses are stored at ``deps/nginxcache``.
+This allows responses to be replayed without lcmap-chipmunk running.
 
-Read the documentation on `VCRPY <https://vcrpy.readthedocs.io/en/latest/usage.html>`_
-to learn how to use it.
-
-To run tests manually:
+To run the tests:
 
 .. code-block:: bash
 
-    $ make deps-up (or make deps-up-d in the background)
-    $ make tests (or just pytest)
+    $ make tests    
 
-Tests run automatically on every pushed commit to GitHub. (see ``.travis.yml``).
+To update test data held in NGINX cache:
+
+.. code-block:: bash
+		
+   $ make update-test-data
+
+Tests run automatically on every pushed commit to GitHub.
 
 Travis-CI builds will fail and no Docker image will be pushed if tests do not pass.
 
+See ``Makefile``, ``deps/docker-compose.yml``, ``deps/nginx.conf``, ``.travis.yml``.
 
 Versioning
 ----------
