@@ -51,6 +51,21 @@ From PyPi:
 .. code-block:: bash
 
     $ pip install lcmap-blackmagic
+    $ export CASSANDRA_BATCH_SIZE=1000
+    $ export CASSANDRA_HOST=localhost
+    $ export CASSANDRA_PORT=9042
+    $ export CASSANDRA_USER=cassandra
+    $ export CASSANDRA_PASS=cassandra
+    $ export CASSANDRA_KEYSPACE=some_keyspace
+    $ export CASSANDRA_TIMEOUT=600
+    $ export CASSANDRA_CONSISTENCY=ALL
+    $ export ARD_URL=http://host:port/path
+    $ export AUX_URL=http://host:port/path
+    $ export CPUS_PER_WORKER=4
+    $ export HTTP_PORT=5000
+    $ export WORKERS=4
+    $ export WORKER_TIMEOUT=12000
+    $ blackmagic.sh
 
     
 From Github:
