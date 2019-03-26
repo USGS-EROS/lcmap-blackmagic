@@ -6,41 +6,23 @@ lcmap-blackmagic
 ================
 HTTP server that saves PyCCD & prediction output to Apache Cassandra
 
-
+What does it do?
+----------------
+* Executes PyCCD over HTTP
+* Executes XGBoost model training over HTTP
+* Saves outputs to Apache Cassandra (automatic schema creation on startup)
+* Highly tunable
+* Available as Python package or Docker image
+  
 On DockerHub
 ------------
 
 https://hub.docker.com/r/usgseros/lcmap-blackmagic/
-
-
+  
 Installing
 ----------
-.. code-block:: bash
 
-    $ pip install lcmap-blackmagic
-
-For development, a conda environment is highly recommended:
-
-.. code-block:: bash
-
-    $ conda create --name=blackmagic python=3.7
-    $ pip install -e .
-
-    
-Features
---------
-* Exposes execution of PyCCD over HTTP
-* Trains xgboost models from PyCCD results
-* Saves outputs to Apache Cassandra
-* Automatic schema creation on startup
-* Highly tunable
-* Available as Python package or Docker image
-
-
-Example
--------
-
-Start BlackMagic
+From Dockerhub:
 
 .. code-block:: bash
 
@@ -64,13 +46,37 @@ Start BlackMagic
 	       -e WORKER_TIMEOUT=12000 \
                usgseros/lcmap-blackmagic:1.0
 
-	    
-Send a request
+From PyPi:
+
+.. code-block:: bash
+
+    $ pip install lcmap-blackmagic
+
+    
+From Github:
+
+.. code-block:: bash
+    $ git clone https://github.com/usgs-eros/lcmap-blackmagic
+    $ cd lcmap-blackmagic
+    $ conda create --name=blackmagic python=3.7
+    $ source activate blackmagic
+    $ pip install -e .
+
+    
+Example Requests
+----------------
+
+Run change detection on a chip:
 
 .. code-block:: bash
 
     http --timeout=12000 POST http://localhost:5000/segment cx=1556415 cy=2366805 acquired=1980/2017
 
+Train and save an XGBoost model for a tile:
+
+.. code-block:: bash
+
+    http --timeout=12000 POST http://localhost:5000/tile tx=1484415 ty=2414805 acquired=1980/2017 date=2001-07-01 chips=[[1484415,2414805], [...]]
 
 URLs
 ----
@@ -114,13 +120,6 @@ Deployment Examples
     -e CPUS_PER_WORKER=<number of cores available>
 
     
-Requirements
-------------
-
-* Python3 or Docker
-* Network access to Cassandra
-* Network access to Chipmunk
-
 HTTP Requests & Responses
 -------------------------
 .. code-block:: bash
@@ -234,6 +233,7 @@ operations, input data and a local Cassandra database are needed.
 
 Input data originates from `lcmap-chipmunk <http://github.com/usgs-eros/lcmap-chipmunk>`_.
 Follow the instructions to download, run and load test data onto your local machine.
+lcmap-blackmagic requires ARD and AUX data from Chipmunk, so ingest both.
 
 To support testing on external CICD servers, a reverse-proxy NGINX cache is set up
 as a project dependency.  Test HTTP requests are sent to NGINX which then serves
@@ -246,17 +246,17 @@ To run the tests:
 
     $ make tests    
 
-To update test data held in NGINX cache:
+To update test data held in NGINX cache (requires lcmap-chipmunk running at http://localhost:5656):
 
 .. code-block:: bash
 		
    $ make update-test-data
 
-Tests run automatically on every pushed commit to GitHub.
-
-Travis-CI builds will fail and no Docker image will be pushed if tests do not pass.
+Tests run automatically on every pushed commit to GitHub.  Travis-CI builds will fail and no
+Docker image will be pushed if tests do not pass.
 
 See ``Makefile``, ``deps/docker-compose.yml``, ``deps/nginx.conf``, ``.travis.yml``.
+
 
 Versioning
 ----------
