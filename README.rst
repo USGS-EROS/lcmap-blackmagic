@@ -94,21 +94,6 @@ From Github:
     $ ./bin/blackmagic.sh
 
     
-Example Requests
-----------------
-
-.. code-block:: bash
-
-		
-    # run change detection on a chip
-    
-    http --timeout=12000 POST http://localhost:5000/segment cx=1556415 cy=2366805 acquired=1980/2017
-
-    # train and save an XGBoost model for a tile
-
-    http --timeout=12000 POST http://localhost:5000/tile tx=1484415 ty=2414805 acquired=1980/2017 date=2001-07-01 chips=[[1484415,2414805], [...]]
-   
-
 URLs
 ----
 +------------------------+------------------------+------------------------------------+
@@ -155,11 +140,20 @@ HTTP Requests & Responses
 -------------------------
 .. code-block:: bash
 
+		
+    # run change detection on a chip
+    
+    $ http --timeout=12000 POST http://localhost:5000/segment cx=1556415 cy=2366805 acquired=1980/2017
+
+    # train and save an XGBoost model for a tile
+
+    $ http --timeout=12000 POST http://localhost:5000/tile tx=1484415 ty=2414805 acquired=1980/2017 date=2001-07-01 chips=[[1484415,2414805], [...]]
+   
 
     # /segment resource expects cx (chip x) and cy (chip y) as parameters
     # If parameters are missing /segment returns HTTP 400 with JSON message
 		
-    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 
+    $ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 67
@@ -174,7 +168,7 @@ HTTP Requests & Responses
         "msg": "cx, cy, and acquired are required parameters"
     }
 
-    [user@machine]$ http --timeout 12000 POST http://localhost:9876/segment cy=1484415 
+    $ http --timeout 12000 POST http://localhost:9876/segment cy=1484415 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 67
@@ -189,7 +183,7 @@ HTTP Requests & Responses
         "msg": "cx, cy, and acquired are required parameters"
     }
 
-    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment 
+    $ http --timeout 12000 POST http://localhost:9876/segment 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 64
@@ -207,7 +201,7 @@ HTTP Requests & Responses
     # if no input data was available from Chipmunk for cx/cy & acquired date range,
     # /segment returns HTTP 400 with msg = "no input data"
     
-    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=-99999999 acquired=1980-01-01/2017-12-31
+    $ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=-99999999 acquired=1980-01-01/2017-12-31
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 52
@@ -225,7 +219,7 @@ HTTP Requests & Responses
 
     # Successful POST to /segment returns HTTP 200 and cx/cy as JSON
     
-    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
+    $ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
     HTTP/1.1 200 OK
     Connection: close
     Content-Length: 28
@@ -242,7 +236,7 @@ HTTP Requests & Responses
 
     # Database errors reported with HTTP 500 and the first error that occurred, with request parameters as JSON
     
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
+    $ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
     HTTP/1.1 500 INTERNAL SERVER ERROR
     Connection: close
     Content-Length: 89
