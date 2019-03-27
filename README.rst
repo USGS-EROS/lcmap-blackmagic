@@ -77,22 +77,37 @@ From Github:
     $ conda create --name=blackmagic python=3.7
     $ source activate blackmagic
     $ pip install -e .
+    $ export CASSANDRA_BATCH_SIZE=1000
+    $ export CASSANDRA_HOST=localhost
+    $ export CASSANDRA_PORT=9042
+    $ export CASSANDRA_USER=cassandra
+    $ export CASSANDRA_PASS=cassandra
+    $ export CASSANDRA_KEYSPACE=some_keyspace
+    $ export CASSANDRA_TIMEOUT=600
+    $ export CASSANDRA_CONSISTENCY=ALL
+    $ export ARD_URL=http://host:port/path
+    $ export AUX_URL=http://host:port/path
+    $ export CPUS_PER_WORKER=4
+    $ export HTTP_PORT=5000
+    $ export WORKERS=4
+    $ export WORKER_TIMEOUT=12000
+    $ ./bin/blackmagic.sh
 
     
 Example Requests
 ----------------
 
-Run change detection on a chip:
-
 .. code-block:: bash
 
+		
+    # run change detection on a chip
+    
     http --timeout=12000 POST http://localhost:5000/segment cx=1556415 cy=2366805 acquired=1980/2017
 
-Train and save an XGBoost model for a tile:
-
-.. code-block:: bash
+    # train and save an XGBoost model for a tile
 
     http --timeout=12000 POST http://localhost:5000/tile tx=1484415 ty=2414805 acquired=1980/2017 date=2001-07-01 chips=[[1484415,2414805], [...]]
+   
 
 URLs
 ----
