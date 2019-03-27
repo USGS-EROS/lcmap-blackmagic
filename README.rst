@@ -1,5 +1,6 @@
 .. image:: https://travis-ci.org/USGS-EROS/lcmap-blackmagic.svg?branch=develop
     :target: https://travis-ci.org/USGS-EROS/lcmap-blackmagic
+.. image:: https://img.shields.io/docker/pulls/usgseros/lcmap-blackmagic.svg?style=plastic :target https://hub.docker.com/r/usgseros/lcmap-blackmagic :alt: Docker Pulls
 
 ================
 lcmap-blackmagic
