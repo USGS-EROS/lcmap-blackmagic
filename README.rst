@@ -10,17 +10,8 @@ What does it do?
 ----------------
 * Executes PyCCD over HTTP
 * Executes XGBoost model training over HTTP
+* Applies trained XGBoost models to PyCCD results over HTTP
 * Saves outputs to Apache Cassandra (automatic schema creation on startup)
-* Highly tunable
-* Available as Python package or Docker image
-  
-Get It From
------------
-
-- `Dockerhub <https://hub.docker.com/r/usgseros/lcmap-blackmagic>`_
-- PyPI (available after first production release to Master)
-- `Github <https://github.com/usgs-eros/lcmap-blackmagic>`_
-
   
 Install & Run
 -------------
@@ -49,7 +40,7 @@ From Dockerhub:
 	       -e WORKER_TIMEOUT=12000 \
                usgseros/lcmap-blackmagic:1.0
 
-From PyPi:
+From PyPI (available after first production release to Master):
 
 .. code-block:: bash
 
