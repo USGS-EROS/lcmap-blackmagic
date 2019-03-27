@@ -19,8 +19,8 @@ On DockerHub
 
 https://hub.docker.com/r/usgseros/lcmap-blackmagic/
   
-Installing
-----------
+Install & Run
+-------------
 
 From Dockerhub:
 
