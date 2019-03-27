@@ -14,10 +14,13 @@ What does it do?
 * Highly tunable
 * Available as Python package or Docker image
   
-On DockerHub
-------------
+Get It From
+-----------
 
-https://hub.docker.com/r/usgseros/lcmap-blackmagic/
+- `Dockerhub <https://hub.docker.com/r/usgseros/lcmap-blackmagic>`_
+- PyPI (available after first production release to Master)
+- `Github <https://github.com/usgs-eros/lcmap-blackmagic>`_
+
   
 Install & Run
 -------------
