@@ -24,6 +24,7 @@ cfg = {'cassandra_batch_size': int(os.environ.get('CASSANDRA_BATCH_SIZE', 1000))
                    'test_size': 0.2,
                    'early_stopping_rounds': 10,
                    'verbose_eval': False,
+                   'max_samples_per_label': 8000000,
                    'parameters': {'objective': 'multi:softprob',
                                   'num_class': 9,
                                   'max_depth': 8,

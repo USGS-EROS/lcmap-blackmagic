@@ -5,6 +5,7 @@ from blackmagic import skip_on_exception
 from blackmagic import workers
 from collections import Counter
 from cytoolz import assoc
+from cytoolz import count
 from cytoolz import do
 from cytoolz import drop
 from cytoolz import first
@@ -14,6 +15,7 @@ from cytoolz import merge
 from cytoolz import partial
 from cytoolz import reduce
 from cytoolz import second
+from cytoolz import take
 from cytoolz import thread_first
 from flask import Blueprint
 from flask import jsonify
@@ -270,8 +272,12 @@ def counts(data):
 
     
 @skip_on_exception
-def statistics(ctx, cfg):
-    '''Count label occurences'''
+def statistics(ctx):
+    '''Count label occurences
+       
+       associates 'statistics' into ctx
+       sample 'statistics' value: Counter({4.0: 4255, 0.0: 3651, 3.0: 1746, 5.0: 348})
+    '''
 
     with workers(cfg) as w:
         counters = w.map(counts, ctx['data'])
@@ -292,33 +298,62 @@ def randomize(ctx, cfg):
 
 
 @skip_on_exception
-def sample(ctx, cfg):
+def sample_sizes(ctx, cfg):
+
+    # TODO: Review sampling approach prior to release
+    # here we already know the label counts in the
+    # whole dataset.
+    #
+    # All we need then is a max count per label and trim it to that if >.
+    #
+    #
+    
+    total    = count(ctx['data'])
+    labelmax = get_in(['xgboost', 'max_samples_per_label'], cfg)
+
+    return assoc(ctx,
+                 'sample_sizes',
+                 {l: o if o < labelmax else labelmax for l, o in ctx['statistics'].items()})        
+
+    #for label, occurances in ctx['statistics'].items():
+        
+    #return assoc(ctx,
+    #             'sample_sizes',
+    #             {l: math.ceil(c/total) for l, c in ctx['statistics'].items()}
+
+
+                      
+    #
+    # ctx['statistics']
+    #
+    
+    #for label, occurances in ctx['statistics'].items():
+    # class_values, percent = class_stats(dependent)
+
+    # Adjust the target counts that we are wanting based on the percentage
+    # that each one represents in the base data set.
+    #adj_counts = np.ceil(params['target_samples'] * percent)
+    #adj_counts[adj_counts > params['class_max']] = params['class_max']
+    #adj_counts[adj_counts < params['class_min']] = params['class_min']
+
+    
+    #return assoc(ctx, 'sample_sizes', sizes)
+
+
+@skip_on_exception
+def sample(ctx):
     '''Return leveled data sample based on label values'''
 
     # See xg-train-annualized.py in lcmap-science/classification as reference.
     
-    # 1.
-    # generate class statistics... how many labels of each type exist in the dataset, and what
-    # % are they of the whole
-
-    # 2.
-    # parameterize the number of desired total samples (as a request parameter, it depends on the area being sampled).
-    # multiply the desired sample size by each percentage to determine how many samples
-    # to take from each label.
-
-    # 3.
-    # Randomize ctx['data'] and select up to the proper count for each label
-
-    # 4.
-    # Reassigned ctx['data'] to the sampled data.
-
-    #     ctx['statistics']
+    samples = []
     
-    #return assoc(ctx, 'data', 'sampled data')
+    for label, size in ctx['sample_sizes'].items():
+        samples.append(list(take(size, filter(lambda x: first(x) == label, ctx['data']))))
+        
+    return assoc(ctx, 'data', list(flatten(samples)))
 
-    return ctx
-
-
+    
 @skip_on_exception
 @raise_on('test_training_exception')
 def train(ctx, cfg):
@@ -378,9 +413,10 @@ def tiles():
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
                         partial(exception_handler, http_status=500, name='data', fn=partial(data, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='statistics', fn=partial(statistics, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='statistics', fn=statistics),
                         partial(exception_handler, http_status=500, name='randomize', fn=partial(randomize, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='sample_sizes', fn=partial(sample_sizes, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='sample', fn=sample),
                         partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
                         respond)

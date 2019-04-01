@@ -6,7 +6,9 @@ import test
 
 from blackmagic import app
 from blackmagic import db
+from blackmagic.blueprints import tile
 from cassandra.cluster import Cluster
+from cytoolz import first
 from cytoolz import get
 from cytoolz import reduce
 
@@ -15,19 +17,6 @@ from cytoolz import reduce
 def client():
     app.app.config['TESTING'] = True
     yield app.app.test_client()
-
-
-def test_always_run_first(client):
-
-    cx       = test.cx
-    cy       = test.cy
-    acquired = test.a
-   
-    # prepopulate a chip of segments
-    assert client.post('/segment',
-                       json={'cx': test.cx,
-                             'cy': test.cy,
-                             'acquired': test.a}).status == '200 OK'
 
 
 def test_tile_runs_as_expected(client):
@@ -271,20 +260,60 @@ def test_tile_data():
 
 
 def test_tile_counts():
-    pass
+    data1 = [0, 1, 2]
+    data2 = [1, 2, 3]
+    data3 = [2, 3, 4]
+
+    assert get(0, tile.counts(data1)) == 1
+    assert get(1, tile.counts(data2)) == 1
+    assert get(2, tile.counts(data3)) == 1
 
 
 def test_tile_statistics():
-    pass
+    ctx = {'data': [[0, 1, 2],
+                    [0, 2, 3],
+                    [1, 1, 2],
+                    [2, 3, 4],
+                    [2, 4, 5],
+                    [2, 6, 7]]}
+
+    stats = get('statistics', tile.statistics(ctx))
+
+    assert get(0, stats) == 2
+    assert get(1, stats) == 1
+    assert get(2, stats) == 3
 
 
 def test_tile_randomize():
     pass
 
 
-def test_tile_sample():
+def test_sample_sizes():
     pass
 
+
+def test_tile_sample():
+    
+    ctx = {'sample_sizes': {0: 1, 1: 4, 2: 3},
+           'data': [[0, 1, 2],
+                    [0, 2, 3],
+                    [0, 3, 4],
+                    [1, 1, 2],
+                    [1, 2, 3],
+                    [1, 3, 4],
+                    [1, 4, 5],
+                    [1, 5, 6],
+                    [2, 0, 0],
+                    [2, 0, 1],
+                    [2, 0, 2],
+                    [2, 0, 3]]}
+    
+    sampled = get('data', tile.sample(ctx))
+   
+    assert len(list(filter(lambda x: first(x) == 0, sampled))) == 1
+    assert len(list(filter(lambda x: first(x) == 1, sampled))) == 4
+    assert len(list(filter(lambda x: first(x) == 2, sampled))) == 3
+    
 
 def test_tile_train():
     pass
