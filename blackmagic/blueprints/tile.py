@@ -190,9 +190,6 @@ def format(ctx):
                  [get('thint'  , e)],
                  [get('thmag'  , e)],
                  [get('thrmse' , e)]] for e in ctx['data']]
-
-    print('DATA:{}'.format(ctx['data']))
-    print('TRAINING:{}'.format(training))
         
     return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
 
