@@ -50,6 +50,19 @@ def skip_on_exception(fn):
     return wrapper
 
 
+def skip_on_empty(name):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            v = get(name, first(args), None)
+            if v is None or (hasattr(v, '__len__') and len(v) == 0):
+                return first(args)
+            else:
+                return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def raise_on(name):
     def decorator(fn):
         @wraps(fn)

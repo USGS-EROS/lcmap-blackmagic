@@ -2,6 +2,7 @@ from blackmagic import cfg
 from blackmagic import db
 from blackmagic import raise_on
 from blackmagic import skip_on_exception
+from blackmagic import skip_on_empty
 from blackmagic import workers
 from collections import Counter
 from cytoolz import assoc
@@ -17,9 +18,11 @@ from cytoolz import reduce
 from cytoolz import second
 from cytoolz import take
 from cytoolz import thread_first
+from datetime import datetime
 from flask import Blueprint
 from flask import jsonify
 from flask import request
+from functools import wraps
 from merlin.functions import flatten
 from sklearn.model_selection import train_test_split
 
@@ -85,7 +88,8 @@ def segments(ctx, cfg):
                                                   db.select_segment(cfg,
                                                                     ctx['cx'],
                                                                     ctx['cy']))])
-                 
+
+# TODO: This should be removed.  The only check that should happen is one where we confirm that if there is aux data, there are also segments, otherwise filter the location out.                 
 def aux_not_empty(ctx):
     '''raise Exception with message if no aux present'''
 
@@ -97,6 +101,7 @@ def aux_not_empty(ctx):
         return ctx              
     
 
+# TODO: This should be removed.  The only check that should happen is one where we confirm that if there is aux data, there are also segments, otherwise filter the location out.                 
 def segs_not_empty(ctx):
     '''raise Exception with message if no segments present'''
 
@@ -120,19 +125,25 @@ def datefilter(ctx):
             d <= arrow.get(s.eday).datetime):
             segs.append(s)
 
-    return assoc(ctx, 'segs', segs)
+    return assoc(ctx, 'segments', segs)
 
 
 def combine(ctx):
     '''Combine segments with matching aux entry'''
 
     data = []
-    
+        
     for s in ctx['segments']:
         key = (s.cx, s.cy, s.px, s.py)
         data.append(merge(ctx['aux'][key], s._asdict()))
 
     return assoc(ctx, 'data', data)
+
+
+def unload_segments(ctx):
+    '''Manage memory, unload segments following combine'''
+
+    return assoc(ctx, 'segments', None)
 
 
 def format(ctx):
@@ -180,8 +191,12 @@ def format(ctx):
                  [get('thmag'  , e)],
                  [get('thrmse' , e)]] for e in ctx['data']]
 
+    print('DATA:{}'.format(ctx['data']))
+    print('TRAINING:{}'.format(training))
+        
     return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
 
+  
 
 def pipeline(chip, date, acquired, cfg):
 
@@ -191,18 +206,39 @@ def pipeline(chip, date, acquired, cfg):
            'acquired': acquired}
 
     # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001/07/01', aux:{}, segments:[], data:[]}
+
+    # unload unneeded data from the context, such as segments & aux after combine and before format
     
     return thread_first(ctx,
-                        partial(aux, cfg=cfg),
-                        aux_not_empty,
                         partial(segments, cfg=cfg),
-                        segs_not_empty,
                         datefilter,
+                        partial(aux, cfg=cfg),
                         combine,
+                        unload_segments,
                         format)
-                 
+
+
+def measure(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        start = datetime.now()
+        ctx = fn(*args, **kwargs)
+        
+        d = {'tx': get('tx', ctx, None),
+             'ty': get('ty', ctx, None),
+             'date': get('date', ctx, None),
+             'acquired': get('acquired', ctx, None),
+             'chips': '<not displayed>'}
+            
+        logger.info(assoc(d,
+                          '{name}_elapsed_seconds'.format(name=fn.__name__),
+                          (datetime.now() - start).total_seconds()))            
+        return ctx
+    return wrapper                 
+
 
 @skip_on_exception
+@measure
 def parameters(r):
     '''Check HTTP request parameters'''
     
@@ -254,6 +290,7 @@ def exception_handler(ctx, http_status, name, fn):
 
 @skip_on_exception
 @raise_on('test_data_exception')
+@measure
 def data(ctx, cfg):
     '''Retrieve training data for all chips in parallel'''
     
@@ -272,6 +309,7 @@ def counts(data):
 
     
 @skip_on_exception
+@measure
 def statistics(ctx):
     '''Count label occurences
        
@@ -289,6 +327,7 @@ def statistics(ctx):
 
 
 @skip_on_exception
+@measure
 def randomize(ctx, cfg):
     '''Randomize the order of training data'''
 
@@ -298,6 +337,7 @@ def randomize(ctx, cfg):
 
 
 @skip_on_exception
+@measure
 def sample_sizes(ctx, cfg):
 
     # TODO: Review sampling approach prior to release
@@ -341,6 +381,7 @@ def sample_sizes(ctx, cfg):
 
 
 @skip_on_exception
+@measure
 def sample(ctx):
     '''Return leveled data sample based on label values'''
 
@@ -353,11 +394,14 @@ def sample(ctx):
         
     return assoc(ctx, 'data', list(flatten(samples)))
 
-    
-@skip_on_exception
+
 @raise_on('test_training_exception')
+@skip_on_exception
+@skip_on_empty('data')
+@measure
 def train(ctx, cfg):
     '''Train an xgboost model'''
+
     
     itrain, itest, dtrain, dtest = train_test_split(independent(ctx['data']),
                                                     dependent(ctx['data']),
@@ -373,9 +417,10 @@ def train(ctx, cfg):
                                          early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
                                          verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg)))
 
-
-@skip_on_exception
 @raise_on('test_cassandra_exception')
+@skip_on_exception
+@skip_on_empty('model')
+@measure
 def save(ctx, cfg):                                                
     '''Saves an xgboost model to Cassandra for this tx & ty'''
    
@@ -405,6 +450,7 @@ def respond(ctx):
     response.status_code = get('http_status', ctx, 200)
 
     return response
+
 
 
 @tile.route('/tile', methods=['POST'])        
