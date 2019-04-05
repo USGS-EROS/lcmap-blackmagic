@@ -324,7 +324,7 @@ def measure(fn):
              'ty': get('ty', ctx, None),
              'date': get('date', ctx, None),
              'acquired': get('acquired', ctx, None),
-             'chips': 'count:{}'.format(count(chips))}
+             'chips': 'count:{}'.format(count(get('chips', ctx, [])))}
             
         logger.info(assoc(d,
                           '{name}_elapsed_seconds'.format(name=fn.__name__),
