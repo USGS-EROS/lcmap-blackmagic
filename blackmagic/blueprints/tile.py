@@ -309,7 +309,7 @@ def lazy_pipeline(chip, date, acquired, cfg):
 
     # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001/07/01', aux:{}, segments:[], data:[]}
 
-    return format(combine2(datefilter2(date, segments2(ctx, cfg)),
+    return format2(combine2(datefilter2(date, segments2(ctx, cfg)),
                            aux2(ctx, cfg)))
     
    
