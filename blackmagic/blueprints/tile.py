@@ -183,7 +183,7 @@ def unload_segments(ctx):
     return assoc(ctx, 'segments', None)
 
 
-def format(combined):
+def format2(combined):
 
     # return [[]] numpy array from ctx
     '''Properly format training entries'''
@@ -231,7 +231,7 @@ def format(combined):
     return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
 
 
-def format2(ctx):
+def format(ctx):
 
     # return [[]] numpy array from ctx
     '''Properly format training entries'''
@@ -324,7 +324,7 @@ def measure(fn):
              'ty': get('ty', ctx, None),
              'date': get('date', ctx, None),
              'acquired': get('acquired', ctx, None),
-             'chips': '<not displayed>'}
+             'chips': 'count:{}'.format(count(chips))}
             
         logger.info(assoc(d,
                           '{name}_elapsed_seconds'.format(name=fn.__name__),
