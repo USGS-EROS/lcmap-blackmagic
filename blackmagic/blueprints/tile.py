@@ -80,17 +80,14 @@ def aux(ctx, cfg):
                  {first(d): second(d) for d in merlin.functions.denumpify(data)})
 
 
-def aux2(ctx, cfg):
+def aux_filter(ctx):
 
-    data = merlin.create(x=ctx['cx'],
-                         y=ctx['cy'],
-                         acquired=ctx['acquired'],  #'1982/2018',
-                         cfg=merlin.cfg.get(profile='chipmunk-aux',
-                                            env={'CHIPMUNK_URL': cfg['aux_url']}))
+    return assoc(ctx,
+                 'aux',
+                 dict(list(filter(lambda d: first(second(d)) != 0,
+                                  ctx['aux'].items()))))
 
-    return {first(d): second(d) for d in merlin.functions.denumpify(data)}
 
-    
 def segments(ctx, cfg):
     '''Return segments stored in Cassandra'''
     
@@ -100,62 +97,16 @@ def segments(ctx, cfg):
                                                   db.select_segment(cfg,
                                                                     ctx['cx'],
                                                                     ctx['cy']))])
-
-def segments2(ctx, cfg):
-    '''Return generator of segments stored in Cassandra'''
     
-    return (r for r in db.execute_statement(cfg,
-                                     db.select_segment(cfg,
-                                     ctx['cx'],
-                                     ctx['cy'])))
-
-# TODO: This should be removed.  The only check that should happen is one where we confirm that if there is aux data, there are also segments, otherwise filter the location out.                 
-def aux_not_empty(ctx):
-    '''raise Exception with message if no aux present'''
-
-    a = get('aux', ctx, None)
-                 
-    if (a is None or len(a) < 1):
-        raise Exception('No aux data found for cx:{} cy:{}'.format(ctx['cx'], ctx['cy']))
-    else:
-        return ctx              
-    
-
-# TODO: This should be removed.  The only check that should happen is one where we confirm that if there is aux data, there are also segments, otherwise filter the location out.                 
-def segs_not_empty(ctx):
-    '''raise Exception with message if no segments present'''
-
-    a = get('segments', ctx, None)
-                 
-    if (a is None or len(a) < 1):
-        raise Exception('No segments found for cx:{} cy:{}'.format(ctx['cx'], ctx['cy']))
-    else:
-        return ctx
-
-    
-def datefilter(ctx):
+def segments_filter(ctx):
     '''Yield segments that span the supplied date'''
 
     d = arrow.get(ctx['date']).datetime
 
-    segs = []
-    
-    for s in ctx['segments']:
-        if (d >= arrow.get(s.sday).datetime and
-            d <= arrow.get(s.eday).datetime):
-            segs.append(s)
-
-    return assoc(ctx, 'segments', segs)
-
-
-def datefilter2(date, segments):
-    '''Yield segments that span the supplied date'''
-
-    d = arrow.get(date).datetime
-
-    return filter(lambda s: d >= arrow.get(s.sday).datetime and d <= arrow.get(s.eday).datetime, segments)
-
-    #return (s for s in ctx['segments'] if d >= arrow.get(s.sday).datetime and d <= arrow.get(s.eday).datetime)
+    return assoc(ctx,
+                 'segments',
+                 list(filter(lambda s: d >= arrow.get(s.sday).datetime and d <= arrow.get(s.eday).datetime,
+                             ctx['segments'])))
 
 
 def combine(ctx):
@@ -169,66 +120,11 @@ def combine(ctx):
 
     return assoc(ctx, 'data', data)
 
-
-def combine2(segments, aux):
-
-    for s in segments:
-        key = (s.cx, s.cy, s.px, s.py)
-        yield merge(aux[key], s._asdict())
-        
-
+      
 def unload_segments(ctx):
     '''Manage memory, unload segments following combine'''
 
     return assoc(ctx, 'segments', None)
-
-
-def format2(combined):
-
-    # return [[]] numpy array from ctx
-    '''Properly format training entries'''
-
-    '''
-    {'nlcdtrn': [2], 'aspect': [0], 'posidex': [25.0], 'nlcd': [82], 'slope': [6.3103461265563965], 'mpw': [0], 'dem': [276.5125427246094], 'dates': ['2000-07-31T00:00:00Z/2001-01-01T00:00:00Z'], 'cx': 1646415, 'cy': 2237805, 'px': 1649385, 'py': 2235045, 'sday': '1984-03-24', 'eday': '2016-10-06', 'bday': '2016-10-06', 'blcoef': [-0.010404632426798344, 54.50187301635742, 101.96070861816406, -38.63310623168945, -3.4969518184661865, 0.0, -38.35179138183594], 'blint': 8016.1611328125, 'blmag': 93.25048828125, 'blrmse': 140.84637451171875, 'chprob': 0.0, 'curqa': 8, 'grcoef': [-0.014921323396265507, -13.973718643188477, 126.78702545166016, -62.550445556640625, -22.54693603515625, 4.363803386688232, -13.57226276397705], 'grint': 11458.1923828125, 'grmag': 85.9715805053711, 'grrmse': 140.90208435058594, 'nicoef': [0.001133676152676344, -1567.1834716796875, -167.4553680419922, 355.0714416503906, 191.9523468017578, -142.80911254882812, 342.6976013183594], 'niint': 1595.630126953125, 'nimag': 212.36441040039062, 'nirmse': 421.1643371582031, 'recoef': [-0.016207082197070122, 104.48441314697266, 211.29937744140625, -158.95477294921875, -42.79849624633789, -19.37449836730957, -89.44105529785156], 'reint': 12387.9248046875, 'remag': 69.07315826416016, 'rermse': 137.7318878173828, 's1coef': [-0.02014756016433239, -300.4599609375, 386.727294921875, -299.61871337890625, -55.58943557739258, -62.033470153808594, -161.67315673828125], 's1int': 16410.873046875, 's1mag': 89.79656219482422, 's1rmse': 272.87200927734375, 's2coef': [-0.01282140240073204, 29.842893600463867, 383.56500244140625, -260.76898193359375, -67.41301727294922, -13.364554405212402, -178.7677459716797], 's2int': 10256.634765625, 's2mag': 119.9651870727539, 's2rmse': 196.84481811523438, 'thcoef': [0.0017974661896005273, -1176.3935546875, -116.62395477294922, -229.40621948242188, -38.72520065307617, 11.268446922302246, -49.42088317871094], 'thint': -226.81626892089844, 'thmag': 251.63075256347656, 'thrmse': 417.1956481933594}
-
-    '''
-
-    training = [[get('nlcdtrn', e),
-                 get('aspect' , e),
-                 get('posidex', e),
-                 get('slope'  , e),
-                 get('mpw'    , e),
-                 get('dem'    , e),
-                 get('blcoef' , e),
-                 [get('blint'  , e)],
-                 [get('blmag'  , e)],
-                 [get('blrmse' , e)],
-                 get('grcoef' , e),
-                 [get('grint'  , e)],
-                 [get('grmag'  , e)],
-                 [get('grrmse' , e)],
-                 get('nicoef' , e),
-                 [get('niint'  , e)],
-                 [get('nimag'  , e)],
-                 [get('nirmse' , e)],
-                 get('recoef' , e),
-                 [get('reint'  , e)], 
-                 [get('remag'  , e)],
-                 [get('rermse' , e)],
-                 get('s1coef' , e),
-                 [get('s1int'  , e)],
-                 [get('s1mag'  , e)],
-                 [get('s1rmse' , e)],
-                 get('s2coef' , e),
-                 [get('s2int'  , e)],
-                 [get('s2mag'  , e)],
-                 [get('s2rmse' , e)],
-                 get('thcoef' , e),
-                 [get('thint'  , e)],
-                 [get('thmag'  , e)],
-                 [get('thrmse' , e)]] for e in combined]
-        
-    return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
 
 
 def format(ctx):
@@ -281,6 +177,20 @@ def format(ctx):
 
 # TODO: This whole pipeline needs to be made lazy if possible.  It's consuming WAY too much memory.
 
+
+def log_results(ctx):
+
+    _data = lambda c: len(c['data']) if c['data'] else None
+    _aux  = lambda c: len(c['aux'])  if c['aux'] else None
+    _seg  = lambda c: len(c['segments'])  if c['segments'] else None
+    
+    logger.info('Data count:{}'.format(len(ctx['data'])))
+    logger.info('Aux  count:{}'.format(_aux(ctx)))
+    logger.info('Seg  count:{}'.format(_seg(ctx)))
+                
+    return ctx
+    
+
 def pipeline(chip, date, acquired, cfg):
 
     ctx = {'cx': first(chip),
@@ -291,28 +201,28 @@ def pipeline(chip, date, acquired, cfg):
     # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001/07/01', aux:{}, segments:[], data:[]}
 
     # unload unneeded data from the context, such as segments & aux after combine and before format
-    
+
+    '''
     return thread_first(ctx,
                         partial(segments, cfg=cfg),
-                        datefilter,
+                        segments_filter,
                         partial(aux, cfg=cfg),
+                        aux_filter,                        
                         combine,
                         unload_segments,
+                        format,
+                        log_results)
+    '''
+
+    return thread_first(ctx,
+                        partial(segments, cfg=cfg),
+                        segments_filter,
+                        partial(aux, cfg=cfg),
+                        aux_filter,                        
+                        combine,
+                        log_results,
                         format)
-
-def lazy_pipeline(chip, date, acquired, cfg):
-
-    ctx = {'cx': first(chip),
-           'cy': second(chip),
-           'date': date,
-           'acquired': acquired}
-
-    # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001/07/01', aux:{}, segments:[], data:[]}
-
-    return format2(combine2(datefilter2(date, segments2(ctx, cfg)),
-                           aux2(ctx, cfg)))
     
-   
 
 def measure(fn):
     @wraps(fn)
@@ -390,8 +300,12 @@ def exception_handler(ctx, http_status, name, fn):
 def data(ctx, cfg):
     '''Retrieve training data for all chips in parallel'''
     
-    #p = partial(pipeline, date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
-    p = partial(lazy_pipeline, date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
+    p = partial(pipeline, date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
+    #p = partial(lazy_pipeline, date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
+
+
+    # TODO:  chunk the chips, look through every batch that completes to determine
+    # if we can stop pulling data based on sampling strategy.
     
     with workers(cfg) as w:
         return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips'])))))
@@ -438,10 +352,6 @@ def randomize(ctx, cfg):
 def sample_sizes(ctx, cfg):
 
     # TODO: Review sampling approach prior to release
-    # here we already know the label counts in the
-    # whole dataset.
-    #
-    # All we need then is a max count per label and trim it to that if >.
     #
     #
     
@@ -552,6 +462,7 @@ def respond(ctx):
 
 @tile.route('/tile', methods=['POST'])        
 def tiles():
+   
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
