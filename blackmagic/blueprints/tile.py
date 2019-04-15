@@ -81,10 +81,10 @@ def aux(ctx, cfg):
 
 
 def aux_filter(ctx):
-
+    
     return assoc(ctx,
                  'aux',
-                 dict(list(filter(lambda d: first(second(d)) != 0,
+                 dict(list(filter(lambda d: first(get('nlcdtrn', second(d))) != 0,
                                   ctx['aux'].items()))))
 
 
@@ -115,8 +115,12 @@ def combine(ctx):
     data = []
         
     for s in ctx['segments']:
+
         key = (s.cx, s.cy, s.px, s.py)
-        data.append(merge(ctx['aux'][key], s._asdict()))
+        a   = get_in(['aux', key], ctx, None)
+
+        if a is not None:
+            data.append(merge(a, s._asdict()))
 
     return assoc(ctx, 'data', data)
 
