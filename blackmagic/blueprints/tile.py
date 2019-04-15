@@ -7,6 +7,7 @@ from blackmagic import workers
 from collections import Counter
 from cytoolz import assoc
 from cytoolz import count
+from cytoolz import dissoc
 from cytoolz import do
 from cytoolz import drop
 from cytoolz import filter
@@ -28,6 +29,7 @@ from merlin.functions import flatten
 from sklearn.model_selection import train_test_split
 
 import arrow
+import gc
 import logging
 import io
 import merlin
@@ -102,7 +104,7 @@ def segments_filter(ctx):
     '''Yield segments that span the supplied date'''
 
     d = arrow.get(ctx['date']).datetime
-
+    
     return assoc(ctx,
                  'segments',
                  list(filter(lambda s: d >= arrow.get(s.sday).datetime and d <= arrow.get(s.eday).datetime,
@@ -128,7 +130,17 @@ def combine(ctx):
 def unload_segments(ctx):
     '''Manage memory, unload segments following combine'''
 
-    return assoc(ctx, 'segments', None)
+    return dissoc(ctx, 'segments')
+
+
+def unload_aux(ctx):
+    '''Manage memory, unload aux following combine'''
+
+    return dissoc(ctx, 'aux')
+
+def collect_garbage(ctx):
+    gc.collect()
+    return ctx
 
 
 def format(ctx):
@@ -185,12 +197,8 @@ def format(ctx):
 def log_results(ctx):
 
     _data = lambda c: len(c['data']) if c['data'] else None
-    _aux  = lambda c: len(c['aux'])  if c['aux'] else None
-    _seg  = lambda c: len(c['segments'])  if c['segments'] else None
     
     logger.info('Data count:{}'.format(len(ctx['data'])))
-    logger.info('Aux  count:{}'.format(_aux(ctx)))
-    logger.info('Seg  count:{}'.format(_seg(ctx)))
                 
     return ctx
     
@@ -225,6 +233,9 @@ def pipeline(chip, date, acquired, cfg):
                         aux_filter,                        
                         combine,
                         log_results,
+                        unload_segments,
+                        unload_aux,
+                        collect_garbage,
                         format)
     
 
