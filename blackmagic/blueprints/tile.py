@@ -193,7 +193,7 @@ def format(ctx):
                              [get('thrmse' , e)]])) for e in ctx['data']]
 
     # create and return 2d numpy array
-    return numpy.array(training)
+    return numpy.array(training, dtype=numpy.float32)
 
     #return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
 
