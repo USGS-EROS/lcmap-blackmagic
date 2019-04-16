@@ -153,55 +153,52 @@ def format(ctx):
 
     '''
 
-    training = [[get('nlcdtrn', e),
-                 get('aspect' , e),
-                 get('posidex', e),
-                 get('slope'  , e),
-                 get('mpw'    , e),
-                 get('dem'    , e),
-                 get('blcoef' , e),
-                 [get('blint'  , e)],
-                 [get('blmag'  , e)],
-                 [get('blrmse' , e)],
-                 get('grcoef' , e),
-                 [get('grint'  , e)],
-                 [get('grmag'  , e)],
-                 [get('grrmse' , e)],
-                 get('nicoef' , e),
-                 [get('niint'  , e)],
-                 [get('nimag'  , e)],
-                 [get('nirmse' , e)],
-                 get('recoef' , e),
-                 [get('reint'  , e)], 
-                 [get('remag'  , e)],
-                 [get('rermse' , e)],
-                 get('s1coef' , e),
-                 [get('s1int'  , e)],
-                 [get('s1mag'  , e)],
-                 [get('s1rmse' , e)],
-                 get('s2coef' , e),
-                 [get('s2int'  , e)],
-                 [get('s2mag'  , e)],
-                 [get('s2rmse' , e)],
-                 get('thcoef' , e),
-                 [get('thint'  , e)],
-                 [get('thmag'  , e)],
-                 [get('thrmse' , e)]] for e in ctx['data']]
-        
-    return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
+
+    # instead of a list comprehension, build a numpy array out of each
+    # entry directly and bypass all the straight python datastructures.
+    
+    training = [list(flatten([get('nlcdtrn', e),
+                             get('aspect' , e),
+                             get('posidex', e),
+                             get('slope'  , e),
+                             get('mpw'    , e),
+                             get('dem'    , e),
+                             get('blcoef' , e),
+                             [get('blint'  , e)],
+                             [get('blmag'  , e)],
+                             [get('blrmse' , e)],
+                             get('grcoef' , e),
+                             [get('grint'  , e)],
+                             [get('grmag'  , e)],
+                             [get('grrmse' , e)],
+                             get('nicoef' , e),
+                             [get('niint'  , e)],
+                             [get('nimag'  , e)],
+                             [get('nirmse' , e)],
+                             get('recoef' , e),
+                             [get('reint'  , e)], 
+                             [get('remag'  , e)],
+                             [get('rermse' , e)],
+                             get('s1coef' , e),
+                             [get('s1int'  , e)],
+                             [get('s1mag'  , e)],
+                             [get('s1rmse' , e)],
+                             get('s2coef' , e),
+                             [get('s2int'  , e)],
+                             [get('s2mag'  , e)],
+                             [get('s2rmse' , e)],
+                             get('thcoef' , e),
+                             [get('thint'  , e)],
+                             [get('thmag'  , e)],
+                             [get('thrmse' , e)]])) for e in ctx['data']]
+
+    # create and return 2d numpy array
+    return numpy.array(training)
+
+    #return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
 
 
 # TODO: This whole pipeline needs to be made lazy if possible.  It's consuming WAY too much memory.
-
-
-def log_results(ctx):
-
-    _data = lambda c: len(c['data']) if c['data'] else None
-    
-    logger.info('Data count:{}'.format(len(ctx['data'])))
-                
-    return ctx
-    
 
 def pipeline(chip, date, acquired, cfg):
 
@@ -212,32 +209,37 @@ def pipeline(chip, date, acquired, cfg):
 
     # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001/07/01', aux:{}, segments:[], data:[]}
 
-    # unload unneeded data from the context, such as segments & aux after combine and before format
-
-    '''
     return thread_first(ctx,
                         partial(segments, cfg=cfg),
                         segments_filter,
                         partial(aux, cfg=cfg),
                         aux_filter,                        
                         combine,
-                        unload_segments,
-                        format,
-                        log_results)
-    '''
-
-    return thread_first(ctx,
-                        partial(segments, cfg=cfg),
-                        segments_filter,
-                        partial(aux, cfg=cfg),
-                        aux_filter,                        
-                        combine,
-                        log_results,
                         unload_segments,
                         unload_aux,
                         collect_garbage,
                         format)
     
+
+#def data_pipeline(chip, date, acquired, cfg):
+#    pass
+
+
+
+#def characterize(chip, date, acquired, cfg):
+#    '''Retrieve training data for all chips in parallel'''
+#    
+#    p = partial(pipeline, date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
+#
+#
+#
+#   # TODO:  chunk the chips, look through every batch that completes to determine
+#    # if we can stop pulling data based on sampling strategy.
+#    
+#    with workers(cfg) as w:
+#        return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips'])))))
+#    pass
+
 
 def measure(fn):
     @wraps(fn)
@@ -321,9 +323,29 @@ def data(ctx, cfg):
 
     # TODO:  chunk the chips, look through every batch that completes to determine
     # if we can stop pulling data based on sampling strategy.
+
+    npa = None
     
     with workers(cfg) as w:
-        return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips'])))))
+        #return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips'])))))
+
+        #return assoc(ctx, 'data', numpy.array(w.map(p, ctx['chips'])))
+    
+        # this is a python list of 2d numpy arrays
+        #w.map(p, ctx['chips'])
+
+        # w.imap_unordered(p, ctx['chips'])
+
+        # map(append_to_numpy, w.imap_unordered(p, ctx['chips']))
+        #
+        
+        for a in w.imap_unordered(p, ctx['chips']):
+            if npa is None:
+                npa = a
+            else:
+                npa = numpy.append(npa, a, axis=0)
+
+        return assoc(ctx, 'data', npa)
 
 
 def counts(data):
@@ -342,7 +364,7 @@ def statistics(ctx):
        associates 'statistics' into ctx
        sample 'statistics' value: Counter({4.0: 4255, 0.0: 3651, 3.0: 1746, 5.0: 348})
     '''
-
+    
     with workers(cfg) as w:
         counters = w.map(counts, ctx['data'])
         c = Counter()
