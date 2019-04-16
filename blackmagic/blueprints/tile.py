@@ -139,7 +139,7 @@ def unload_aux(ctx):
     return dissoc(ctx, 'aux')
 
 def collect_garbage(ctx):
-    gc.collect()
+    #gc.collect()
     return ctx
 
 
@@ -325,6 +325,7 @@ def data(ctx, cfg):
     # if we can stop pulling data based on sampling strategy.
 
     npa = None
+    cnt = 0
     
     with workers(cfg) as w:
         #return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips'])))))
@@ -339,7 +340,11 @@ def data(ctx, cfg):
         # map(append_to_numpy, w.imap_unordered(p, ctx['chips']))
         #
         
-        for a in w.imap_unordered(p, ctx['chips']):
+        for a in w.imap_unordered(p, ctx['chips'], cfg['cpus_per_worker']):
+
+            cnt += 1
+            logger.info('loading data for chip #:{}'.format(cnt))
+            
             if npa is None:
                 npa = a
             else:
