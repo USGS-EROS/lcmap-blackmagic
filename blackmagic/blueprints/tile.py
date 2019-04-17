@@ -312,7 +312,7 @@ def data(ctx, cfg):
         for a in w.imap_unordered(p, ctx['chips'], cfg['cpus_per_worker']):
 
             cnt += 1
-            logger.info('{{"tx":{tx} "ty":{ty} "msg":"loading data for chip #:{cnt}}}'.format(cnt=cnt,tx=ctx['tx'], ty=ctx['ty']))
+            logger.info('{{"tx":{tx} "ty":{ty} "msg":"loading data for chip #:{cnt}"}}'.format(cnt=cnt, tx=ctx['tx'], ty=ctx['ty']))
             
             if npa is None:
                 npa = a
