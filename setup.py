@@ -34,6 +34,7 @@ setup(name='lcmap-blackmagic',
           'xgboost',
           'flask',
           'gunicorn',
+          'tenacity',
           'cassandra-driver'
           
       ],

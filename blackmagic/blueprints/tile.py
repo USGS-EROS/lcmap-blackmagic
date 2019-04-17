@@ -26,7 +26,12 @@ from flask import jsonify
 from flask import request
 from functools import wraps
 from merlin.functions import flatten
+from requests.exceptions import ConnectionError
 from sklearn.model_selection import train_test_split
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_attempt
+from tenacity import wait_random_exponential
 
 import arrow
 import gc
@@ -68,6 +73,10 @@ def watchlist(training_data, eval_data):
     return [(training_data, 'train'), (eval_data, 'eval')]
 
 
+@retry(retry=retry_if_exception_type(ConnectionError),
+       stop=stop_after_attempt(10),
+       reraise=True,
+       wait=wait_random_exponential(multiplier=1, max=60))
 def aux(ctx, cfg):
     '''Retrieve aux data'''
     
@@ -195,10 +204,6 @@ def format(ctx):
     # create and return 2d numpy array
     return numpy.array(training, dtype=numpy.float32)
 
-    #return [numpy.array(list(flatten(t)), dtype=numpy.float64) for t in training]
-
-
-# TODO: This whole pipeline needs to be made lazy if possible.  It's consuming WAY too much memory.
 
 def pipeline(chip, date, acquired, cfg):
 
@@ -220,26 +225,6 @@ def pipeline(chip, date, acquired, cfg):
                         collect_garbage,
                         format)
     
-
-#def data_pipeline(chip, date, acquired, cfg):
-#    pass
-
-
-
-#def characterize(chip, date, acquired, cfg):
-#    '''Retrieve training data for all chips in parallel'''
-#    
-#    p = partial(pipeline, date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
-#
-#
-#
-#   # TODO:  chunk the chips, look through every batch that completes to determine
-#    # if we can stop pulling data based on sampling strategy.
-#    
-#    with workers(cfg) as w:
-#        return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips'])))))
-#    pass
-
 
 def measure(fn):
     @wraps(fn)
@@ -318,32 +303,16 @@ def data(ctx, cfg):
     '''Retrieve training data for all chips in parallel'''
     
     p = partial(pipeline, date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
-    #p = partial(lazy_pipeline, date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
-
-
-    # TODO:  chunk the chips, look through every batch that completes to determine
-    # if we can stop pulling data based on sampling strategy.
 
     npa = None
     cnt = 0
     
     with workers(cfg) as w:
-        #return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips'])))))
-
-        #return assoc(ctx, 'data', numpy.array(w.map(p, ctx['chips'])))
-    
-        # this is a python list of 2d numpy arrays
-        #w.map(p, ctx['chips'])
-
-        # w.imap_unordered(p, ctx['chips'])
-
-        # map(append_to_numpy, w.imap_unordered(p, ctx['chips']))
-        #
         
         for a in w.imap_unordered(p, ctx['chips'], cfg['cpus_per_worker']):
 
             cnt += 1
-            logger.info('loading data for chip #:{}'.format(cnt))
+            logger.info('{{"tx":{tx} "ty":{ty} "msg":"loading data for chip #:{cnt}}}'.format(cnt=cnt,tx=ctx['tx'], ty=ctx['ty']))
             
             if npa is None:
                 npa = a
