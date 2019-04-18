@@ -103,12 +103,12 @@ def aux_filter(ctx):
 def segments(ctx, cfg):
     '''Return segments stored in Cassandra'''
 
+    s = db.session(cfg, ctx['cluster'])
+    
     return assoc(ctx,
                  'segments',
-                 [r for r in db.execute(cfg,
-                                        db.select_segment(cfg, ctx['cx'], ctx['cy']),
-                                        {'session': db.session(cfg, ctx['cluster'])})])
-
+                 [r for r in s.execute(db.select_segment(cfg, ctx['cx'], ctx['cy']))])
+                                        
 
 def segments_filter(ctx):
     '''Yield segments that span the supplied date'''
@@ -455,10 +455,10 @@ def train(ctx, cfg):
 def save(ctx, cfg):                                                
     '''Saves an xgboost model to Cassandra for this tx & ty'''
    
-    db.execute2(cfg, **db.insert_tile(cfg,
-                                      ctx['tx'],
-                                      ctx['ty'],
-                                      ctx['model'].save_raw()))    
+    db.insert_tile(cfg,
+                   ctx['tx'],
+                   ctx['ty'],
+                   ctx['model'].save_raw())
     return ctx
 
 

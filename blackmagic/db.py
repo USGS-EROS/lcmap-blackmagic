@@ -35,68 +35,45 @@ def session(cfg, cluster, keyspace=None):
     return session
 
 
-def connect(cfg, keyspace=None):
-    _cluster = cluster(cfg, keyspace)
-    _session = session(cfg, _cluster, keyspace)
-    return {'cluster': _cluster, 'session': _session}
+#def connect(cfg, keyspace=None):
+#    _cluster = cluster(cfg, keyspace)
+#    _session = session(cfg, _cluster, keyspace)
+#    return {'cluster': _cluster, 'session': _session}
 
 
 def none_as_null(s):
     return s.replace('None', 'null')
 
   
-def execute(cfg, stmt, connection):
-    try:
-        s = none_as_null(stmt)
-        return connection['session'].execute(s)
-    except Exception as e:
-        logger.error('statement:{}'.format(s))
-        raise e
+#def execute(cfg, stmt, connection):
+#    try:
+#        s = none_as_null(stmt)
+#        return connection['session'].execute(s)
+#    except Exception as e:
+#        logger.error('statement:{}'.format(s))
+#        raise e
     
 
 def execute_statement(cfg, stmt, keyspace=None):
-
-    conn = None
+    s = None
     try:
-        conn = connect(cfg, keyspace)
-        return execute(cfg, stmt, conn)
+        s = session(cfg, cluster(cfg, keyspace), keyspace)
+        return s.execute(none_as_null(stmt))
     finally:
-        if conn:
-            if conn['session']:
-                conn['session'].shutdown()
-            if conn['cluster']:
-                conn['cluster'].shutdown()
-
+        if s:
+            s.shutdown()
                 
-def execute2(cfg, statement, parameters, keyspace=None):
-    conn = None
-    try:
-        conn = connect(cfg, keyspace)
-        return conn['session'].execute(statement, parameters)
-    except Exception as e:
-        logger.error('statement:{} parameters:{}'.format(statement, parameters))
-        raise e
-    finally:
-        if conn:
-            if conn['session']:
-                conn['session'].shutdown()
-            if conn['cluster']:
-                conn['cluster'].shutdown()
-                
-                
+                           
 def execute_statements(cfg, stmts, keyspace=None):
-    conn = None
+    s = None
     try:
-        conn = connect(cfg, keyspace)
-        return [execute(cfg, s, conn) for s in stmts]
+        s = session(cfg, cluster(cfg, keyspace), keyspace)
+        return [s.execute(none_as_null(st)) for st in stmts]
+    
     finally:
-        if conn:
-            if conn['session']:
-                conn['session'].shutdown()
-            if conn['cluster']:
-                conn['cluster'].shutdown()
-    return c
-  
+        if s:
+            s.shutdown()
+        
 
 def create_keyspace(cfg):
     s = '''CREATE KEYSPACE IF NOT EXISTS {keyspace} 
@@ -300,28 +277,24 @@ def setup(cfg):
 
 
 def insert_chips(cfg, detections):
-    conn = connect(cfg)
+    s = session(cfg, cluster(cfg))
     detection = first(detections)
     try:
-        s = 'INSERT INTO {keyspace}.chip (cx, cy, dates) VALUES (?, ?, ?)'.format(keyspace=cfg['cassandra_keyspace'])
-        stmt = conn['session'].prepare(s)
-        return conn['session'].execute(stmt, [detection['cx'],
-                                              detection['cy'],
-                                              detection['dates']])
+        st = 'INSERT INTO {keyspace}.chip (cx, cy, dates) VALUES (?, ?, ?)'.format(keyspace=cfg['cassandra_keyspace'])
+        stmt = s.prepare(st)
+        return s.execute(stmt, [detection['cx'],
+                                detection['cy'],
+                                detection['dates']])
     finally:
-        if conn:
-            if conn['session']:
-                conn['session'].shutdown()
-            if conn['cluster']:
-                conn['cluster'].shutdown()
-            
+        if s:
+            s.shutdown()
+        
 
 def insert_pixels(cfg, detections):
-    conn = connect(cfg)
-    
+    s = session(cfg, cluster(cfg))
     try:
-        s = 'INSERT INTO {keyspace}.pixel (cx, cy, px, py, mask) VALUES (?, ?, ?, ?, ?)'.format(keyspace=cfg['cassandra_keyspace'])
-        stmt = conn['session'].prepare(s)
+        st = 'INSERT INTO {keyspace}.pixel (cx, cy, px, py, mask) VALUES (?, ?, ?, ?, ?)'.format(keyspace=cfg['cassandra_keyspace'])
+        stmt = s.prepare(st)
 
         chunks = partition_all(cfg['cassandra_batch_size'], detections)
 
@@ -332,52 +305,53 @@ def insert_pixels(cfg, detections):
             [batch.add(stmt, [c['cx'], c['cy'], c['px'], c['py'], c['mask']]) for c in chunk]
             batches.append(batch)
            
-        return [conn['session'].execute(b) for b in batches]
+        return [s.execute(b) for b in batches]
     finally:
-        if conn:
-            if conn['session']:
-                conn['session'].shutdown()
-            if conn['cluster']:
-                conn['cluster'].shutdown()
+        if s:
+            s.shutdown()
 
-                
+            
 def insert_tile(cfg, tx, ty, model):
-    s = 'INSERT INTO {keyspace}.tile (tx, ty, model) VALUES (%(tx)s, %(ty)s, %(model)s);'
+    s = session(cfg, cluster(cfg))
 
-    p = {"tx":       tx,
-         "ty":       ty,
-         "model":    model}
-    
-    return {'statement': s.format(keyspace=cfg['cassandra_keyspace']),
-            'parameters': p}
+    try:
+        st = 'INSERT INTO {keyspace}.tile (tx, ty, model) VALUES (%(tx)s, %(ty)s, %(model)s);'
+        st = st.format(keyspace=cfg['cassandra_keyspace'])
+
+        p = {"tx":    tx,
+             "ty":    ty,
+             "model": model}
+
+        return s.execute(none_as_null(st), p)
+    finally:
+        if s:
+            s.shutdown()
               
-
-    #model=model.hex())
-
                 
 def insert_segments(cfg, detections):
-    conn = connect(cfg)
+    s = session(cfg, cluster(cfg))
+    
     try:
-        s = '''INSERT INTO {keyspace}.segment 
-                   (cx, cy, px, py, sday, eday, bday, chprob, curqa,
-                    blcoef, blint, blmag, blrmse,
-                    grcoef, grint, grmag, grrmse,
-                    nicoef, niint, nimag, nirmse,
-                    recoef, reint, remag, rermse,
-                    s1coef, s1int, s1mag, s1rmse,
-                    s2coef, s2int, s2mag, s2rmse,
-                    thcoef, thint, thmag, thrmse) 
-               VALUES 
-                   (?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?,
-                    ?, ?, ?, ?,
-                    ?, ?, ?, ?,
-                    ?, ?, ?, ?,
-                    ?, ?, ?, ?,
-                    ?, ?, ?, ?,
-                    ?, ?, ?, ?)'''.format(keyspace=cfg['cassandra_keyspace'])
+        st = '''INSERT INTO {keyspace}.segment 
+                    (cx, cy, px, py, sday, eday, bday, chprob, curqa,
+                     blcoef, blint, blmag, blrmse,
+                     grcoef, grint, grmag, grrmse,
+                     nicoef, niint, nimag, nirmse,
+                     recoef, reint, remag, rermse,
+                     s1coef, s1int, s1mag, s1rmse,
+                     s2coef, s2int, s2mag, s2rmse,
+                     thcoef, thint, thmag, thrmse) 
+                VALUES 
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?,
+                     ?, ?, ?, ?,
+                     ?, ?, ?, ?,
+                     ?, ?, ?, ?,
+                     ?, ?, ?, ?,
+                     ?, ?, ?, ?,
+                     ?, ?, ?, ?,
+                     ?, ?, ?, ?)'''.format(keyspace=cfg['cassandra_keyspace'])
         
-        stmt = conn['session'].prepare(s)
+        stmt = s.prepare(st)
 
         chunks = partition_all(cfg['cassandra_batch_size'], detections)
         
@@ -397,14 +371,11 @@ def insert_segments(cfg, detections):
                                  c['thcoef'], c['thint'], c['thmag'], c['thrmse']])
             batches.append(batch)
            
-        return [conn['session'].execute(b) for b in batches]
+        return [s.execute(b) for b in batches]
 
     finally:
-        if conn:
-            if conn['session']:
-                conn['session'].shutdown()
-            if conn['cluster']:
-                conn['cluster'].shutdown()
+        if s:
+            s.shutdown()
             
 
 def delete_chip(cfg, cx, cy):
