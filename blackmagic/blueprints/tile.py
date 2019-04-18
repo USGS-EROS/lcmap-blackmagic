@@ -322,7 +322,7 @@ def data(ctx, cfg):
     
     with workers(cfg) as w:
         
-        for a in w.imap_unordered(p, ctx['chips'], cfg['cpus_per_worker']):
+        for a in w.imap_unordered(p, ctx['chips']):
 
             cnt += 1
             logger.info('{{"tx":{tx} "ty":{ty} "msg":"loading data for chip #:{cnt}"}}'.format(cnt=cnt, tx=ctx['tx'], ty=ctx['ty']))
