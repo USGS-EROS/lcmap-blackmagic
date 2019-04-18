@@ -44,6 +44,7 @@ import xgboost as xgb
 logger = logging.getLogger('blackmagic.tile')
 tile = Blueprint('tile', __name__)
 
+_cluster = None
 
 def dmatrix(data, labels):
     '''Transforms independent and dependent variables into an xgboost dmatrix'''
@@ -101,14 +102,14 @@ def aux_filter(ctx):
 
 def segments(ctx, cfg):
     '''Return segments stored in Cassandra'''
-    
+
     return assoc(ctx,
                  'segments',
-                 [r for r in db.execute_statement(cfg,
-                                                  db.select_segment(cfg,
-                                                                    ctx['cx'],
-                                                                    ctx['cy']))])
-    
+                 [r for r in db.execute(cfg,
+                                        db.select_segment(cfg, ctx['cx'], ctx['cy']),
+                                        {'session': db.session(cfg, ctx['cluster'])})])
+
+
 def segments_filter(ctx):
     '''Yield segments that span the supplied date'''
 
@@ -120,6 +121,17 @@ def segments_filter(ctx):
                              ctx['segments'])))
 
 
+def cluster(cfg):
+    '''Create dbconn and add to context'''
+
+    global _cluster
+    
+    if _cluster is None:
+        _cluster = db.cluster(cfg)
+
+    return _cluster
+
+    
 def combine(ctx):
     '''Combine segments with matching aux entry'''
 
@@ -210,7 +222,8 @@ def pipeline(chip, date, acquired, cfg):
     ctx = {'cx': first(chip),
            'cy': second(chip),
            'date': date,
-           'acquired': acquired}
+           'acquired': acquired,
+           'cluster': cluster(cfg)}
 
     # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001/07/01', aux:{}, segments:[], data:[]}
 
@@ -473,7 +486,7 @@ def respond(ctx):
 
 @tile.route('/tile', methods=['POST'])        
 def tiles():
-   
+    
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),

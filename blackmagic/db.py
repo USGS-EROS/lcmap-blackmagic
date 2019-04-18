@@ -15,7 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def connect(cfg, keyspace=None):
+def cluster(cfg, keyspace=None):
     auth = PlainTextAuthProvider(username=cfg['cassandra_user'],
                                  password=cfg['cassandra_pass'])
 
@@ -25,12 +25,20 @@ def connect(cfg, keyspace=None):
                       reconnection_policy=ExponentialReconnectionPolicy(1.0, 600.0),
                       port=cfg['cassandra_port'],
                       auth_provider=auth)
-    
+    return cluster
+
+
+def session(cfg, cluster, keyspace=None):
     session = cluster.connect(keyspace=keyspace)
     session.default_timeout = cfg['cassandra_timeout']
     session.default_fetch_size = None
+    return session
 
-    return {'cluster': cluster, 'session': session}
+
+def connect(cfg, keyspace=None):
+    _cluster = cluster(cfg, keyspace)
+    _session = session(cfg, _cluster, keyspace)
+    return {'cluster': _cluster, 'session': _session}
 
 
 def none_as_null(s):
