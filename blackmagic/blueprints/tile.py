@@ -215,7 +215,7 @@ def format(ctx):
 
 def log_chip(ctx):
 
-    m = '{{"tx":{tx}, "ty":{ty}, "cx":{cx}, "cy":{cy}, "date":{date}, "acquired":{acquired} "msg":"loading data"}}'
+    m = '{{"tx":{tx}, "ty":{ty}, "cx":{cx}, "cy":{cy}, "date":{date}, "acquired":{acquired}, "msg":"loading data"}}'
 
     logger.info(m.format(**ctx))
     
@@ -357,8 +357,6 @@ def data(ctx, cfg):
 
 def counts(data):
     '''Count the occurance of each label in data'''
-
-    print("DATA:{}".format(data))
     
     c = Counter()
     c[first(data)] += 1
