@@ -326,11 +326,15 @@ def data(ctx, cfg):
 
             cnt += 1
             logger.info('{{"tx":{tx} "ty":{ty} "msg":"loading data for chip #:{cnt}"}}'.format(cnt=cnt, tx=ctx['tx'], ty=ctx['ty']))
-            
+
+            s = datetime.now()            
             if npa is None:
                 npa = a
             else:
                 npa = numpy.append(npa, a, axis=0)
+            e = datetime.now()
+
+            logger.info('appended data to numpy in {}'.format(e-s))
 
         return assoc(ctx, 'data', npa)
 
