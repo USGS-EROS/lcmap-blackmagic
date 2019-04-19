@@ -159,11 +159,7 @@ def unload_aux(ctx):
 
     return dissoc(ctx, 'aux')
 
-def collect_garbage(ctx):
-    #gc.collect()
-    return ctx
-
-
+ 
 def format(ctx):
 
     # return [[]] numpy array from ctx
@@ -214,12 +210,27 @@ def format(ctx):
                              [get('thrmse' , e)]])) for e in ctx['data']]
 
     # create and return 2d numpy array
-    return numpy.array(training, dtype=numpy.float32)
+    return assoc(ctx, 'data', numpy.array(training, dtype=numpy.float32))
 
 
-def pipeline(chip, date, acquired, cfg):
+def log_chip(ctx):
 
-    ctx = {'cx': first(chip),
+    m = '{{"tx":{tx}, "ty":{ty}, "cx":{cx}, "cy":{cy}, "date":{date}, "acquired":{acquired} "msg":"loading data"}}'
+
+    logger.info(m.format(**ctx))
+    
+    return ctx
+
+
+def exit_pipeline(ctx):
+    return ctx['data']
+
+
+def pipeline(chip, tx, ty, date, acquired, cfg):
+
+    ctx = {'tx': tx,
+           'ty': ty,
+           'cx': first(chip),
            'cy': second(chip),
            'date': date,
            'acquired': acquired,
@@ -235,8 +246,9 @@ def pipeline(chip, date, acquired, cfg):
                         combine,
                         unload_segments,
                         unload_aux,
-                        collect_garbage,
-                        format)
+                        format,
+                        log_chip,
+                        exit_pipeline)
     
 
 def measure(fn):
@@ -315,33 +327,39 @@ def exception_handler(ctx, http_status, name, fn):
 def data(ctx, cfg):
     '''Retrieve training data for all chips in parallel'''
     
-    p = partial(pipeline, date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
+    p = partial(pipeline, tx=ctx['tx'], ty=ctx['ty'], date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
 
-    npa = None
-    cnt = 0
-    
     with workers(cfg) as w:
-        
-        for a in w.imap_unordered(p, ctx['chips']):
+        return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
 
-            cnt += 1
-            logger.info('{{"tx":{tx} "ty":{ty} "msg":"loading data for chip #:{cnt}"}}'.format(cnt=cnt, tx=ctx['tx'], ty=ctx['ty']))
+    # these append operations wind up taking at least .5 second per chip.  That's over 3 hours of time.
+    #npa = None
+    #cnt = 0
+    
+    #with workers(cfg) as w:
+    #    
+    #    for a in w.imap_unordered(p, ctx['chips']):
+    #
+    #        cnt += 1
+    #        logger.info('{{"tx":{tx} "ty":{ty} "msg":"loading data for chip #:{cnt}"}}'.format(cnt=cnt, tx=ctx['tx'], ty=ctx['ty']))
 
-            s = datetime.now()            
-            if npa is None:
-                npa = a
-            else:
-                npa = numpy.append(npa, a, axis=0)
-            e = datetime.now()
+    #        s = datetime.now()            
+    #        if npa is None:
+    #            npa = a
+    #        else:
+    #            npa = numpy.append(npa, a, axis=0)
+    #        e = datetime.now()
 
-            logger.info('appended data to numpy in {}'.format(e-s))
+    #        logger.info('appended data to numpy in {}'.format(e-s))
 
-        return assoc(ctx, 'data', npa)
+    #    return assoc(ctx, 'data', npa)
 
 
 def counts(data):
     '''Count the occurance of each label in data'''
-   
+
+    print("DATA:{}".format(data))
+    
     c = Counter()
     c[first(data)] += 1
     return c
