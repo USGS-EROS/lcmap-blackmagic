@@ -4,6 +4,7 @@ from blackmagic import raise_on
 from blackmagic import skip_on_exception
 from blackmagic import skip_on_empty
 from blackmagic import workers
+from cassandra import ReadTimeout
 from collections import Counter
 from cytoolz import assoc
 from cytoolz import count
@@ -100,6 +101,10 @@ def aux_filter(ctx):
                                   ctx['aux'].items()))))
 
 
+@retry(retry=retry_if_exception_type(ReadTimeout),
+       stop=stop_after_attempt(10),
+       reraise=True,
+       wait=wait_random_exponential(multiplier=1, max=60))
 def segments(ctx, cfg):
     '''Return segments stored in Cassandra'''
 
