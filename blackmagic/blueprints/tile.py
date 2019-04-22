@@ -395,8 +395,6 @@ def sample(ctx, cfg):
     adj_counts[adj_counts > cfg['xgboost']['class_max']] = cfg['xgboost']['class_max']
     adj_counts[adj_counts < cfg['xgboost']['class_min']] = cfg['xgboost']['class_min']
 
-    # This is where it gets tricky.  This code is selecting indices.
-    # We actually want to select data itself.
     selected_indices = []
     for cls, count in zip(class_values, adj_counts):
         # Index locations of values
@@ -413,7 +411,8 @@ def sample(ctx, cfg):
 
 @raise_on('test_training_exception')
 @skip_on_exception
-@skip_on_empty('data')
+@skip_on_empty('independent')
+@skip_on_empty('dependent')
 @measure
 def train(ctx, cfg):
     '''Train an xgboost model'''
