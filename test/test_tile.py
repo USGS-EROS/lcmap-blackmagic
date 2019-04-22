@@ -1,6 +1,7 @@
 import json
 import os
 import pytest
+import numpy
 import requests
 import test
 
@@ -270,50 +271,50 @@ def test_tile_counts():
 
 
 def test_tile_statistics():
-    ctx = {'data': [[0, 1, 2],
-                    [0, 2, 3],
-                    [1, 1, 2],
-                    [2, 3, 4],
-                    [2, 4, 5],
-                    [2, 6, 7]]}
+    ctx = {'data': numpy.array([[0, 1, 2],
+                                [0, 2, 3],
+                                [1, 1, 2],
+                                [1, 1, 1],
+                                [1, 1, 1],
+                                [2, 2, 2],
+                                [2, 2, 2],
+                                [2, 3, 4],
+                                [2, 4, 5],
+                                [2, 6, 7]])}
 
     stats = get('statistics', tile.statistics(ctx))
 
-    assert get(0, stats) == 2
-    assert get(1, stats) == 1
-    assert get(2, stats) == 3
-
+    assert numpy.array_equal(stats[0], numpy.array([0, 1, 2]))
+    assert numpy.array_equal(stats[1], numpy.array([0.20, 0.30, 0.50]))
+           
 
 def test_tile_randomize():
     pass
 
 
-def test_sample_sizes():
-    pass
-
-
 def test_tile_sample():
     
-    ctx = {'sample_sizes': {0: 1, 1: 4, 2: 3},
-           'data': [[0, 1, 2],
-                    [0, 2, 3],
-                    [0, 3, 4],
-                    [1, 1, 2],
-                    [1, 2, 3],
-                    [1, 3, 4],
-                    [1, 4, 5],
-                    [1, 5, 6],
-                    [2, 0, 0],
-                    [2, 0, 1],
-                    [2, 0, 2],
-                    [2, 0, 3]]}
-    
-    sampled = get('data', tile.sample(ctx))
-   
-    assert len(list(filter(lambda x: first(x) == 0, sampled))) == 1
-    assert len(list(filter(lambda x: first(x) == 1, sampled))) == 4
-    assert len(list(filter(lambda x: first(x) == 2, sampled))) == 3
-    
+    ctx = {'independent': numpy.array([[0, 1],
+                                       [4, 4],
+                                       [2, 3],
+                                       [4, 5],
+                                       [6, 7],
+                                       [8, 9],
+                                       [9, 10]]),
+           'dependent': numpy.array([0, 1, 0, 2, 0, 2, 0]),
+           'statistics': (numpy.array([0,1,2]),
+                          numpy.array([0.5714, 0.1428, 0.2857]))}
+
+    cfg = {'xgboost': {'target_samples': 50, 'class_min': 2, 'class_max': 3}}
+           
+    s = tile.sample(ctx, cfg)
+    i = s['independent']
+    d = s['dependent']
+
+    print("D:{}".format(d))
+    print("I:{}".format(i))
+
+    assert numpy.array_equal(d, [0, 0, 0, 1, 2, 2])    
 
 def test_tile_train():
     pass

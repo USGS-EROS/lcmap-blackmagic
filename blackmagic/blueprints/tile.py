@@ -337,28 +337,6 @@ def data(ctx, cfg):
     with workers(cfg) as w:
         return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
 
-    # these append operations wind up taking at least .5 second per chip.  That's over 3 hours of time.
-    #npa = None
-    #cnt = 0
-    
-    #with workers(cfg) as w:
-    #    
-    #    for a in w.imap_unordered(p, ctx['chips']):
-    #
-    #        cnt += 1
-    #        logger.info('{{"tx":{tx} "ty":{ty} "msg":"loading data for chip #:{cnt}"}}'.format(cnt=cnt, tx=ctx['tx'], ty=ctx['ty']))
-
-    #        s = datetime.now()            
-    #        if npa is None:
-    #            npa = a
-    #        else:
-    #            npa = numpy.append(npa, a, axis=0)
-    #        e = datetime.now()
-
-    #        logger.info('appended data to numpy in {}'.format(e-s))
-
-    #    return assoc(ctx, 'data', npa)
-
 
 def counts(data):
     '''Count the occurance of each label in data'''
@@ -376,14 +354,11 @@ def statistics(ctx):
        associates 'statistics' into ctx
        sample 'statistics' value: Counter({4.0: 4255, 0.0: 3651, 3.0: 1746, 5.0: 348})
     '''
-    
-    with workers(cfg) as w:
-        counters = w.map(counts, ctx['data'])
-        c = Counter()
-        list(map(c.update, counters))
-        return assoc(ctx, 'statistics', c)
-    
-    return ctx
+
+    dep = ctx['data'][::-1, ::ctx['data'].shape[1]].flatten()
+    vals, cnts = numpy.unique(dep, return_counts=True)
+    prct = cnts / numpy.sum(cnts)
+    return assoc(ctx, 'statistics', (vals, prct))
 
 
 @skip_on_exception
@@ -398,57 +373,42 @@ def randomize(ctx, cfg):
 
 @skip_on_exception
 @measure
-def sample_sizes(ctx, cfg):
+def split_data(ctx):
 
-    # TODO: Review sampling approach prior to release
-    #
-    #
+    return merge(dissoc(ctx, 'data'),
+                 {'independent': independent(ctx['data']),
+                  'dependent': dependent(ctx['data'])})
     
-    total    = count(ctx['data'])
-    labelmax = get_in(['xgboost', 'max_samples_per_label'], cfg)
-
-    return assoc(ctx,
-                 'sample_sizes',
-                 {l: o if o < labelmax else labelmax for l, o in ctx['statistics'].items()})        
-
-    #for label, occurances in ctx['statistics'].items():
-        
-    #return assoc(ctx,
-    #             'sample_sizes',
-    #             {l: math.ceil(c/total) for l, c in ctx['statistics'].items()}
-
-
-                      
-    #
-    # ctx['statistics']
-    #
-    
-    #for label, occurances in ctx['statistics'].items():
-    # class_values, percent = class_stats(dependent)
-
-    # Adjust the target counts that we are wanting based on the percentage
-    # that each one represents in the base data set.
-    #adj_counts = np.ceil(params['target_samples'] * percent)
-    #adj_counts[adj_counts > params['class_max']] = params['class_max']
-    #adj_counts[adj_counts < params['class_min']] = params['class_min']
-
-    
-    #return assoc(ctx, 'sample_sizes', sizes)
-
 
 @skip_on_exception
 @measure
-def sample(ctx):
+def sample(ctx, cfg):
     '''Return leveled data sample based on label values'''
 
     # See xg-train-annualized.py in lcmap-science/classification as reference.
+
+    class_values, percent = ctx['statistics']
     
-    samples = []
-    
-    for label, size in ctx['sample_sizes'].items():
-        samples.append(list(take(size, filter(lambda x: first(x) == label, ctx['data']))))
-        
-    return assoc(ctx, 'data', list(flatten(samples)))
+    # Adjust the target counts that we are wanting based on the percentage
+    # that each one represents in the base data set.
+    adj_counts = numpy.ceil(cfg['xgboost']['target_samples'] * percent)
+    adj_counts[adj_counts > cfg['xgboost']['class_max']] = cfg['xgboost']['class_max']
+    adj_counts[adj_counts < cfg['xgboost']['class_min']] = cfg['xgboost']['class_min']
+
+    # This is where it gets tricky.  This code is selecting indices.
+    # We actually want to select data itself.
+    selected_indices = []
+    for cls, count in zip(class_values, adj_counts):
+        # Index locations of values
+        indices = numpy.where(ctx['dependent'] == cls)[0]
+
+        # Add the index locations up to the count
+        selected_indices.extend(indices[:int(count)])
+
+    si = numpy.array(selected_indices)
+
+    return merge(ctx, {'independent': ctx['independent'][si],
+                       'dependent': ctx['dependent'][si]})
 
 
 @raise_on('test_training_exception')
@@ -457,10 +417,9 @@ def sample(ctx):
 @measure
 def train(ctx, cfg):
     '''Train an xgboost model'''
-
     
-    itrain, itest, dtrain, dtest = train_test_split(independent(ctx['data']),
-                                                    dependent(ctx['data']),
+    itrain, itest, dtrain, dtest = train_test_split(ctx['independent'],
+                                                    ctx['dependent'],
                                                     test_size=get_in(['xgboost', 'test_size'], cfg))
     
     train_matrix = xgb.DMatrix(data=itrain, label=dtrain)
@@ -472,6 +431,7 @@ def train(ctx, cfg):
                                          evals=watchlist(train_matrix, test_matrix),
                                          early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
                                          verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg)))
+
 
 @raise_on('test_cassandra_exception')
 @skip_on_exception
@@ -508,7 +468,6 @@ def respond(ctx):
     return response
 
 
-
 @tile.route('/tile', methods=['POST'])        
 def tiles():
     
@@ -518,8 +477,8 @@ def tiles():
                         partial(exception_handler, http_status=500, name='data', fn=partial(data, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='statistics', fn=statistics),
                         partial(exception_handler, http_status=500, name='randomize', fn=partial(randomize, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='sample_sizes', fn=partial(sample_sizes, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='sample', fn=sample),
+                        partial(exception_handler, http_status=500, name='split_data', fn=split_data),
+                        partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
                         respond)
