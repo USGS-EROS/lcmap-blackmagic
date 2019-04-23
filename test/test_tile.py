@@ -311,11 +311,9 @@ def test_tile_sample():
     i = s['independent']
     d = s['dependent']
 
-    print("D:{}".format(d))
-    print("I:{}".format(i))
-
     assert numpy.array_equal(d, [0, 0, 0, 1, 2, 2])    
 
+    
 def test_tile_train():
     pass
 

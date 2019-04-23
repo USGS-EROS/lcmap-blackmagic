@@ -87,12 +87,12 @@ def create_tile(cfg):
     '''
         tx:    tile upper left x
         ty:    tile upper left y
-        model: model blob
+        model: model text
     '''
     s = '''CREATE TABLE IF NOT EXISTS {keyspace}.tile (
            tx      int,
            ty      int,
-           model   blob,
+           model   text,
            PRIMARY KEY((tx, ty)))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
            AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}

@@ -308,7 +308,7 @@ def log_request(ctx):
     d  = get('date', ctx, None)
     c  = get('chips', ctx, None)
     
-    logger.info('POST /tile {x},{y},{a},{d},{c}'.format(x=tx, y=ty, a=a, d=d, c=c))
+    logger.info("POST /tile {x},{y},{a},{d},{c}".format(x=tx, y=ty, a=a, d=d, c=c))
         
     return ctx
 
@@ -442,7 +442,7 @@ def save(ctx, cfg):
     db.insert_tile(cfg,
                    ctx['tx'],
                    ctx['ty'],
-                   ctx['model'].save_raw())
+                   ctx['model'].save_raw().hex())
     return ctx
 
 
