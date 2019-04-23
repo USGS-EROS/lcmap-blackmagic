@@ -32,8 +32,8 @@ cfg = {'cassandra_batch_size': int(os.environ.get('CASSANDRA_BATCH_SIZE', 1000))
                                   'max_depth': 8,
                                   'tree_method': 'hist',
                                   'eval_metric': 'mlogloss',
-                                  'silent': 1}}}
-#                                  'nthread': -1}}}
+                                  'silent': 1,
+                                  'nthread': int(os.environ.get('CPUS_PER_WORKER', 1))}}}
 
 
 def workers(cfg):
