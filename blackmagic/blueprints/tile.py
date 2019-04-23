@@ -68,7 +68,7 @@ def dependent(data):
        return: 1d numpy array of labels
     '''
     
-    return numpy.delete(data, numpy.s_[1:], 1).flatten()
+    return numpy.delete(data, numpy.s_[1:], 1).flatten().astype('int8')
 
 
 def watchlist(training_data, eval_data):
@@ -438,7 +438,11 @@ def train(ctx, cfg):
 @measure
 def save(ctx, cfg):                                                
     '''Saves an xgboost model to Cassandra for this tx & ty'''
-   
+
+    # will need to decode hex when pulling model
+    # >>> bytes.fromhex('deadbeef')
+    #b'\xde\xad\xbe\xef'
+        
     db.insert_tile(cfg,
                    ctx['tx'],
                    ctx['ty'],
