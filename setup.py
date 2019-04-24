@@ -18,7 +18,7 @@ setup(name='lcmap-blackmagic',
       classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: Unlicense',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
       ],
       keywords='usgs lcmap eros pyccd ccdc',
       url='http://github.com/usgs-eros/lcmap-blackmagic',
@@ -34,6 +34,7 @@ setup(name='lcmap-blackmagic',
           'xgboost',
           'flask',
           'gunicorn',
+          'tenacity',
           'cassandra-driver'
           
       ],
@@ -42,9 +43,7 @@ setup(name='lcmap-blackmagic',
       # for example:
       # $ pip install -e .[test]
       extras_require={
-          'test': ['pytest',
-                   'vcrpy',
-                  ],
+          'test': ['pytest',],
           'dev': ['',],
       },
       #test_suite='nose.collector',

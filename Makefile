@@ -9,19 +9,30 @@ TAG        := $(shell if [ "$(BRANCH)" = "master" ];\
                       fi)
 
 deps-up:
-	docker-compose -f resources/docker-compose.yml up blackmagic-cassandra
+	docker-compose -f deps/docker-compose.yml up
 
 deps-up-d:
-	docker-compose -f resources/docker-compose.yml up -d blackmagic-cassandra
+	docker-compose -f deps/docker-compose.yml up -d
 
 deps-down:
-	docker-compose -f resources/docker-compose.yml down blackmagic-cassandra
+	docker-compose -f deps/docker-compose.yml down
 
 clean:
 	@rm -rf lcmap_blackmagic.egg-info *pyc *~ *__pycache__*
 
-tests:
-	pytest
+set-nginx-cache-file-perms: deps-up-d
+	docker exec -it blackmagic-nginx /bin/bash -c "chmod -R 777 /data/nginx/cache"
+
+clear-nginx-cache: deps-up-d
+	docker exec -it blackmagic-nginx /bin/bash -c "rm -rf /data/nginx/cache/*"
+
+update-test-data: deps-up-d clear-nginx-cache tests set-nginx-cache-file-perms deps-down
+	@echo "NGINX cache files updated"
+
+test-with-manual-deps:
+	pytest --ignore=deps/nginxcache
+
+tests: deps-up-d test-with-manual-deps deps-down
 
 docker-build:
 	@docker build --build-arg version=$(VERSION) -t $(BUILD_TAG) --rm=true --compress $(PWD)
@@ -35,7 +46,7 @@ docker-login:
 docker-push: docker-login
 	docker push $(TAG)
 
-all: deps-up-d test deps-down clean docker-build docker-tag docker-push
+all: tests clean docker-build docker-tag docker-push
 
 debug:
 	@echo "VERSION:   $(VERSION)"

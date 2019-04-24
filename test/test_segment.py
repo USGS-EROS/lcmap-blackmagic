@@ -22,7 +22,6 @@ def client():
     yield app.app.test_client()
 
     
-@test.vcr.use_cassette(test.cassette)    
 def test_segment_runs_as_expected(client):
     '''
     As a blackmagic user, when I send cx, cy, & acquired range
@@ -51,13 +50,13 @@ def test_segment_runs_as_expected(client):
     assert get('cx', response.get_json()) == test.cx
     assert get('cy', response.get_json()) == test.cy
     assert get('acquired', response.get_json()) == test.a
-    assert get('msg', response.get_json(), None) == None
+    assert get('exception', response.get_json(), None) == None
     
     assert len(list(map(lambda x: x, chips))) == 1
     assert len(list(map(lambda x: x, pixels))) == 10000
     assert len(list(map(lambda x: x, segments))) == 10000
 
-    
+
 def test_segment_bad_parameters(client):
     '''
     As a blackmagic user, when I don't send cx, cy, & acquired range
@@ -93,14 +92,14 @@ def test_segment_bad_parameters(client):
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
-    assert type(get('msg', response.get_json())) is str
-    assert len(get('msg', response.get_json())) > 0
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
 
     assert len(list(map(lambda x: x, chips))) == 0
     assert len(list(map(lambda x: x, pixels))) == 0
     assert len(list(map(lambda x: x, segments))) == 0
 
-    
+
 def test_segment_merlin_exception(client):
     '''
     As a blackmagic user, when an exception occurs creating a 
@@ -108,9 +107,9 @@ def test_segment_merlin_exception(client):
     message describing the failure so that the issue may be resolved.
     '''
 
-    cx = 'not-an-integer'
+    cx = test.cx
     cy = test.cy
-    a = test.a
+    a = 'not-a-date'
 
     delete_detections(test.cx, test.cy)
     
@@ -135,8 +134,8 @@ def test_segment_merlin_exception(client):
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
-    assert type(get('msg', response.get_json())) is str
-    assert len(get('msg', response.get_json())) > 0
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
 
     assert len(list(map(lambda x: x, chips))) == 0
     assert len(list(map(lambda x: x, pixels))) == 0
@@ -178,14 +177,14 @@ def test_segment_merlin_no_input_data(client):
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
-    assert type(get('msg', response.get_json())) is str
-    assert len(get('msg', response.get_json())) > 0
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
 
     assert len(list(map(lambda x: x, chips))) == 0
     assert len(list(map(lambda x: x, pixels))) == 0
     assert len(list(map(lambda x: x, segments))) == 0
 
-    
+
 def test_segment_detection_exception(client):
     '''
     As a blackmagic user, when an exception occurs running 
@@ -224,14 +223,14 @@ def test_segment_detection_exception(client):
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
-    assert type(get('msg', response.get_json())) is str
-    assert len(get('msg', response.get_json())) > 0
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
 
     assert len(list(map(lambda x: x, chips))) == 0
     assert len(list(map(lambda x: x, pixels))) == 0
     assert len(list(map(lambda x: x, segments))) == 0
 
-    
+
 def test_segment_cassandra_exception(client):
     '''
     As a blackmagic user, when an exception occurs saving 
@@ -270,8 +269,8 @@ def test_segment_cassandra_exception(client):
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
-    assert type(get('msg', response.get_json())) is str
-    assert len(get('msg', response.get_json())) > 0
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
 
     assert len(list(map(lambda x: x, chips))) == 0
     assert len(list(map(lambda x: x, pixels))) == 0

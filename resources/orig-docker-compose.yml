@@ -1,0 +1,41 @@
+version: "3"
+
+services:
+
+  blackmagic-chipmunk:
+    image: usgseros/lcmap-chipmunk:master-1.0.1
+    network_mode: "host"
+    environment:
+      - HTTP_PORT=5656
+      - HTTP_TIMEOUT_MILLIS=615000
+      - DB_HOST=localhost
+      - DB_USER=cassandra
+      - DB_PASS=cassandra
+      - DB_KEYSPACE=blackmagic_chipmunk_test
+      - DB_READ_TIMEOUT_MILLIS=600000
+      - GDAL_HTTP_TIMEOUT=615
+      - Xms=1024m
+      - Xmx=1024m
+
+  blackmagic-cassandra:
+    image: cassandra:3.9
+    network_mode: "host"
+    
+  blackmagic:
+    image: "usgseros/lcmap-nemo:build"
+    network_mode: "host"
+    environment:
+      - CASSANDRA_HOST=localhost
+      - CASSANDRA_PORT=9042
+      - CASSANDRA_USER=cassandra
+      - CASSANDRA_PASS=cassandra
+      - CASSANDRA_KEYSPACE=blackmagic_dev
+      - CASSANDRA_TIMEOUT=600
+      - CASSANDRA_CONSISTENCY=QUORUM
+      - CASSANDRA_CONCURRENT_WRITES=1
+      - CHIPMUNK_URL=http://localhost:5656
+      - CPUS=1
+      - HTTP_PORT=7890
+      - WORKERS=1
+      - WORKER_TIMEOUT=12000
+

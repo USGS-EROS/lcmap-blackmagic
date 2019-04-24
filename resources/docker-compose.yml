@@ -1,9 +1,0 @@
-version: "3"
-
-services:
-
-  blackmagic-cassandra:
-    image: cassandra:3.9
-    network_mode: "host"
-
-

@@ -6,33 +6,17 @@ lcmap-blackmagic
 ================
 HTTP server that saves PyCCD & prediction output to Apache Cassandra
 
+What does it do?
+----------------
+* Executes PyCCD over HTTP
+* Executes XGBoost model training over HTTP
+* Applies trained XGBoost models to PyCCD results over HTTP
+* Saves outputs to Apache Cassandra (automatic schema creation on startup)
+  
+Install & Run
+-------------
 
-On DockerHub
-------------
-
-https://hub.docker.com/r/usgseros/lcmap-blackmagic/
-
-
-On PyPi
--------
-.. code-block:: bash
-
-    pip install lcmap-blackmagic
-
-    
-Features
---------
-* Exposes execution of PyCCD over HTTP
-* Saves results to Apache Cassandra
-* Automatic schema creation on startup
-* Highly tunable
-* Available as Python package or Docker image
-
-
-Example
--------
-
-Start BlackMagic
+From Dockerhub:
 
 .. code-block:: bash
 
@@ -48,20 +32,62 @@ Start BlackMagic
 	       -e CASSANDRA_KEYSPACE=some_keyspace \
 	       -e CASSANDRA_TIMEOUT=600 \
 	       -e CASSANDRA_CONSISTENCY=ALL \
-	       -e CHIPMUNK_URL=http://host:port/path \
+	       -e ARD_URL=http://host:port/path \
+     	       -e AUX_URL=http://host:port/path \
 	       -e CPUS_PER_WORKER=4 \
 	       -e HTTP_PORT=5000 \
 	       -e WORKERS=4 \
 	       -e WORKER_TIMEOUT=12000 \
                usgseros/lcmap-blackmagic:1.0
 
-	    
-Send a request
+From PyPI (available after first production release to Master):
 
 .. code-block:: bash
 
-    http --timeout=12000 POST http://localhost:5000/segment cx:=1556415.0 cy:=2366805.0 acquired=1980/2017
+    $ pip install lcmap-blackmagic
+    $ export CASSANDRA_BATCH_SIZE=1000
+    $ export CASSANDRA_HOST=localhost
+    $ export CASSANDRA_PORT=9042
+    $ export CASSANDRA_USER=cassandra
+    $ export CASSANDRA_PASS=cassandra
+    $ export CASSANDRA_KEYSPACE=some_keyspace
+    $ export CASSANDRA_TIMEOUT=600
+    $ export CASSANDRA_CONSISTENCY=ALL
+    $ export ARD_URL=http://host:port/path
+    $ export AUX_URL=http://host:port/path
+    $ export CPUS_PER_WORKER=4
+    $ export HTTP_PORT=5000
+    $ export WORKERS=4
+    $ export WORKER_TIMEOUT=12000
+    $ blackmagic.sh
 
+    
+From Github:
+
+.. code-block:: bash
+		
+    $ git clone https://github.com/usgs-eros/lcmap-blackmagic
+    $ cd lcmap-blackmagic
+    $ conda create --name=blackmagic python=3.7
+    $ source activate blackmagic
+    $ pip install -e .
+    $ export CASSANDRA_BATCH_SIZE=1000
+    $ export CASSANDRA_HOST=localhost
+    $ export CASSANDRA_PORT=9042
+    $ export CASSANDRA_USER=cassandra
+    $ export CASSANDRA_PASS=cassandra
+    $ export CASSANDRA_KEYSPACE=some_keyspace
+    $ export CASSANDRA_TIMEOUT=600
+    $ export CASSANDRA_CONSISTENCY=ALL
+    $ export ARD_URL=http://host:port/path
+    $ export AUX_URL=http://host:port/path
+    $ export CPUS_PER_WORKER=4
+    $ export HTTP_PORT=5000
+    $ export WORKERS=4
+    $ export WORKER_TIMEOUT=12000
+    $ ./bin/blackmagic.sh
+
+    
 URLs
 ----
 +------------------------+------------------------+------------------------------------+
@@ -69,8 +95,8 @@ URLs
 +========================+========================+====================================+
 | POST /segment          | cx, cy, acquired       | Save change detection segments     |
 +------------------------+------------------------+------------------------------------+
-| POST /tile             | tx, ty, date, chips    | Create and save xgboost model      |
-| (not yet implemented)  |                        | chips/date at tile x and tile y    | 
+| POST /tile             | tx, ty, acquired,      | Create and save xgboost model      |
+| (WIP)                  | date, chips            | chips/date at tile x and tile y    | 
 +------------------------+------------------------+------------------------------------+
 | POST /prediction       | cx, cy                 | Save xgboost predictions for       |
 | (not yet implemented)  |                        | chip x (cx) and chip y (cy)        |
@@ -104,22 +130,24 @@ Deployment Examples
     -e CPUS_PER_WORKER=<number of cores available>
 
     
-Requirements
-------------
-
-* Python3 or Docker
-* Network access to Cassandra
-* Network access to Chipmunk
-
 HTTP Requests & Responses
 -------------------------
 .. code-block:: bash
 
+		
+    # run change detection on a chip
+    
+    $ http --timeout=12000 POST http://localhost:5000/segment cx=1556415 cy=2366805 acquired=1980/2017
+
+    # train and save an XGBoost model for a tile
+
+    $ http --timeout=12000 POST http://localhost:5000/tile tx=1484415 ty=2414805 acquired=1980/2017 date=2001-07-01 chips=[[1484415,2414805], [...]]
+   
 
     # /segment resource expects cx (chip x) and cy (chip y) as parameters
     # If parameters are missing /segment returns HTTP 400 with JSON message
 		
-    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 
+    $ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 67
@@ -134,7 +162,7 @@ HTTP Requests & Responses
         "msg": "cx, cy, and acquired are required parameters"
     }
 
-    [user@machine]$ http --timeout 12000 POST http://localhost:9876/segment cy=1484415 
+    $ http --timeout 12000 POST http://localhost:9876/segment cy=1484415 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 67
@@ -149,7 +177,7 @@ HTTP Requests & Responses
         "msg": "cx, cy, and acquired are required parameters"
     }
 
-    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment 
+    $ http --timeout 12000 POST http://localhost:9876/segment 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 64
@@ -167,7 +195,7 @@ HTTP Requests & Responses
     # if no input data was available from Chipmunk for cx/cy & acquired date range,
     # /segment returns HTTP 400 with msg = "no input data"
     
-    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=-99999999 acquired=1980-01-01/2017-12-31
+    $ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=-99999999 acquired=1980-01-01/2017-12-31
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 52
@@ -185,7 +213,7 @@ HTTP Requests & Responses
 
     # Successful POST to /segment returns HTTP 200 and cx/cy as JSON
     
-    [user@machine bin]$ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
+    $ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
     HTTP/1.1 200 OK
     Connection: close
     Content-Length: 28
@@ -202,7 +230,7 @@ HTTP Requests & Responses
 
     # Database errors reported with HTTP 500 and the first error that occurred, with request parameters as JSON
     
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
+    $ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
     HTTP/1.1 500 INTERNAL SERVER ERROR
     Connection: close
     Content-Length: 89
@@ -222,29 +250,31 @@ Testing
 Tests are available in the ``test/`` directory.  To properly test blackmagic
 operations, input data and a local Cassandra database are needed.
 
-Input data is captured in a VCRPY cassette, stored under ``test/resources``.
-To update this data, follow the instructions to download, run and
-load test data into `lcmap-chipmunk <http://github.com/usgs-eros/lcmap-chipmunk>`_
-on your local machine.  lcmap-blackmagic expects Chipmunk to be
-running on ``http://localhost:5656`` as configued in ``test/__init__.py``.
+Input data originates from `lcmap-chipmunk <http://github.com/usgs-eros/lcmap-chipmunk>`_.
+Follow the instructions to download, run and load test data onto your local machine.
+lcmap-blackmagic requires ARD and AUX data from Chipmunk, so ingest both.
 
-Do not modify this URL to point to a production Chipmunk instance and commit the
-change to version control.  This will publish sensitive internal URLs and is
-considered a security violation.
+To support testing on external CICD servers, a reverse-proxy NGINX cache is set up
+as a project dependency.  Test HTTP requests are sent to NGINX which then serves
+lcmap-chipmunk data to the test code.  Responses are stored at ``deps/nginxcache``.
+This allows responses to be replayed without lcmap-chipmunk running.
 
-Read the documentation on `VCRPY <https://vcrpy.readthedocs.io/en/latest/usage.html>`_
-to learn how to use it.
-
-To run tests manually:
+To run the tests:
 
 .. code-block:: bash
 
-    $ make deps-up (or make deps-up-d in the background)
-    $ make tests (or just pytest)
+    $ make tests    
 
-Tests run automatically on every pushed commit to GitHub. (see ``.travis.yml``).
+To update test data held in NGINX cache (requires lcmap-chipmunk running at http://localhost:5656):
 
-Travis-CI builds will fail and no Docker image will be pushed if tests do not pass.
+.. code-block:: bash
+		
+   $ make update-test-data
+
+Tests run automatically on every pushed commit to GitHub.  Travis-CI builds will fail and no
+Docker image will be pushed if tests do not pass.
+
+See ``Makefile``, ``deps/docker-compose.yml``, ``deps/nginx.conf``, ``.travis.yml``.
 
 
 Versioning

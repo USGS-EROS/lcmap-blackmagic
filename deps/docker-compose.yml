@@ -1,0 +1,20 @@
+version: "3"
+
+services:
+
+  blackmagic-cassandra:
+    container_name: blackmagic-cassandra
+    image: cassandra:3.9
+    network_mode: "host"
+
+  blackmagic-nginx:
+    container_name: blackmagic-nginx
+    image: nginx:latest
+    network_mode: "host"
+    volumes:
+      - ./nginxcache:/data/nginx/cache:rw
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+
+
+
+

@@ -21,7 +21,7 @@ before_install:
   - make deps-up-d
   - sudo apt-get update -qq
 
-script: pytest
+script: make test-with-manual-deps
 
 deploy:
   - provider: script
