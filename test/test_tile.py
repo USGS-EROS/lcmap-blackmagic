@@ -260,16 +260,6 @@ def test_tile_data():
     pass
 
 
-def test_tile_counts():
-    data1 = [0, 1, 2]
-    data2 = [1, 2, 3]
-    data3 = [2, 3, 4]
-
-    assert get(0, tile.counts(data1)) == 1
-    assert get(1, tile.counts(data2)) == 1
-    assert get(2, tile.counts(data3)) == 1
-
-
 def test_tile_statistics():
     ctx = {'data': numpy.array([[0, 1, 2],
                                 [0, 2, 3],

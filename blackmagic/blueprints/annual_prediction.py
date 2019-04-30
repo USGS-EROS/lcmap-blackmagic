@@ -5,6 +5,7 @@ from blackmagic import segaux
 from blackmagic import skip_on_empty
 from blackmagic import skip_on_exception
 from blackmagic import workers
+
 from cytoolz import assoc
 from cytoolz import count
 from cytoolz import dissoc
@@ -22,15 +23,15 @@ from flask import jsonify
 from flask import request
 from functools import wraps
 from merlin.functions import flatten
-
-from sklearn.model_selection import train_test_split
+from xgboost.core import Booster
 
 import logging
+import merlin
 import numpy
 import xgboost as xgb
 
-logger = logging.getLogger('blackmagic.tile')
-tile = Blueprint('tile', __name__)
+logger = logging.getLogger('blackmagic.annual_prediction')
+annual_prediction = Blueprint('annual_prediction', __name__)
 
 
 def log_request(ctx):
@@ -47,9 +48,18 @@ def log_request(ctx):
     return ctx
 
 
-def watchlist(training_data, eval_data):
-    return [(training_data, 'train'), (eval_data, 'eval')]
-
+def exception_handler(ctx, http_status, name, fn):
+    try:
+        return fn(ctx)
+    except Exception as e:        
+        return do(logger.exception, {'tx': get('tx', ctx, None),
+                                     'ty': get('ty', ctx, None),
+                                     'acquired': get('acquired', ctx, None),
+                                     'date': get('date', ctx, None),
+                                     'chips': get('chips', ctx, None),
+                                     'exception': '{name} exception: {ex}'.format(name=name, ex=e),
+                                     'http_status': http_status})
+    
 
 def pipeline(chip, tx, ty, date, acquired, cfg):
 
@@ -59,7 +69,7 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
            'cy': second(chip),
            'date': date,
            'acquired': acquired,
-           'cluster': segaux.cluster(cfg)}
+           'cluster': cluster(cfg)}
 
     # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001/07/01', aux:{}, segments:[], data:[]}
 
@@ -74,21 +84,8 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
                         segaux.format,
                         segaux.log_chip,
                         segaux.exit_pipeline)
-
-
-def exception_handler(ctx, http_status, name, fn):
-    try:
-        return fn(ctx)
-    except Exception as e:        
-        return do(logger.exception, {'tx': get('tx', ctx, None),
-                                     'ty': get('ty', ctx, None),
-                                     'acquired': get('acquired', ctx, None),
-                                     'date': get('date', ctx, None),
-                                     'chips': get('chips', ctx, None),
-                                     'exception': '{name} exception: {ex}'.format(name=name, ex=e),
-                                     'http_status': http_status})
-
     
+
 def measure(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
@@ -131,12 +128,24 @@ def parameters(r):
                 'test_training_exception': get('test_training_exception', r, None),
                 'test_cassandra_exception': get('test_cassandra_exception', r, None)}
 
+            
+@skip_on_exception
+@raise_on('test_load_model_exception')
+@measure
+def load_model(ctx, cfg):
+
+    sess  = db.session(cfg, ctx['cluster']) 
+    stmt  = db.select_tile(cfg, ctx['tx'], ctx['ty'])
+    model = get('model', first(sess.execute(stmt), None)
+    
+    return assoc(ctx, 'model', bytes.fromhex(model))
+                 
 
 @skip_on_exception
-@raise_on('test_data_exception')
+@raise_on('test_load_data_exception')
 @measure
-def data(ctx, cfg):
-    '''Retrieve training data for all chips in parallel'''
+def load_data(ctx, cfg):
+    '''Retrieve a tile's worth of segments to predict'''
     
     p = partial(pipeline,
                 tx=ctx['tx'],
@@ -148,92 +157,16 @@ def data(ctx, cfg):
     with workers(cfg) as w:
         return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
 
-    
-@skip_on_exception
-@measure
-def statistics(ctx):
-    '''Count label occurences
-       
-       associates 'statistics' into ctx
-       sample 'statistics' value: Counter({4.0: 4255, 0.0: 3651, 3.0: 1746, 5.0: 348})
-    '''
-
-    dep = ctx['data'][::-1, ::ctx['data'].shape[1]].flatten()
-    vals, cnts = numpy.unique(dep, return_counts=True)
-    prct = cnts / numpy.sum(cnts)
-    return assoc(ctx, 'statistics', (vals, prct))
-
-
-@skip_on_exception
-@measure
-def randomize(ctx, cfg):
-    '''Randomize the order of training data'''
-
-    return assoc(ctx,
-                 'data',
-                 numpy.random.RandomState().permutation(ctx['data']))
-
-
-@skip_on_exception
-@measure
-def split_data(ctx):
-
-    return merge(dissoc(ctx, 'data'),
-                 {'independent': segaux.independent(ctx['data']),
-                  'dependent': segaux.dependent(ctx['data'])})
-    
-
-@skip_on_exception
-@measure
-def sample(ctx, cfg):
-    '''Return leveled data sample based on label values'''
-
-    # See xg-train-annualized.py in lcmap-science/classification as reference.
-
-    class_values, percent = ctx['statistics']
-    
-    # Adjust the target counts that we are wanting based on the percentage
-    # that each one represents in the base data set.
-    adj_counts = numpy.ceil(cfg['xgboost']['target_samples'] * percent)
-    adj_counts[adj_counts > cfg['xgboost']['class_max']] = cfg['xgboost']['class_max']
-    adj_counts[adj_counts < cfg['xgboost']['class_min']] = cfg['xgboost']['class_min']
-
-    selected_indices = []
-    for cls, count in zip(class_values, adj_counts):
-        # Index locations of values
-        indices = numpy.where(ctx['dependent'] == cls)[0]
-
-        # Add the index locations up to the count
-        selected_indices.extend(indices[:int(count)])
-
-    si = numpy.array(selected_indices)
-
-    return merge(ctx, {'independent': ctx['independent'][si],
-                       'dependent': ctx['dependent'][si]})
-
 
 @raise_on('test_training_exception')
 @skip_on_exception
 @skip_on_empty('independent')
 @skip_on_empty('dependent')
 @measure
-def train(ctx, cfg):
+def predict(ctx, cfg):
     '''Train an xgboost model'''
+    return ctx
     
-    itrain, itest, dtrain, dtest = train_test_split(ctx['independent'],
-                                                    ctx['dependent'],
-                                                    test_size=get_in(['xgboost', 'test_size'], cfg))
-    
-    train_matrix = xgb.DMatrix(data=itrain, label=dtrain)
-    test_matrix  = xgb.DMatrix(data=itest, label=dtest)
-    
-    return assoc(ctx, 'model', xgb.train(params=get_in(['xgboost', 'parameters'], cfg),
-                                         dtrain=train_matrix,
-                                         num_boost_round=get_in(['xgboost', 'num_round'], cfg),
-                                         evals=watchlist(train_matrix, test_matrix),
-                                         early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
-                                         verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg)))
-
 
 @raise_on('test_cassandra_exception')
 @skip_on_exception
@@ -242,14 +175,20 @@ def train(ctx, cfg):
 def save(ctx, cfg):                                                
     '''Saves an xgboost model to Cassandra for this tx & ty'''
 
-    # will need to decode hex when pulling model
-    # >>> bytes.fromhex('deadbeef')
-    #b'\xde\xad\xbe\xef'
+    # TODO: this is going to need to be run for each chip like it is
+    # in segment.
+
+    # TODO: work out the data model
         
-    db.insert_tile(cfg,
-                   ctx['tx'],
-                   ctx['ty'],
-                   ctx['model'].save_raw().hex())
+    db.insert_annual_prediction(cfg,
+                                ctx['cx'],
+                                ctx['cy'],
+                                ctx['px'],
+                                ctx['py'],
+                                ctx['sday'],
+                                ctx['eday'],
+                                ctx['date'],
+                                ctx['predictions'])
     return ctx
 
 
@@ -274,17 +213,14 @@ def respond(ctx):
     return response
 
 
-@tile.route('/tile', methods=['POST'])        
-def tiles():
+@tile.route('/annual-prediction', methods=['POST'])        
+def annual_prediction():
     
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
-                        partial(exception_handler, http_status=500, name='data', fn=partial(data, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='statistics', fn=statistics),
-                        partial(exception_handler, http_status=500, name='randomize', fn=partial(randomize, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='split_data', fn=split_data),
-                        partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
+                        partial(exception_handler, http_status=400, name='load_model', fn=load_model),
+                        partial(exception_handler, http_status=500, name='load_data', fn=partial(load_data, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='predict', fn=partial(predict, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
                         respond)
