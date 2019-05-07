@@ -25,12 +25,36 @@ from merlin.functions import flatten
 
 from sklearn.model_selection import train_test_split
 
+import arrow
 import logging
 import numpy
 import xgboost as xgb
 
 logger = logging.getLogger('blackmagic.tile')
 tile = Blueprint('tile', __name__)
+__cluster = None
+
+
+def _cluster(cfg):
+    '''Cache db.cluster per module'''
+
+    global __cluster
+
+    if __cluster is None:
+        __cluster = db.cluster(cfg)
+
+    return __cluster
+
+
+def segments_filter(ctx):
+    '''Yield segments that span the supplied date'''
+
+    d = arrow.get(ctx['date']).datetime
+    
+    return assoc(ctx,
+                 'segments',
+                 list(filter(lambda s: d >= arrow.get(s.sday).datetime and d <= arrow.get(s.eday).datetime,
+                             ctx['segments'])))
 
 
 def log_request(ctx):
@@ -59,19 +83,21 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
            'cy': second(chip),
            'date': date,
            'acquired': acquired,
-           'cluster': segaux.cluster(cfg)}
+           'cluster': _cluster(cfg)}
 
-    # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001/07/01', aux:{}, segments:[], data:[]}
+    # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001-07-01', aux:{}, segments:[], data:[]}
 
     return thread_first(ctx,
                         partial(segaux.segments, cfg=cfg),
-                        segaux.segments_filter,
+                        segments_filter,
                         partial(segaux.aux, cfg=cfg),
                         segaux.aux_filter,                        
                         segaux.combine,
                         segaux.unload_segments,
                         segaux.unload_aux,
-                        segaux.format,
+                        segaux.add_dates,
+                        segaux.add_average_reflectance,
+                        segaux.training_format,
                         segaux.log_chip,
                         segaux.exit_pipeline)
 

@@ -9,6 +9,7 @@ from blackmagic import app
 from blackmagic import db
 from blackmagic.blueprints import tile
 from cassandra.cluster import Cluster
+from collections import namedtuple
 from cytoolz import first
 from cytoolz import get
 from cytoolz import reduce
@@ -33,7 +34,7 @@ def test_tile_runs_as_expected(client):
     cy       = test.cy
     acquired = test.a
     chips    = test.chips
-    date     = test.date
+    date     = test.training_date
         
     # train a model based on those segments and
     # the aux data
@@ -95,7 +96,7 @@ def test_tile_bad_parameters(client):
     ty       = test.ty
     acquired = test.a
     chips    = test.chips
-    date     = test.date
+    date     = test.training_date
     
     response = client.post('/tile',
                            json={'tx': tx,
@@ -125,7 +126,7 @@ def test_tile_data_exception(client):
     ty       = test.ty
     acquired = test.a
     chips    = test.chips
-    date     = test.date
+    date     = test.training_date
     
     response = client.post('/tile',
                            json={'tx': tx,
@@ -156,7 +157,7 @@ def test_tile_training_exception(client):
     ty       = test.ty
     acquired = test.a
     chips    = test.chips
-    date     = test.date
+    date     = test.training_date
      
     response = client.post('/tile',
                            json={'tx': tx,
@@ -188,7 +189,7 @@ def test_tile_cassandra_exception(client):
     ty       = test.ty
     acquired = test.a
     chips    = test.chips
-    date     = test.date
+    date     = test.training_date
     
     response = client.post('/tile',
                            json={'tx': tx,
@@ -207,59 +208,22 @@ def test_tile_cassandra_exception(client):
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
 
+    
+def test_segments_filter():
+    record = namedtuple('TestRecord', ['sday', 'eday'], verbose=True)
+    
+    inputs = {'date': '1980-01-01',
+              'segments': [record(sday='1970-01-01', eday='1990-01-01'),
+                           record(sday='1963-01-01', eday='1964-01-01')]}
 
-def test_tile_aux():
-    pass
+    expected = {'date': '1980-01-01',
+                'segments': [record(sday='1970-01-01', eday='1990-01-01')]}
+    
+    outputs = tile.segments_filter(inputs)
 
+    assert expected == outputs
 
-def test_tile_segments():
-    pass
-
-
-def test_tile_datefilter():
-    pass
-
-
-def test_tile_combine():
-    pass
-
-
-def test_tile_format():
-    pass
-
-
-def test_tile_independent():
-    pass
-
-
-def test_tile_dependent():
-    pass
-
-
-def test_tile_watchlist():
-    pass
-
-
-def test_tile_pipeline():
-    pass
-
-
-def test_tile_parameters():
-    pass
-
-
-def test_tile_log_request():
-    pass
-
-
-def test_tile_exception_handler():
-    pass
-
-
-def test_tile_data():
-    pass
-
-
+    
 def test_tile_statistics():
     ctx = {'data': numpy.array([[0, 1, 2],
                                 [0, 2, 3],
