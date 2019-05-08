@@ -2,6 +2,7 @@ from blackmagic import db
 from blackmagic import segaux
 from collections import namedtuple
 from cytoolz import assoc
+from cytoolz import first
 from cytoolz import get
 
 import blackmagic
@@ -130,13 +131,67 @@ def test_prediction_dates():
 
     assert expected == outputs
 
-def test_add_prediction_entries():
-    assert 1 < 0
+    
+def test_add_prediction_dates():
+    inputs = {'data' : [{'sday': '1980-01-01',
+                         'eday': '1986-06-01'}],
+              'month': '07',
+              'day'  : '01'}
+
+    expected = {'data' : [{'sday': '1980-01-01',
+                           'eday': '1986-06-01',
+                           'date': '1980-07-01'},
+                          {'sday': '1980-01-01',
+                           'eday': '1986-06-01',
+                           'date': '1981-07-01'},
+                          {'sday': '1980-01-01',
+                           'eday': '1986-06-01',
+                           'date': '1982-07-01'},
+                          {'sday': '1980-01-01',
+                           'eday': '1986-06-01',
+                           'date': '1983-07-01'},
+                          {'sday': '1980-01-01',
+                           'eday': '1986-06-01',
+                           'date': '1984-07-01'},
+                          {'sday': '1980-01-01',
+                           'eday': '1986-06-01',
+                           'date': '1985-07-01'}],
+                'month': '07',
+                'day'  : '01'}
+
+    outputs = segaux.add_prediction_dates(inputs)
+
+    assert expected == outputs
+
+    
+def test_training_date():
+    inputs = {'date': '1980-01-01',
+              'data': {'a': 1}}
+
+    expected = {'a': 1,
+                'date': '1980-01-01'}
+
+    outputs = segaux.training_date(**inputs)
+
+    assert outputs == expected
+    
+    
+def test_add_training_dates():
+    inputs = {'date': '1979-06-07',
+              'data': [{'a': 1}, {'b': 2}]}
+
+    expected = {'date': '1979-06-07',
+                'data': [{'a': 1, 'date': '1979-06-07'},
+                         {'b': 2, 'date': '1979-06-07'}]}
+
+    outputs = segaux.add_training_dates(inputs)
+
+    assert expected == outputs
 
 
 def test_average_reflectance():
 
-    segment = {'slope': 1,
+    segment = {'slope': [1],
                'blint': 2,
                'grint': 2,
                'niint': 2,
@@ -146,7 +201,7 @@ def test_average_reflectance():
                'thint': 2,
                'date': '1980-01-01'} # ordinal day 722815
     
-    expected = {'slope': 1,
+    expected = {'slope': [1],
                 'blint': 2,
                 'grint': 2,
                 'niint': 2,
@@ -169,7 +224,7 @@ def test_average_reflectance():
               
 
 def test_add_average_reflectance():
-    inputs = {'data': [{'slope': 1,
+    inputs = {'data': [{'slope': [1],
                         'blint': 2,
                         'grint': 2,
                         'niint': 2,
@@ -178,7 +233,7 @@ def test_add_average_reflectance():
                         's2int': 2,
                         'thint': 2,
                         'date' : '1980-01-01'},
-                       {'slope': 1,
+                       {'slope': [1],
                         'blint': 2,
                         'grint': 2,
                         'niint': 2,
@@ -188,7 +243,7 @@ def test_add_average_reflectance():
                         'thint': 2,
                         'date' : '1982-12-31'}]}
 
-    expected = {'data': [{'slope': 1,
+    expected = {'data': [{'slope': [1],
                           'blint': 2,
                           'grint': 2,
                           'niint': 2,
@@ -204,7 +259,7 @@ def test_add_average_reflectance():
                           's2ar': 722817,
                           'thar': 722817,
                           'date': '1980-01-01'},
-                         {'slope': 1,
+                         {'slope': [1],
                           'blint': 2,
                           'grint': 2,
                           'niint': 2,
@@ -239,9 +294,7 @@ def test_unload_segments():
 
 def test_unload_aux():
     inputs = {'aux': 1, 'other': 2}
-
     outputs = segaux.unload_aux(inputs)
-
     assert get('aux', outputs, None) is None
     assert get('other', outputs) is 2
 
@@ -262,8 +315,7 @@ def test_exit_pipeline():
 
     assert segaux.exit_pipeline(inputs) == 1
 
-
-
+    
 def test_to_numpy_1d():
 
     inputs = [1, 2, 3, 4]
@@ -371,13 +423,13 @@ def test_training_format():
 
 
 def test_prediction_format():
-    inputs = {'data': [{'cx'  : 100,
-                        'cy'  : 111,
-                        'px'  : 112,
-                        'py'  : 113,
-                        'sday': 114,
-                        'eday': 115,
-                        'date': 116,
+    inputs = {'cx': 100,
+              'cy': 111,
+              'px': 112,
+              'py': 113,
+              'sday': 114,
+              'eday': 115,
+              'data': [{'date': 116,
                         'nlcdtrn': [1],
                         'aspect' : [2],
                         'posidex': [3],
@@ -422,5 +474,13 @@ def test_prediction_format():
                                       25, 26, 27], dtype=numpy.float32)}]
 
     outputs = segaux.prediction_format(inputs)
+
+    assert len(expected) == len(outputs)
+    
+    assert numpy.array_equal(get('data', first(expected)), 
+                             get('data', first(outputs)))
+    
+    first(expected).pop('data')
+    first(outputs).pop('data')
 
     assert expected == outputs

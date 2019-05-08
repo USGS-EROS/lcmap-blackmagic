@@ -133,7 +133,7 @@ def prediction_dates(sday, eday, month, day):
     return dates
     
         
-def add_prediction_entries(ctx):
+def add_prediction_dates(ctx):
 
     entries = []
     for data in ctx['data']:
@@ -146,14 +146,23 @@ def add_prediction_entries(ctx):
 
     return assoc(ctx, 'data', entries)
 
-  
+
+def training_date(data, date):
+    return assoc(data, 'date', date)
+
+
+def add_training_dates(ctx):
+    fn = partial(training_date, date=ctx['date'])
+    return assoc(ctx, 'data', list(map(fn, ctx['data'])))
+
+
 def average_reflectance(segment):
     '''Add average reflectance values into dataset'''
     
     avgrefl = lambda intercept, slope, ordinal: add(intercept, mul(slope, ordinal))
     
     arfn    = partial(avgrefl,
-                      slope=get('slope', segment),
+                      slope=first(get('slope', segment)),
                       ordinal=arrow.get(get('date', segment)).datetime.toordinal())
                               
     ar = {'blar': arfn(get('blint', segment)),
@@ -244,7 +253,7 @@ def prediction_format(ctx):
              'py'  : get('py', ctx),
              'sday': get('sday', ctx),
              'eday': get('eday', ctx),
-             'date': get('date', ctx),
-             'data': independent(to_numpy(standard_format(d)))} for d in ctx['data']]
+             'date': get('date', c),
+             'data': independent(to_numpy(standard_format(c)))} for c in ctx['data']]
 
 
