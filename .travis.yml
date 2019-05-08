@@ -18,8 +18,8 @@ sudo: required
   
 before_install:
   - sudo sysctl -w vm.max_map_count=262144
-  - make deps-up
-  - sleep 10
+  - make deps-up-d
+  - sleep 15
   - sudo apt-get update -qq
 
 script: make test-with-manual-deps
