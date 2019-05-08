@@ -210,7 +210,7 @@ def test_tile_cassandra_exception(client):
 
     
 def test_segments_filter():
-    record = namedtuple('TestRecord', ['sday', 'eday'], verbose=True)
+    record = namedtuple('TestRecord', ['sday', 'eday'])
     
     inputs = {'date': '1980-01-01',
               'segments': [record(sday='1970-01-01', eday='1990-01-01'),
