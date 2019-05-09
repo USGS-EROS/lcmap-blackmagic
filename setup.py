@@ -43,7 +43,7 @@ setup(name='lcmap-blackmagic',
       # for example:
       # $ pip install -e .[test]
       extras_require={
-          'test': ['pytest',],
+          'test': ['pytest'],
           'dev': ['',],
       },
       #test_suite='nose.collector',
