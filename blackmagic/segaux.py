@@ -118,7 +118,7 @@ def combine(ctx):
     return assoc(ctx, 'data', data)
 
 
-def prediction_dates(sday, eday, month, day):
+def prediction_date_fn(sday, eday, month, day):
     start = arrow.get(sday)
     end   = arrow.get(eday)
     years = list(map(lambda x: x.year, arrow.Arrow.range('year', start, end)))
@@ -133,20 +133,17 @@ def prediction_dates(sday, eday, month, day):
     return dates
     
         
-def add_prediction_dates(ctx):
+def prediction_dates(segments, month, day):
 
-    entries = []
-    for data in ctx['data']:
-        dates = prediction_dates(sday=get('sday', data),
-                                 eday=get('eday', data),
-                                 month=ctx['month'],
-                                 day=ctx['day'])
+    for s in segments:
+        dates = prediction_date_fn(sday=get('sday', s),
+                                   eday=get('eday', s),
+                                   month=month,
+                                   day=day)
         for date in dates:
-            entries.append(assoc(data, 'date', date))
+            yield assoc(s, 'date', date)
 
-    return assoc(ctx, 'data', entries)
-
-
+            
 def training_date(data, date):
     return assoc(data, 'date', date)
 
@@ -156,7 +153,7 @@ def add_training_dates(ctx):
     return assoc(ctx, 'data', list(map(fn, ctx['data'])))
 
 
-def average_reflectance(segment):
+def average_reflectance_fn(segment):
     '''Add average reflectance values into dataset'''
     
     avgrefl = lambda intercept, slope, ordinal: add(intercept, mul(slope, ordinal))
@@ -176,9 +173,8 @@ def average_reflectance(segment):
     return merge(segment, ar)
 
 
-def add_average_reflectance(ctx):
-
-    return assoc(ctx, 'data', map(average_reflectance, ctx['data']))
+def average_reflectance(segments):
+    return map(average_reflectance_fn, segments)
 
 
 def unload_segments(ctx):
@@ -195,7 +191,7 @@ def unload_aux(ctx):
 
 def log_chip(ctx):
 
-    m = '{{"tx":{tx}, "ty":{ty}, "cx":{cx}, "cy":{cy}, "date":{date}, "acquired":{acquired}, "msg":"loading data"}}'
+    m = '{{"cx":{cx}, "cy":{cy}, "date":{date}, "acquired":{acquired}, "msg":"generating probabilities"}}'
 
     logger.info(m.format(**ctx))
     
@@ -246,12 +242,27 @@ def training_format(ctx):
     return assoc(ctx, 'data', to_numpy(d))
 
 
-def prediction_format(ctx):
-    return [{'cx'  : get('cx', ctx),
-             'cy'  : get('cy', ctx),
-             'px'  : get('px', ctx),
-             'py'  : get('py', ctx),
-             'sday': get('sday', ctx),
-             'eday': get('eday', ctx),
-             'date': get('date', c),
-             'data': independent(to_numpy(standard_format(c)))} for c in ctx['data']]
+#Coming into this function from combine is a list of dicts
+# [{cx, cy, px, py, sday, eday, s1coef, s2coef, etc.}]
+def prediction_format(segment):
+
+    return {'cx'  : get('cx', segment),
+            'cy'  : get('cy', segment),
+            'px'  : get('px', segment),
+            'py'  : get('py', segment),
+            'sday': get('sday', segment),
+            'eday': get('eday', segment),
+            'date': get('date', segment),
+            'independent': independent(to_numpy(standard_format(segment)))}
+
+        
+ #   return assoc(ctx,
+ #                'data',
+ #                [{'cx'  : get('cx', d),
+ #                  'cy'  : get('cy', d),
+ #                  'px'  : get('px', d),
+ #                  'py'  : get('py', d),
+ #                  'sday': get('sday', d),
+ #                  'eday': get('eday', d),
+ #                  'date': get('date', d),
+ #                  'independent': independent(to_numpy(standard_format(d)))} for d in ctx['data']])

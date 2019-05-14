@@ -114,7 +114,7 @@ def test_combine():
     assert expected == segaux.combine(inputs)
     
   
-def test_prediction_dates():
+def test_prediction_date_fn():
     inputs = {'sday' : '1980-01-01',
               'eday' : '1986-06-01',
               'month': '07',
@@ -127,39 +127,37 @@ def test_prediction_dates():
                 '1984-07-01',
                 '1985-07-01']
 
-    outputs = segaux.prediction_dates(**inputs)
+    outputs = segaux.prediction_date_fn(**inputs)
 
     assert expected == outputs
 
     
-def test_add_prediction_dates():
-    inputs = {'data' : [{'sday': '1980-01-01',
-                         'eday': '1986-06-01'}],
+def test_prediction_dates():
+    inputs = {'segments' : [{'sday': '1980-01-01',
+                             'eday': '1986-06-01'}],
               'month': '07',
               'day'  : '01'}
 
-    expected = {'data' : [{'sday': '1980-01-01',
-                           'eday': '1986-06-01',
-                           'date': '1980-07-01'},
-                          {'sday': '1980-01-01',
-                           'eday': '1986-06-01',
-                           'date': '1981-07-01'},
-                          {'sday': '1980-01-01',
-                           'eday': '1986-06-01',
-                           'date': '1982-07-01'},
-                          {'sday': '1980-01-01',
-                           'eday': '1986-06-01',
-                           'date': '1983-07-01'},
-                          {'sday': '1980-01-01',
-                           'eday': '1986-06-01',
-                           'date': '1984-07-01'},
-                          {'sday': '1980-01-01',
-                           'eday': '1986-06-01',
-                           'date': '1985-07-01'}],
-                'month': '07',
-                'day'  : '01'}
-
-    outputs = segaux.add_prediction_dates(inputs)
+    expected = [{'sday': '1980-01-01',
+                 'eday': '1986-06-01',
+                 'date': '1980-07-01'},
+                {'sday': '1980-01-01',
+                 'eday': '1986-06-01',
+                 'date': '1981-07-01'},
+                {'sday': '1980-01-01',
+                 'eday': '1986-06-01',
+                 'date': '1982-07-01'},
+                {'sday': '1980-01-01',
+                 'eday': '1986-06-01',
+                 'date': '1983-07-01'},
+                {'sday': '1980-01-01',
+                 'eday': '1986-06-01',
+                 'date': '1984-07-01'},
+                {'sday': '1980-01-01',
+                 'eday': '1986-06-01',
+                 'date': '1985-07-01'}]
+               
+    outputs = list(segaux.prediction_dates(**inputs))
 
     assert expected == outputs
 
@@ -189,7 +187,7 @@ def test_add_training_dates():
     assert expected == outputs
 
 
-def test_average_reflectance():
+def test_average_reflectance_fn():
 
     segment = {'slope': [1],
                'blint': 2,
@@ -218,68 +216,66 @@ def test_average_reflectance():
                 'thar': 722817,
                 'date': '1980-01-01'}
     
-    outputs = segaux.average_reflectance(segment)
+    outputs = segaux.average_reflectance_fn(segment)
 
     assert expected == outputs 
               
 
-def test_add_average_reflectance():
-    inputs = {'data': [{'slope': [1],
-                        'blint': 2,
-                        'grint': 2,
-                        'niint': 2,
-                        'reint': 2,
-                        's1int': 2,
-                        's2int': 2,
-                        'thint': 2,
-                        'date' : '1980-01-01'},
-                       {'slope': [1],
-                        'blint': 2,
-                        'grint': 2,
-                        'niint': 2,
-                        'reint': 2,
-                        's1int': 2,
-                        's2int': 2,
-                        'thint': 2,
-                        'date' : '1982-12-31'}]}
+def test_average_reflectance():
+    inputs = [{'slope': [1],
+               'blint': 2,
+               'grint': 2,
+               'niint': 2,
+               'reint': 2,
+               's1int': 2,
+               's2int': 2,
+               'thint': 2,
+               'date' : '1980-01-01'},
+              {'slope': [1],
+               'blint': 2,
+               'grint': 2,
+               'niint': 2,
+               'reint': 2,
+               's1int': 2,
+               's2int': 2,
+               'thint': 2,
+               'date' : '1982-12-31'}]
 
-    expected = {'data': [{'slope': [1],
-                          'blint': 2,
-                          'grint': 2,
-                          'niint': 2,
-                          'reint': 2,
-                          's1int': 2,
-                          's2int': 2,
-                          'thint': 2,
-                          'blar': 722817,
-                          'grar': 722817,
-                          'niar': 722817,
-                          'rear': 722817,
-                          's1ar': 722817,
-                          's2ar': 722817,
-                          'thar': 722817,
-                          'date': '1980-01-01'},
-                         {'slope': [1],
-                          'blint': 2,
-                          'grint': 2,
-                          'niint': 2,
-                          'reint': 2,
-                          's1int': 2,
-                          's2int': 2,
-                          'thint': 2,
-                          'blar': 723912,
-                          'grar': 723912,
-                          'niar': 723912,
-                          'rear': 723912,
-                          's1ar': 723912,
-                          's2ar': 723912,
-                          'thar': 723912,
-                          'date': '1982-12-31'}]}
+    expected = [{'slope': [1],
+                 'blint': 2,
+                 'grint': 2,
+                 'niint': 2,
+                 'reint': 2,
+                 's1int': 2,
+                 's2int': 2,
+                 'thint': 2,
+                 'blar': 722817,
+                 'grar': 722817,
+                 'niar': 722817,
+                 'rear': 722817,
+                 's1ar': 722817,
+                 's2ar': 722817,
+                 'thar': 722817,
+                 'date': '1980-01-01'},
+                {'slope': [1],
+                 'blint': 2,
+                 'grint': 2,
+                 'niint': 2,
+                 'reint': 2,
+                 's1int': 2,
+                 's2int': 2,
+                 'thint': 2,
+                 'blar': 723912,
+                 'grar': 723912,
+                 'niar': 723912,
+                 'rear': 723912,
+                 's1ar': 723912,
+                 's2ar': 723912,
+                 'thar': 723912,
+                 'date': '1982-12-31'}]
 
-    lazy_outputs = segaux.add_average_reflectance(inputs)
-    
-    outputs = assoc(lazy_outputs, 'data', list(get('data', lazy_outputs)))
-             
+    outputs = list(segaux.average_reflectance(inputs))
+                 
     assert expected == outputs
     
 
@@ -429,58 +425,58 @@ def test_prediction_format():
               'py': 113,
               'sday': 114,
               'eday': 115,
-              'data': [{'date': 116,
-                        'nlcdtrn': [1],
-                        'aspect' : [2],
-                        'posidex': [3],
-                        'slope'  : [4],
-                        'mpw'    : [5],
-                        'dem'    : [6],
-                        'blcoef' : [7],
-                        'blrmse' : 8,
-                        'blar'   : 9 ,
-                        'grcoef' : [10],
-                        'grrmse' : 11,
-                        'grar'   : 12,
-                        'nicoef' : [13],
-                        'nirmse' : 14,
-                        'niar'   : 15,
-                        'recoef' : [16],
-                        'rermse' : 17,
-                        'rear'   : 18,
-                        's1coef' : [19],
-                        's1rmse' : 20,
-                        's1ar'   : 21,
-                        's2coef' : [22],
-                        's2rmse' : 23,
-                        's2ar'   : 24,
-                        'thcoef' : [25],
-                        'thrmse' : 26,
-                        'thar'   : 27,
-                        'some'   : 28,
-                        'extra'  : 29,
-                        'values' : 30}]}
+              'date': 116,
+              'nlcdtrn': [1],
+              'aspect' : [2],
+              'posidex': [3],
+              'slope'  : [4],
+              'mpw'    : [5],
+              'dem'    : [6],
+              'blcoef' : [7],
+              'blrmse' : 8,
+              'blar'   : 9 ,
+              'grcoef' : [10],
+              'grrmse' : 11,
+              'grar'   : 12,
+              'nicoef' : [13],
+              'nirmse' : 14,
+              'niar'   : 15,
+              'recoef' : [16],
+              'rermse' : 17,
+              'rear'   : 18,
+              's1coef' : [19],
+              's1rmse' : 20,
+              's1ar'   : 21,
+              's2coef' : [22],
+              's2rmse' : 23,
+              's2ar'   : 24,
+              'thcoef' : [25],
+              'thrmse' : 26,
+              'thar'   : 27,
+              'some'   : 28,
+              'extra'  : 29,
+              'values' : 30}
 
-    expected = [{'cx'  : 100,
-                 'cy'  : 111,
-                 'px'  : 112,
-                 'py'  : 113,
-                 'sday': 114,
-                 'eday': 115,
-                 'date': 116,
-                 'data': numpy.array([2, 3, 4, 5, 6, 7, 8, 9, 10,
-                                      11, 12, 13, 14, 15, 16, 17,
-                                      18, 19, 20, 21, 22, 23, 24,
-                                      25, 26, 27], dtype=numpy.float32)}]
+    expected = {'cx'  : 100,
+                'cy'  : 111,
+                'px'  : 112,
+                'py'  : 113,
+                'sday': 114,
+                'eday': 115,
+                'date': 116,
+                'independent': numpy.array([2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                            11, 12, 13, 14, 15, 16, 17,
+                                            18, 19, 20, 21, 22, 23, 24,
+                                            25, 26, 27], dtype=numpy.float32)}
 
     outputs = segaux.prediction_format(inputs)
 
     assert len(expected) == len(outputs)
     
-    assert numpy.array_equal(get('data', first(expected)), 
-                             get('data', first(outputs)))
+    assert numpy.array_equal(get('independent', expected), 
+                             get('independent', outputs))
     
-    first(expected).pop('data')
-    first(outputs).pop('data')
+    expected.pop('independent')
+    outputs.pop('independent')
 
     assert expected == outputs

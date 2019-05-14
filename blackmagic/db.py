@@ -368,7 +368,7 @@ def insert_annual_predictions(cfg, predictions):
     
     try:
         st = '''INSERT INTO {keyspace}.annual_prediction 
-                    (cx, cy, px, py, sday, eday, date, predictions) 
+                    (cx, cy, px, py, sday, eday, date, prob) 
                 VALUES 
                     (?, ?, ?, ?, ?, ?, ?, ?)'''.format(keyspace=cfg['cassandra_keyspace'])
         
@@ -382,7 +382,7 @@ def insert_annual_predictions(cfg, predictions):
             batch = BatchStatement(batch_type=BatchType.UNLOGGED)
 
             for c in chunk:
-                batch.add(stmt, [c['cx'], c['cy'], c['px'], c['py'], c['sday'], c['eday'], c['date'], c['predictions']])
+                batch.add(stmt, [c['cx'], c['cy'], c['px'], c['py'], c['sday'], c['eday'], c['date'], c['prob']])
             batches.append(batch)
            
         return [s.execute(b) for b in batches]

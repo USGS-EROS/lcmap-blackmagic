@@ -75,6 +75,10 @@ def watchlist(training_data, eval_data):
     return [(training_data, 'train'), (eval_data, 'eval')]
 
 
+def add_average_reflectance(ctx):
+    return assoc(ctx, 'data', segaux.average_reflectance(ctx['data']))
+
+
 def pipeline(chip, tx, ty, date, acquired, cfg):
 
     ctx = {'tx': tx,
@@ -96,7 +100,7 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
                         segaux.unload_segments,
                         segaux.unload_aux,
                         segaux.add_training_dates,
-                        segaux.add_average_reflectance,
+                        add_average_reflectance,
                         segaux.training_format,
                         segaux.log_chip,
                         segaux.exit_pipeline)

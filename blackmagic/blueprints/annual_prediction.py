@@ -57,39 +57,68 @@ def exception_handler(ctx, http_status, name, fn):
                                      'chips': get('chips', ctx, None),
                                      'exception': '{name} exception: {ex}'.format(name=name, ex=e),
                                      'http_status': http_status})
+
+def log_chip(segments):
+     m = '{{"cx":{cx}, "cy":{cy}, "date":{date}, "acquired":{acquired}, "msg":"generating probabilities"}}'
+
+    logger.info(m.format(**first(segments)))
     
-def prediction_function(data, model):
-    return model.predict(xgb.DMatrix(data))[0]
+    return segments
 
     
-def predict(ctx):
-    model = create_model_from_bytes(ctx['model_bytes'])
-    fn = partial(prediction_function, model=model)
-    return assoc(ctx, 'predictions', map(fn, ctx['data']))
+def prediction_fn(segment, model):
+    return assoc(segment,
+                 'prob',
+                 model.predict(xgb.DMatrix(segment))[0])
+
+    
+def predict(segments, model):
+    
+    return map(partial(prediction_fn, model=model),
+               segments)
+                 
+
+def reformat(segments):
+    return map(segaux.prediction_format, segments)
 
 
-def pipeline(chip, tx, ty, date, acquired, cfg):
+def booster(model_bytes):
+    return Booster(params={'nthread': 1}).load_model(model_bytes)
 
-    ctx = {'tx': tx,
-           'ty': ty,
-           'cx': first(chip),
-           'cy': second(chip),
-           'date': date,
-           'acquired': acquired,
-           'cluster': cluster(cfg)}
 
-    # {'cx': 0, 'cy': 0, 'date': '2001/07/01', aux:{}, segments:[], data:[]}
-
-    return thread_first(ctx,
+def prediction_pipeline(chip, model_bytes, month, day, acquired, cfg):
+    
+    return thread_first({'cx': first(chip),
+                         'cy': second(chip),
+                         'acquired': acquired,
+                         'cluster': cluster(cfg)},
                         partial(segaux.segments, cfg=cfg),
                         partial(segaux.aux, cfg=cfg),
                         segaux.aux_filter,                        
                         segaux.combine,
                         segaux.unload_segments,
                         segaux.unload_aux,
-                        segaux.prediction_format,
-                        segaux.log_chip,
-                        predict)
+                        partial(segaux.prediction_dates, month=month, day=day)
+                        segaux.average_reflectance,
+                        reformat,
+                        log_chip,                       
+                        partial(predict, model=booster(model_bytes)))
+
+
+@skip_on_exception
+@raise_on('test_predictions_exception')
+@measure
+def predictions(ctx, cfg):
+    p = partial(prediction_pipeline,
+                model_bytes=ctx['model_bytes'],
+                month=ctx['month'],
+                day=ctx['day'],
+                acquired=ctx['acquired'],
+                cfg=cfg)
+
+    with workers(cfg) as w:
+        return assoc(ctx, 'predictions', list(flatten(w.map(p, ctx['chips']))))
+
     
 def measure(fn):
     @wraps(fn)
@@ -118,14 +147,22 @@ def parameters(r):
     ty       = get('ty', r, None)
     acquired = get('acquired', r, None)
     chips    = get('chips', r, None)
-    date     = get('date', r, None)
+    month    = get('month', r, None)
+    day      = get('day', r, None)
         
-    if (tx is None or ty is None or acquired is None or chips is None or date is None):
-        raise Exception('tx, ty, acquired, chips and date are required parameters')
+    if (tx is None or
+        ty is None or
+        acquired is None or
+        chips is None or
+        month is None or
+        day is None):
+        raise Exception('tx, ty, acquired, chips, month and day are required parameters')
     else:
         return {'tx': int(tx),
                 'ty': int(ty),
-                'date': date,
+                'acquired': acquired,
+                'month': month,
+                'day': day,
                 'chips': list(map(lambda chip: (int(first(chip)), int(second(chip))), chips)),
                 'test_data_exception': get('test_data_exception', r, None),
                 'test_training_exception': get('test_training_exception', r, None),
@@ -144,54 +181,14 @@ def load_model(ctx, cfg):
     return assoc(ctx, 'model_bytes', bytes.fromhex(model))
                  
 
-@skip_on_exception
-@raise_on('test_load_data_exception')
-@measure
-def load_data(ctx, cfg):
-    '''Retrieve a tile's worth of segments to predict'''
-    
-    p = partial(pipeline,
-                tx=ctx['tx'],
-                ty=ctx['ty'],
-                date=ctx['date'],
-                acquired=ctx['acquired'],
-                cfg=cfg)
-
-    with workers(cfg) as w:
-        return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
-
-
-@raise_on('test_training_exception')
-@skip_on_exception
-@skip_on_empty('independent')
-@skip_on_empty('dependent')
-@measure
-def predict(ctx, cfg):
-    '''Train an xgboost model'''
-    return ctx
-    
-
 @raise_on('test_cassandra_exception')
 @skip_on_exception
-@skip_on_empty('model')
 @measure
 def save(ctx, cfg):                                                
-    '''Saves an xgboost model to Cassandra for this tx & ty'''
+    '''Saves annual predictions to Cassandra'''
 
-    # TODO: this is going to need to be run for each chip like it is
-    # in segment.
-
-    # TODO: work out the data model
-        
-    db.insert_annual_prediction(cfg,
-                                ctx['cx'],
-                                ctx['cy'],
-                                ctx['px'],
-                                ctx['py'],
-                                ctx['sday'],
-                                ctx['eday'],
-                                ctx['date'],
-                                ctx['predictions'])
+    db.insert_annual_predictions(cfg, ctx)
+                
     return ctx
 
 
@@ -242,7 +239,6 @@ def annual_prediction():
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
                         partial(exception_handler, http_status=500, name='load_model', fn=load_model),
-                        partial(exception_handler, http_status=500, name='load_data', fn=partial(load_data, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='predict', fn=partial(predict, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='predictions', fn=partial(predictions, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
                         respond)
