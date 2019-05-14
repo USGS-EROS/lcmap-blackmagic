@@ -15,6 +15,10 @@ from cytoolz import get
 from cytoolz import reduce
 
 
+def delete_tile(tx, ty):
+    return db.execute_statements(app.cfg,
+                                 [db.delete_tile(app.cfg, tx, ty)])
+
 @pytest.fixture
 def client():
     app.app.config['TESTING'] = True
@@ -40,7 +44,7 @@ def test_tile_runs_as_expected(client):
     # the aux data
 
 
-        # prepopulate a chip of segments
+    # prepopulate a chip of segments
     assert client.post('/segment',
                        json={'cx': test.cx,
                              'cy': test.cy,
@@ -53,6 +57,10 @@ def test_tile_runs_as_expected(client):
                                  'chips': chips,
                                  'date': date})
 
+    tiles = db.execute_statement(cfg=app.cfg,
+                                 stmt=db.select_tile(cfg=app.cfg,
+                                                     tx=test.tx,
+                                                     ty=test.ty))
     assert response.status == '200 OK'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
@@ -60,29 +68,7 @@ def test_tile_runs_as_expected(client):
     assert get('date', response.get_json()) == date
     assert get('chips', response.get_json()) == chips
     assert get('exception', response.get_json(), None) == None
-
-
-def test_tile_missing_segments(client):
-    '''
-    As a blackmagic user, when there are no segments available
-    to match up with aux data, HTTP 500 is issued with a message
-    indicating no segments were found so that the issue may be 
-    resolved (by repairing the database, running change detection,
-    etc)
-    '''
-    
-    pass
-
-
-def test_tile_missing_aux(client):
-    '''
-    As a blackmagic user, when there is no aux data available
-    to match up with segments, HTTP 500 is issued with a message
-    indicating missing aux data so that the issue may be 
-    corrected.
-    '''
-    
-    pass
+    assert len(list(map(lambda x: x, tiles))) == 1
 
 
 def test_tile_bad_parameters(client):
@@ -97,6 +83,8 @@ def test_tile_bad_parameters(client):
     acquired = test.a
     chips    = test.chips
     date     = test.training_date
+
+    delete_tile(test.tx, test.ty)
     
     response = client.post('/tile',
                            json={'tx': tx,
@@ -104,6 +92,11 @@ def test_tile_bad_parameters(client):
                                  'acquired': acquired,
                                  'chips': chips,
                                  'date': date})
+
+    tiles = db.execute_statement(cfg=app.cfg,
+                                 stmt=db.select_tile(cfg=app.cfg,
+                                                     tx=test.tx,
+                                                     ty=test.ty))
 
     assert response.status == '400 BAD REQUEST'
     assert get('tx', response.get_json()) == tx
@@ -113,7 +106,8 @@ def test_tile_bad_parameters(client):
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
-
+    assert len(list(map(lambda x: x, tiles))) == 0
+    
 
 def test_tile_data_exception(client):
     '''
@@ -127,7 +121,9 @@ def test_tile_data_exception(client):
     acquired = test.a
     chips    = test.chips
     date     = test.training_date
-    
+
+    delete_tile(test.tx, test.ty)
+
     response = client.post('/tile',
                            json={'tx': tx,
                                  'ty': ty,
@@ -135,6 +131,11 @@ def test_tile_data_exception(client):
                                  'chips': chips,
                                  'date': date,
                                  'test_data_exception': True})
+
+    tiles = db.execute_statement(cfg=app.cfg,
+                                 stmt=db.select_tile(cfg=app.cfg,
+                                                     tx=test.tx,
+                                                     ty=test.ty))
 
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -144,6 +145,7 @@ def test_tile_data_exception(client):
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, tiles))) == 0
 
 
 def test_tile_training_exception(client):
@@ -158,7 +160,9 @@ def test_tile_training_exception(client):
     acquired = test.a
     chips    = test.chips
     date     = test.training_date
-     
+
+    delete_tile(test.tx, test.ty)
+    
     response = client.post('/tile',
                            json={'tx': tx,
                                  'ty': ty,
@@ -167,6 +171,11 @@ def test_tile_training_exception(client):
                                  'date': date,
                                  'test_training_exception': True})
 
+    tiles = db.execute_statement(cfg=app.cfg,
+                                 stmt=db.select_tile(cfg=app.cfg,
+                                                     tx=test.tx,
+                                                     ty=test.ty))
+    
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
@@ -175,6 +184,7 @@ def test_tile_training_exception(client):
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, tiles))) == 0
 
 
 def test_tile_cassandra_exception(client):
@@ -190,6 +200,8 @@ def test_tile_cassandra_exception(client):
     acquired = test.a
     chips    = test.chips
     date     = test.training_date
+
+    delete_tile(test.tx, test.ty)
     
     response = client.post('/tile',
                            json={'tx': tx,
@@ -199,6 +211,11 @@ def test_tile_cassandra_exception(client):
                                  'date': date,
                                  'test_cassandra_exception': True})
 
+    tiles = db.execute_statement(cfg=app.cfg,
+                                 stmt=db.select_tile(cfg=app.cfg,
+                                                     tx=test.tx,
+                                                     ty=test.ty))
+    
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
@@ -207,6 +224,7 @@ def test_tile_cassandra_exception(client):
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, tiles))) == 0
 
     
 def test_segments_filter():

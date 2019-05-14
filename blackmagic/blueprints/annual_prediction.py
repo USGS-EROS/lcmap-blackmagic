@@ -33,13 +33,14 @@ import xgboost as xgb
 logger = logging.getLogger('blackmagic.annual_prediction')
 annual_prediction = Blueprint('annual_prediction', __name__)
 
-
 def log_request(ctx):
     '''Create log message for HTTP request'''
 
     tx = get('tx', ctx, None)
     ty = get('ty', ctx, None)
-    d  = get('date', ctx, None)
+    m  = get('month', ctx, None)
+    d  = get('day', ctx, None)
+    a  = get('acquired', ctx, None)
     c  = get('chips', ctx, None)
     
     logger.info("POST /tile {x},{y},{a},{d},{c}".format(x=tx, y=ty, a=a, d=d, c=c))
@@ -59,7 +60,7 @@ def exception_handler(ctx, http_status, name, fn):
                                      'http_status': http_status})
 
 def log_chip(segments):
-     m = '{{"cx":{cx}, "cy":{cy}, "date":{date}, "acquired":{acquired}, "msg":"generating probabilities"}}'
+    m = '{{"cx":{cx}, "cy":{cy}, "date":{date}, "acquired":{acquired}, "msg":"generating probabilities"}}'
 
     logger.info(m.format(**first(segments)))
     
@@ -98,11 +99,31 @@ def prediction_pipeline(chip, model_bytes, month, day, acquired, cfg):
                         segaux.combine,
                         segaux.unload_segments,
                         segaux.unload_aux,
-                        partial(segaux.prediction_dates, month=month, day=day)
+                        partial(segaux.prediction_dates, month=month, day=day),
                         segaux.average_reflectance,
                         reformat,
                         log_chip,                       
                         partial(predict, model=booster(model_bytes)))
+
+
+def measure(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        start = datetime.now()
+        ctx = fn(*args, **kwargs)
+        
+        d = {"tx":get("tx", ctx, None),
+             "ty":get("ty", ctx, None),
+             "acquired":get("acquired", ctx, None),
+             "month":get("month", ctx, None),
+             "day":get("day", ctx, None),
+             "chips":"count:{}".format(count(get("chips", ctx, [])))}
+            
+        logger.info(assoc(d,
+                          "{name}_elapsed_seconds".format(name=fn.__name__),
+                          (datetime.now() - start).total_seconds()))            
+        return ctx
+    return wrapper
 
 
 @skip_on_exception
@@ -118,24 +139,6 @@ def predictions(ctx, cfg):
 
     with workers(cfg) as w:
         return assoc(ctx, 'predictions', list(flatten(w.map(p, ctx['chips']))))
-
-    
-def measure(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        start = datetime.now()
-        ctx = fn(*args, **kwargs)
-        
-        d = {"tx":get("tx", ctx, None),
-             "ty":get("ty", ctx, None),
-             "date":get("date", ctx, None),
-             "chips":"count:{}".format(count(get("chips", ctx, [])))}
-            
-        logger.info(assoc(d,
-                          "{name}_elapsed_seconds".format(name=fn.__name__),
-                          (datetime.now() - start).total_seconds()))            
-        return ctx
-    return wrapper                 
 
 
 @skip_on_exception
@@ -176,7 +179,7 @@ def load_model(ctx, cfg):
 
     sess  = db.session(cfg, ctx['cluster']) 
     stmt  = db.select_tile(cfg, ctx['tx'], ctx['ty'])
-    model = get('model', first(sess.execute(stmt), None)
+    model = get('model', first(sess.execute(stmt), None))
                 
     return assoc(ctx, 'model_bytes', bytes.fromhex(model))
                  
@@ -232,8 +235,8 @@ def respond(ctx):
 # so 100MB + space for the segments will be needed
 # for each chip in memory.
                 
-@tile.route('/annual-prediction', methods=['POST'])        
-def annual_prediction():
+@annual_prediction.route('/annual-prediction', methods=['POST'])        
+def annual_predictions():
     
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),

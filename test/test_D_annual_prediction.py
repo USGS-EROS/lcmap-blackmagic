@@ -10,9 +10,9 @@ from cytoolz import get
 from cytoolz import reduce
 
 
-def delete_tile(tx, ty):
+def delete_annual_predictions(cx, cy):
     return db.execute_statements(app.cfg,
-                                 [db.delete_tile(app.cfg, tx, ty)])
+                                 [db.delete_annual_predictions(app.cfg, cx, cy)])
 
 
 @pytest.fixture
@@ -21,37 +21,39 @@ def client():
     yield app.app.test_client()
 
     
-def test_tile_runs_as_expected(client):
+def test_annual_prediction_runs_as_expected(client):
     '''
-    As a blackmagic user, when I send tx, ty, acquired, date and chip list
-    via HTTP POST, a tile is trained and an xgboost model is saved to Cassandra
-    so that it can be retrieved later.
+    As a blackmagic user, when I send tx, ty, acquired, month, day and chip list
+    via HTTP POST, annual predictions are generated and saved to Cassandra
+    so that they can be retrieved later.
     '''
     
-    response = client.post('/tile',
+    response = client.post('/annual-prediction',
                            json={'tx': test.tx,
                                  'ty': test.ty,
                                  'chips': test.chips,
-                                 'date': test.training_date,
+                                 'month': test.prediction_month,
+                                 'day': test.prediction_day,
                                  'acquired': test.a})
 
-    tiles = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_tile(cfg=app.cfg,
-                                                     tx=test.tx,
-                                                     ty=test.ty))
-    
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_annual_predictions(cfg=app.cfg,
+                                                                         cx=test.cx,
+                                                                         cy=test.cy))
+     
     assert response.status == '200 OK'
     assert get('tx', response.get_json()) == test.tx
     assert get('ty', response.get_json()) == test.ty
     assert get('acquired', response.get_json()) == test.a
     assert get('chips', response.get_json()) == test.chips
-    assert get('date', response.get_json()) == test.training_date
+    assert get('month', response.get_json()) == test.prediction_month
+    assert get('day', response.get_json()) == test.prediction_day
     assert get('exception', response.get_json(), None) == None
     
-    assert len(list(map(lambda x: x, tiles))) == 1
+    assert len(list(map(lambda x: x, predictions))) == 10000
     
 
-def test_tile_bad_parameters(client):
+def test_annual_prediction_bad_parameters(client):
     '''
     As a blackmagic user, when I don't send tx, ty, acquired, date and chips list
     via HTTP POST the HTTP status is 400 and the response body tells
@@ -65,19 +67,19 @@ def test_tile_bad_parameters(client):
     date = test.training_date
     chips = test.chips
     
-    response = client.post('/tile',
+    response = client.post('/annual-prediction',
                            json={'tx': tx,
                                  'ty': ty,
                                  'acquired': a,
                                  'date': date,
                                  'chips': chips})
 
-    delete_tile(test.tx, test.ty)
+    delete_annual_predictions(test.cx, test.cy)
     
-    tile = db.execute_statement(cfg=app.cfg,
-                                stmt=db.select_tile(cfg=app.cfg,
-                                                   tx=test.tx,
-                                                   ty=test.ty))
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_annual_predictions(cfg=app.cfg,
+                                                                         cx=test.cx,
+                                                                         cy=test.cy))
     
     assert response.status == '400 BAD REQUEST'
     assert get('tx', response.get_json()) == tx
@@ -88,10 +90,10 @@ def test_tile_bad_parameters(client):
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
 
-    assert len(list(map(lambda x: x, tile))) == 0
+    assert len(list(map(lambda x: x, predictions))) == 0
 
 
-def test_tile_merlin_exception(client):
+def test_annual_prediction_merlin_exception(client):
     '''
     As a blackmagic user, when an exception occurs creating a 
     timeseries from aux data, an HTTP 500 is issued with a 
@@ -104,19 +106,19 @@ def test_tile_merlin_exception(client):
     date = test.training_date
     chips = test.chips
 
-    delete_tile(test.tx, test.ty)
+    delete_annual_predictions(test.cx, test.cy)
     
-    response = client.post('/tile',
+    response = client.post('/annual-prediction',
                            json={'tx': tx,
                                  'ty': ty,
                                  'chips': chips,
                                  'date': date,
                                  'acquired': a})
 
-    tiles = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_tile(cfg=app.cfg,
-                                                     tx=test.tx,
-                                                     ty=test.ty))
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_annual_predictions(cfg=app.cfg,
+                                                                         cx=test.cx,
+                                                                         cy=test.cy))
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -126,11 +128,10 @@ def test_tile_merlin_exception(client):
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
-
-    assert len(list(map(lambda x: x, tiles))) == 0
+    assert len(list(map(lambda x: x, predictions))) == 0
     
 
-def test_tile_training_exception(client):
+def test_annual_prediction_training_exception(client):
     '''
     As a blackmagic user, when an exception occurs 
     training an xgboost model an HTTP 500 is issued with a message 
@@ -144,9 +145,9 @@ def test_tile_training_exception(client):
     date = test.training_date
     chips = test.chips
 
-    delete_tile(test.tx, test.ty)
+    delete_annual_predictions(test.cx, test.cy)
     
-    response = client.post('/tile',
+    response = client.post('/annual-prediction',
                            json={'tx': tx,
                                  'ty': ty,
                                  'acquired': a,
@@ -154,10 +155,10 @@ def test_tile_training_exception(client):
                                  'chips': chips,
                                  'test_training_exception': True})
     
-    tiles = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_tile(cfg=app.cfg,
-                                                     tx=test.tx,
-                                                     ty=test.ty))
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_annual_predictions(cfg=app.cfg,
+                                                                         cx=test.cx,
+                                                                         cy=test.cy))
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -167,11 +168,10 @@ def test_tile_training_exception(client):
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, predictions))) == 0
 
-    assert len(list(map(lambda x: x, tiles))) == 0
 
-
-def test_tile_cassandra_exception(client):
+def test_annual_prediction_cassandra_exception(client):
     '''
     As a blackmagic user, when an exception occurs saving 
     a tile to Cassandra, an HTTP 500 is issued
@@ -185,9 +185,9 @@ def test_tile_cassandra_exception(client):
     date = test.training_date
     chips = test.chips
 
-    delete_tile(test.tx, test.ty)
+    delete_annual_predictions(test.cx, test.cy)
     
-    response = client.post('/tile',
+    response = client.post('/annual-prediction',
                            json={'tx': tx,
                                  'ty': ty,
                                  'acquired': a,
@@ -195,10 +195,10 @@ def test_tile_cassandra_exception(client):
                                  'chips': chips,
                                  'test_cassandra_exception': True})
     
-    tiles = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_tile(cfg=app.cfg,
-                                                     tx=test.tx,
-                                                     ty=test.ty))
+    annual_predictions = db.execute_statement(cfg=app.cfg,
+                                              stmt=db.select_annual_predictions(cfg=app.cfg,
+                                                                                cx=test.cx,
+                                                                                cy=test.cy))
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -206,8 +206,6 @@ def test_tile_cassandra_exception(client):
     assert get('acquired', response.get_json()) == a
     assert get('date', response.get_json()) == date
     assert get('chips', response.get_json()) == chips
-    
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
-
-    assert len(list(map(lambda x: x, tiles))) == 0
+    assert len(list(map(lambda x: x, predictions))) == 0

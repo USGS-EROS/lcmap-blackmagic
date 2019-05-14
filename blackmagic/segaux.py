@@ -99,7 +99,7 @@ def segments(ctx, cfg):
     
     return assoc(ctx,
                  'segments',
-                 [r for r in s.execute(db.select_segment(cfg, ctx['cx'], ctx['cy']))])
+                 [r for r in s.execute(db.select_segments(cfg, ctx['cx'], ctx['cy']))])
                                         
 
 def combine(ctx):

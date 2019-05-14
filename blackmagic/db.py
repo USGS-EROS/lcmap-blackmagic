@@ -397,12 +397,12 @@ def delete_chip(cfg, cx, cy):
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
-def delete_pixel(cfg, cx, cy):
+def delete_pixels(cfg, cx, cy):
     s = 'DELETE FROM {keyspace}.pixel WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
-def delete_segment(cfg, cx, cy):
+def delete_segments(cfg, cx, cy):
     s = 'DELETE FROM {keyspace}.segment WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
@@ -412,17 +412,22 @@ def delete_tile(cfg, tx, ty):
     return s.format(keyspace=cfg['cassandra_keyspace'], tx=tx, ty=ty)
 
 
+def delete_annual_predictions(cfg, cx, cy):
+    s = 'DELETE FROM {keyspace}.annual_prediction WHERE cx={cx} AND cy={cy};'
+    return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
+
+
 def select_chip(cfg, cx, cy):
     s = 'SELECT * FROM {keyspace}.chip WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
-def select_pixel(cfg, cx, cy):
+def select_pixels(cfg, cx, cy):
     s = 'SELECT * FROM {keyspace}.pixel WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
-def select_segment(cfg, cx, cy):
+def select_segments(cfg, cx, cy):
     s = 'SELECT * FROM {keyspace}.segment WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
@@ -430,3 +435,7 @@ def select_segment(cfg, cx, cy):
 def select_tile(cfg, tx, ty):
     s = 'SELECT * FROM {keyspace}.tile WHERE tx={tx} AND ty={ty};'
     return s.format(keyspace=cfg['cassandra_keyspace'], tx=tx, ty=ty)
+
+def select_annual_predictions(cfg, cx, cy):
+    s = 'SELECT * FROM {keyspace}.annual_prediction WHERE cx={cx} AND cy={cy};'
+    return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)

@@ -2,7 +2,7 @@
 
 from blackmagic import cfg
 from blackmagic import db
-#from blackmagic.blueprints.annual_prediction import annual_prediction
+from blackmagic.blueprints.annual_prediction import annual_prediction
 from blackmagic.blueprints.health import health
 from blackmagic.blueprints.segment import segment
 from blackmagic.blueprints.tile import tile
@@ -18,7 +18,7 @@ logger = logging.getLogger('blackmagic.app')
 db.setup(cfg)
 
 app = Flask('blackmagic')
-#app.register_blueprint(annual_prediction)
 app.register_blueprint(health)
 app.register_blueprint(segment)
 app.register_blueprint(tile)
+app.register_blueprint(annual_prediction)
