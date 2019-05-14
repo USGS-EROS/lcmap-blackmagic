@@ -407,6 +407,11 @@ def delete_segment(cfg, cx, cy):
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
+def delete_tile(cfg, tx, ty):
+    s = 'DELETE FROM {keyspace}.tile WHERE tx={tx} AND ty={ty};'
+    return s.format(keyspace=cfg['cassandra_keyspace'], tx=tx, ty=ty)
+
+
 def select_chip(cfg, cx, cy):
     s = 'SELECT * FROM {keyspace}.chip WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
