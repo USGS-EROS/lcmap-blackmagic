@@ -39,7 +39,6 @@ def log_request(ctx):
 
     tx = get('tx', ctx, None)
     ty = get('ty', ctx, None)
-    a  = get('acquired', ctx, None)
     d  = get('date', ctx, None)
     c  = get('chips', ctx, None)
     
@@ -54,12 +53,20 @@ def exception_handler(ctx, http_status, name, fn):
     except Exception as e:        
         return do(logger.exception, {'tx': get('tx', ctx, None),
                                      'ty': get('ty', ctx, None),
-                                     'acquired': get('acquired', ctx, None),
                                      'date': get('date', ctx, None),
                                      'chips': get('chips', ctx, None),
                                      'exception': '{name} exception: {ex}'.format(name=name, ex=e),
                                      'http_status': http_status})
     
+def prediction_function(data, model):
+    return model.predict(xgb.DMatrix(data))[0]
+
+    
+def predict(ctx):
+    model = create_model_from_bytes(ctx['model_bytes'])
+    fn = partial(prediction_function, model=model)
+    return assoc(ctx, 'predictions', map(fn, ctx['data']))
+
 
 def pipeline(chip, tx, ty, date, acquired, cfg):
 
@@ -71,21 +78,19 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
            'acquired': acquired,
            'cluster': cluster(cfg)}
 
-    # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001/07/01', aux:{}, segments:[], data:[]}
+    # {'cx': 0, 'cy': 0, 'date': '2001/07/01', aux:{}, segments:[], data:[]}
 
     return thread_first(ctx,
                         partial(segaux.segments, cfg=cfg),
-                        segaux.segments_filter,
                         partial(segaux.aux, cfg=cfg),
                         segaux.aux_filter,                        
                         segaux.combine,
                         segaux.unload_segments,
                         segaux.unload_aux,
-                        segaux.format,
+                        segaux.prediction_format,
                         segaux.log_chip,
-                        segaux.exit_pipeline)
+                        predict)
     
-
 def measure(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
@@ -95,7 +100,6 @@ def measure(fn):
         d = {"tx":get("tx", ctx, None),
              "ty":get("ty", ctx, None),
              "date":get("date", ctx, None),
-             "acquired":get("acquired", ctx, None),
              "chips":"count:{}".format(count(get("chips", ctx, [])))}
             
         logger.info(assoc(d,
@@ -121,7 +125,6 @@ def parameters(r):
     else:
         return {'tx': int(tx),
                 'ty': int(ty),
-                'acquired': acquired,
                 'date': date,
                 'chips': list(map(lambda chip: (int(first(chip)), int(second(chip))), chips)),
                 'test_data_exception': get('test_data_exception', r, None),
@@ -137,8 +140,8 @@ def load_model(ctx, cfg):
     sess  = db.session(cfg, ctx['cluster']) 
     stmt  = db.select_tile(cfg, ctx['tx'], ctx['ty'])
     model = get('model', first(sess.execute(stmt), None)
-    
-    return assoc(ctx, 'model', bytes.fromhex(model))
+                
+    return assoc(ctx, 'model_bytes', bytes.fromhex(model))
                  
 
 @skip_on_exception
@@ -213,13 +216,32 @@ def respond(ctx):
     return response
 
 
+# xgboost models are not thread safe nor are they sharable
+# across processes because the Python object holds a
+# reference to the underlying C XGBoost memory locations.
+
+# This means that we should load the model from Cassandra
+# one time, decode it from hex into bytes one time,
+# but then instantiate a new XGBoost Classifier for
+# each process that is going to run.
+
+# In seperate processes, a model can be created,
+# data can be loaded, prediction can occur and
+# format into correct datastructures,
+# then results can be collected from pool.map()
+# for persistence into Cassandra using batches
+
+# The models saved to Cassandra are around 100MB,
+# so 100MB + space for the segments will be needed
+# for each chip in memory.
+                
 @tile.route('/annual-prediction', methods=['POST'])        
 def annual_prediction():
     
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
-                        partial(exception_handler, http_status=400, name='load_model', fn=load_model),
+                        partial(exception_handler, http_status=500, name='load_model', fn=load_model),
                         partial(exception_handler, http_status=500, name='load_data', fn=partial(load_data, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='predict', fn=partial(predict, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),

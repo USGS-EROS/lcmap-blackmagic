@@ -255,5 +255,3 @@ def prediction_format(ctx):
              'eday': get('eday', ctx),
              'date': get('date', c),
              'data': independent(to_numpy(standard_format(c)))} for c in ctx['data']]
-
-
