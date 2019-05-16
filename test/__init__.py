@@ -21,5 +21,9 @@ cx = -2061585
 cy = 1922805
 chips = [[cx, cy],]
 training_date = '0001-01-01'
-a  = '1980/2019'
+acquired = '1980/2019'
+prediction_month='07'
+prediction_day='01'
 
+missing_tx = 0
+missing_ty = 0

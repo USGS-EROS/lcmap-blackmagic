@@ -36,7 +36,7 @@ def test_tile_runs_as_expected(client):
     ty       = test.ty
     cx       = test.cx
     cy       = test.cy
-    acquired = test.a
+    acquired = test.acquired
     chips    = test.chips
     date     = test.training_date
         
@@ -48,7 +48,7 @@ def test_tile_runs_as_expected(client):
     assert client.post('/segment',
                        json={'cx': test.cx,
                              'cy': test.cy,
-                             'acquired': test.a}).status == '200 OK'
+                             'acquired': test.acquired}).status == '200 OK'
     
     response = client.post('/tile',
                            json={'tx': tx,
@@ -80,7 +80,7 @@ def test_tile_bad_parameters(client):
 
     tx       = "not-an-integer"
     ty       = test.ty
-    acquired = test.a
+    acquired = test.acquired
     chips    = test.chips
     date     = test.training_date
 
@@ -118,7 +118,7 @@ def test_tile_data_exception(client):
 
     tx       = test.tx
     ty       = test.ty
-    acquired = test.a
+    acquired = test.acquired
     chips    = test.chips
     date     = test.training_date
 
@@ -157,7 +157,7 @@ def test_tile_training_exception(client):
 
     tx       = test.tx
     ty       = test.ty
-    acquired = test.a
+    acquired = test.acquired
     chips    = test.chips
     date     = test.training_date
 
@@ -197,7 +197,7 @@ def test_tile_cassandra_exception(client):
 
     tx       = test.tx
     ty       = test.ty
-    acquired = test.a
+    acquired = test.acquired
     chips    = test.chips
     date     = test.training_date
 

@@ -27,6 +27,24 @@ def test_annual_prediction_runs_as_expected(client):
     via HTTP POST, annual predictions are generated and saved to Cassandra
     so that they can be retrieved later.
     '''
+
+    # prepopulate a chip of segments
+    assert client.post('/segment',
+                       json={'cx': test.cx,
+                             'cy': test.cy,
+                             'acquired': test.acquired}).status == '200 OK'
+    
+    # prepopulate a trained model
+    assert client.post('/tile',
+                       json={'tx': test.tx,
+                             'ty': test.ty,
+                             'acquired': test.acquired,
+                             'chips': test.chips,
+                             'date': test.training_date}).status == '200 OK'
+    
+
+    # test prediction
+
     
     response = client.post('/annual-prediction',
                            json={'tx': test.tx,
@@ -34,7 +52,7 @@ def test_annual_prediction_runs_as_expected(client):
                                  'chips': test.chips,
                                  'month': test.prediction_month,
                                  'day': test.prediction_day,
-                                 'acquired': test.a})
+                                 'acquired': test.acquired})
 
     predictions = db.execute_statement(cfg=app.cfg,
                                        stmt=db.select_annual_predictions(cfg=app.cfg,
@@ -44,7 +62,7 @@ def test_annual_prediction_runs_as_expected(client):
     assert response.status == '200 OK'
     assert get('tx', response.get_json()) == test.tx
     assert get('ty', response.get_json()) == test.ty
-    assert get('acquired', response.get_json()) == test.a
+    assert get('acquired', response.get_json()) == test.acquired
     assert get('chips', response.get_json()) == test.chips
     assert get('month', response.get_json()) == test.prediction_month
     assert get('day', response.get_json()) == test.prediction_day
@@ -63,15 +81,17 @@ def test_annual_prediction_bad_parameters(client):
     # bad parameters
     tx = None
     ty = test.cy
-    a = test.a
-    date = test.training_date
+    a = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
     chips = test.chips
     
     response = client.post('/annual-prediction',
                            json={'tx': tx,
                                  'ty': ty,
                                  'acquired': a,
-                                 'date': date,
+                                 'month': month,
+                                 'day': day,
                                  'chips': chips})
 
     delete_annual_predictions(test.cx, test.cy)
@@ -86,7 +106,8 @@ def test_annual_prediction_bad_parameters(client):
     assert get('ty', response.get_json()) == ty
     assert get('acquired', response.get_json()) == a
     assert get('chips', response.get_json()) == chips
-    assert get('date', response.get_json()) == date
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
 
@@ -103,7 +124,8 @@ def test_annual_prediction_merlin_exception(client):
     tx = test.tx
     ty = test.ty
     a = 'not-a-date'
-    date = test.training_date
+    month = test.prediction_month
+    day = test.prediction_day
     chips = test.chips
 
     delete_annual_predictions(test.cx, test.cy)
@@ -112,7 +134,8 @@ def test_annual_prediction_merlin_exception(client):
                            json={'tx': tx,
                                  'ty': ty,
                                  'chips': chips,
-                                 'date': date,
+                                 'month': month,
+                                 'day': day,
                                  'acquired': a})
 
     predictions = db.execute_statement(cfg=app.cfg,
@@ -124,25 +147,26 @@ def test_annual_prediction_merlin_exception(client):
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
     assert get('acquired', response.get_json()) == a
-    assert get('date', response.get_json()) == date
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
+
     
-
-def test_annual_prediction_training_exception(client):
+def test_annual_prediction_missing_model(client):
     '''
-    As a blackmagic user, when an exception occurs 
-    training an xgboost model an HTTP 500 is issued with a message 
-    describing the failure so that the issue may be 
-    investigated, corrected & retried.
+    As a blackmagic user, when I send tx, ty, acquired, month, day, and chips via HTTP POST
+    and no trained xgboost model is found for the given tx/ty, an exception is raised
+    with HTTP 500 so that prediction does not occur and the problem may be resolved.
     '''
 
-    tx = test.tx
-    ty = test.ty
-    a = test.a
-    date = test.training_date
+    tx = test.missing_tx
+    ty = test.missing_ty
+    a = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
     chips = test.chips
 
     delete_annual_predictions(test.cx, test.cy)
@@ -150,11 +174,11 @@ def test_annual_prediction_training_exception(client):
     response = client.post('/annual-prediction',
                            json={'tx': tx,
                                  'ty': ty,
-                                 'acquired': a,
-                                 'date': date,
                                  'chips': chips,
-                                 'test_training_exception': True})
-    
+                                 'month': month,
+                                 'day': day,
+                                 'acquired': a})
+
     predictions = db.execute_statement(cfg=app.cfg,
                                        stmt=db.select_annual_predictions(cfg=app.cfg,
                                                                          cx=test.cx,
@@ -164,12 +188,13 @@ def test_annual_prediction_training_exception(client):
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
     assert get('acquired', response.get_json()) == a
-    assert get('date', response.get_json()) == date
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
-
+    
 
 def test_annual_prediction_cassandra_exception(client):
     '''
@@ -181,8 +206,9 @@ def test_annual_prediction_cassandra_exception(client):
 
     tx = test.tx
     ty = test.ty
-    a = test.a
-    date = test.training_date
+    acquired = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
     chips = test.chips
 
     delete_annual_predictions(test.cx, test.cy)
@@ -190,21 +216,23 @@ def test_annual_prediction_cassandra_exception(client):
     response = client.post('/annual-prediction',
                            json={'tx': tx,
                                  'ty': ty,
-                                 'acquired': a,
-                                 'date': date,
+                                 'acquired': acquired,
+                                 'month': month,
+                                 'day': day,
                                  'chips': chips,
                                  'test_cassandra_exception': True})
     
-    annual_predictions = db.execute_statement(cfg=app.cfg,
-                                              stmt=db.select_annual_predictions(cfg=app.cfg,
-                                                                                cx=test.cx,
-                                                                                cy=test.cy))
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_annual_predictions(cfg=app.cfg,
+                                                                         cx=test.cx,
+                                                                         cy=test.cy))
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
-    assert get('acquired', response.get_json()) == a
-    assert get('date', response.get_json()) == date
+    assert get('acquired', response.get_json()) == acquired
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
     assert get('chips', response.get_json()) == chips
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0

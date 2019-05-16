@@ -9,6 +9,7 @@ from blackmagic import workers
 from cytoolz import assoc
 from cytoolz import count
 from cytoolz import dissoc
+from cytoolz import excepts
 from cytoolz import do
 from cytoolz import first
 from cytoolz import get
@@ -33,6 +34,7 @@ import xgboost as xgb
 logger = logging.getLogger('blackmagic.annual_prediction')
 annual_prediction = Blueprint('annual_prediction', __name__)
 
+
 def log_request(ctx):
     '''Create log message for HTTP request'''
 
@@ -54,7 +56,9 @@ def exception_handler(ctx, http_status, name, fn):
     except Exception as e:        
         return do(logger.exception, {'tx': get('tx', ctx, None),
                                      'ty': get('ty', ctx, None),
-                                     'date': get('date', ctx, None),
+                                     'month': get('month', ctx, None),
+                                     'day':   get('day', ctx, None),
+                                     'acquired': get('acquired', ctx, None),
                                      'chips': get('chips', ctx, None),
                                      'exception': '{name} exception: {ex}'.format(name=name, ex=e),
                                      'http_status': http_status})
@@ -84,7 +88,7 @@ def reformat(segments):
 
 
 def booster(model_bytes):
-    return Booster(params={'nthread': 1}).load_model(model_bytes)
+    return segaux.booster_from_bytes(model_bytes, {'nthread': 1})
 
 
 def prediction_pipeline(chip, model_bytes, month, day, acquired, cfg):
@@ -92,7 +96,7 @@ def prediction_pipeline(chip, model_bytes, month, day, acquired, cfg):
     return thread_first({'cx': first(chip),
                          'cy': second(chip),
                          'acquired': acquired,
-                         'cluster': cluster(cfg)},
+                         'cluster': db.cluster(cfg)},
                         partial(segaux.segments, cfg=cfg),
                         partial(segaux.aux, cfg=cfg),
                         segaux.aux_filter,                        
@@ -171,7 +175,12 @@ def parameters(r):
                 'test_training_exception': get('test_training_exception', r, None),
                 'test_cassandra_exception': get('test_cassandra_exception', r, None)}
 
-            
+    
+@skip_on_exception
+def add_cluster(ctx, cfg):
+    return assoc(ctx, 'cluster', _cluster(cfg))
+
+    
 @skip_on_exception
 @raise_on('test_load_model_exception')
 @measure
@@ -179,9 +188,16 @@ def load_model(ctx, cfg):
 
     sess  = db.session(cfg, ctx['cluster']) 
     stmt  = db.select_tile(cfg, ctx['tx'], ctx['ty'])
-    model = get('model', first(sess.execute(stmt), None))
-                
-    return assoc(ctx, 'model_bytes', bytes.fromhex(model))
+    
+    fn = excepts(StopIteration,
+                 lambda session, statement: bytes.fromhex(first(session.execute(statement)).model))
+
+    model = fn(sess, stmt)
+
+    if model is None:
+        raise Exception("No model found for tx:{tx} and ty:{ty}".format(**ctx))
+    else:
+        return assoc(ctx, 'model_bytes', model)
                  
 
 @raise_on('test_cassandra_exception')
@@ -201,7 +217,8 @@ def respond(ctx):
     body = {'tx': get('tx', ctx, None),
             'ty': get('ty', ctx, None),
             'acquired': get('acquired', ctx, None),
-            'date': get('date', ctx, None),
+            'month': get('month', ctx, None),
+            'day': get('day', ctx, None),
             'chips': get('chips', ctx, None)}
 
     e = get('exception', ctx, None)
@@ -241,7 +258,8 @@ def annual_predictions():
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
-                        partial(exception_handler, http_status=500, name='load_model', fn=load_model),
+                        partial(exception_handler, http_status=500, name='add_cluster', fn=partial(add_cluster, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='load_model', fn=partial(load_model, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='predictions', fn=partial(predictions, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
                         respond)

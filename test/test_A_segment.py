@@ -30,7 +30,7 @@ def test_segment_runs_as_expected(client):
     '''
     
     response = client.post('/segment',
-                           json={'cx': test.cx, 'cy': test.cy, 'acquired': test.a})
+                           json={'cx': test.cx, 'cy': test.cy, 'acquired': test.acquired})
 
     chips = db.execute_statement(cfg=app.cfg,
                                  stmt=db.select_chip(cfg=app.cfg,
@@ -49,7 +49,7 @@ def test_segment_runs_as_expected(client):
     assert response.status == '200 OK'
     assert get('cx', response.get_json()) == test.cx
     assert get('cy', response.get_json()) == test.cy
-    assert get('acquired', response.get_json()) == test.a
+    assert get('acquired', response.get_json()) == test.acquired
     assert get('exception', response.get_json(), None) == None
     
     assert len(list(map(lambda x: x, chips))) == 1
@@ -67,7 +67,7 @@ def test_segment_bad_parameters(client):
     # bad parameters
     cx = None
     cy = test.cy
-    a = test.a
+    a = test.acquired
 
     delete_detections(test.cx, test.cy)
     
@@ -195,7 +195,7 @@ def test_segment_detection_exception(client):
 
     cx = test.cx
     cy = test.cy
-    a = test.a
+    a  = test.acquired
 
     delete_detections(test.cx, test.cy)
     
@@ -241,7 +241,7 @@ def test_segment_cassandra_exception(client):
 
     cx = test.cx
     cy = test.cy
-    a = test.a
+    a  = test.acquired
 
     delete_detections(test.cx, test.cy)
     

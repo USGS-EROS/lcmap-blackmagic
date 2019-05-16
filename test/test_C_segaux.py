@@ -57,7 +57,7 @@ def test_dependent_1d():
 def test_aux():
     inputs = {'cx': test.cx,
               'cy': test.cy,
-              'acquired': test.a}
+              'acquired': test.acquired}
 
     outputs = segaux.aux(inputs, blackmagic.cfg)
     

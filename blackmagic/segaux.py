@@ -36,6 +36,10 @@ import arrow
 import logging
 import merlin
 import numpy
+import os
+import tempfile
+import xgboost as xgb
+
 
 logger = logging.getLogger('blackmagic.segaux')
 
@@ -135,6 +139,9 @@ def prediction_date_fn(sday, eday, month, day):
         
 def prediction_dates(segments, month, day):
 
+    print('SEGMENTS TYPE:{}'.format(type(segments)))
+    print('SEGMENT 1 TYPE:{}'.format(type(first(segments))))
+    
     for s in segments:
         dates = prediction_date_fn(sday=get('sday', s),
                                    eday=get('eday', s),
@@ -256,13 +263,30 @@ def prediction_format(segment):
             'independent': independent(to_numpy(standard_format(segment)))}
 
         
- #   return assoc(ctx,
- #                'data',
- #                [{'cx'  : get('cx', d),
- #                  'cy'  : get('cy', d),
- #                  'px'  : get('px', d),
- #                  'py'  : get('py', d),
- #                  'sday': get('sday', d),
- #                  'eday': get('eday', d),
- #                  'date': get('date', d),
- #                  'independent': independent(to_numpy(standard_format(d)))} for d in ctx['data']])
+def bytes_from_booster(booster):
+    f = None
+    try:
+        f = tempfile.NamedTemporaryFile(delete=False)
+        booster.save_model(f.name)
+
+        with open(f.name, 'rb+') as tf:
+            return tf.read()
+        
+    finally:
+        if f:
+            os.remove(f.name)
+
+        
+def booster_from_bytes(booster_bytes, params):
+    f = None
+    try:
+        f = tempfile.NamedTemporaryFile(delete=False)
+
+        with open(f.name, 'wb+') as tf:
+            tf.write(booster_bytes)
+
+        return xgb.Booster(model_file=tf.name, params=params)
+
+    finally:
+        if f:
+            os.remove(f.name)

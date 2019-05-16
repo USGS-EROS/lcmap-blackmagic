@@ -276,10 +276,15 @@ def save(ctx, cfg):
     # >>> bytes.fromhex('deadbeef')
     #b'\xde\xad\xbe\xef'
         
+    #db.insert_tile(cfg,
+    #               ctx['tx'],
+    #               ctx['ty'],
+    #               ctx['model'].save_raw().hex())
+
     db.insert_tile(cfg,
                    ctx['tx'],
                    ctx['ty'],
-                   ctx['model'].save_raw().hex())
+                   segaux.bytes_from_booster(ctx['model']).hex())
     return ctx
 
 
