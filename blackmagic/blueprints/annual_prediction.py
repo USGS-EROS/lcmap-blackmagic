@@ -72,15 +72,17 @@ def log_chip(segments):
 
     
 def prediction_fn(segment, model):
+    print('PREDICTION FN IM RUNNING')
+
     return assoc(segment,
                  'prob',
                  model.predict(xgb.DMatrix(segment))[0])
 
     
 def predict(segments, model):
+    print("PREDICT IS RUNNING BITCH")
     
-    return map(partial(prediction_fn, model=model),
-               segments)
+    return list(map(partial(prediction_fn, model=model), segments))
                  
 
 def reformat(segments):
@@ -89,6 +91,10 @@ def reformat(segments):
 
 def booster(model_bytes):
     return segaux.booster_from_bytes(model_bytes, {'nthread': 1})
+
+
+def extract_segments(ctx):
+    return ctx['data']
 
 
 def prediction_pipeline(chip, model_bytes, month, day, acquired, cfg):
@@ -103,6 +109,7 @@ def prediction_pipeline(chip, model_bytes, month, day, acquired, cfg):
                         segaux.combine,
                         segaux.unload_segments,
                         segaux.unload_aux,
+                        extract_segments,
                         partial(segaux.prediction_dates, month=month, day=day),
                         segaux.average_reflectance,
                         reformat,
@@ -130,8 +137,8 @@ def measure(fn):
     return wrapper
 
 
-@skip_on_exception
 @raise_on('test_predictions_exception')
+@skip_on_exception
 @measure
 def predictions(ctx, cfg):
     p = partial(prediction_pipeline,
@@ -178,7 +185,7 @@ def parameters(r):
     
 @skip_on_exception
 def add_cluster(ctx, cfg):
-    return assoc(ctx, 'cluster', _cluster(cfg))
+    return assoc(ctx, 'cluster', db.cluster(cfg))
 
     
 @skip_on_exception
@@ -206,7 +213,7 @@ def load_model(ctx, cfg):
 def save(ctx, cfg):                                                
     '''Saves annual predictions to Cassandra'''
 
-    db.insert_annual_predictions(cfg, ctx)
+    db.insert_annual_predictions(cfg, ctx['predictions'])
                 
     return ctx
 

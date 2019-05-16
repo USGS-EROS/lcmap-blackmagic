@@ -379,9 +379,11 @@ def insert_annual_predictions(cfg, predictions):
         batches = []
 
         for chunk in chunks:
+                        
             batch = BatchStatement(batch_type=BatchType.UNLOGGED)
 
             for c in chunk:
+                
                 batch.add(stmt, [c['cx'], c['cy'], c['px'], c['py'], c['sday'], c['eday'], c['date'], c['prob']])
             batches.append(batch)
            

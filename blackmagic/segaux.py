@@ -126,21 +126,15 @@ def prediction_date_fn(sday, eday, month, day):
     start = arrow.get(sday)
     end   = arrow.get(eday)
     years = list(map(lambda x: x.year, arrow.Arrow.range('year', start, end)))
-
     dates = []
     for y in years:
-        prediction_date = arrow.get('{year}-{month}-{day}'.format(year=y,
-                                                                  month=month,
-                                                                  day=day))
+        prediction_date = arrow.Arrow(year=y, month=int(month), day=int(day))
         if prediction_date >= start and prediction_date <= end:
             dates.append(prediction_date.date().isoformat())
     return dates
     
         
 def prediction_dates(segments, month, day):
-
-    print('SEGMENTS TYPE:{}'.format(type(segments)))
-    print('SEGMENT 1 TYPE:{}'.format(type(first(segments))))
     
     for s in segments:
         dates = prediction_date_fn(sday=get('sday', s),
