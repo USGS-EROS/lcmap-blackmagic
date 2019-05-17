@@ -64,7 +64,7 @@ def exception_handler(ctx, http_status, name, fn):
                                      'http_status': http_status})
 
 def log_chip(segments):
-    m = '{{"cx":{cx}, "cy":{cy}, "date":{date}, "acquired":{acquired}, "msg":"generating probabilities"}}'
+    m = '{{"cx":{cx}, "cy":{cy}, "date":{date}, "msg":"generating probabilities"}}'
 
     logger.info(m.format(**first(segments)))
     
@@ -72,16 +72,16 @@ def log_chip(segments):
 
     
 def prediction_fn(segment, model):
-    print('PREDICTION FN IM RUNNING')
-
+   
+    ind = segment['independent']
+    ind = ind.reshape(1, -1) if ind.ndim < 2 else ind
+    
     return assoc(segment,
                  'prob',
-                 model.predict(xgb.DMatrix(segment))[0])
+                 model.predict(xgb.DMatrix(ind))[0])
 
     
-def predict(segments, model):
-    print("PREDICT IS RUNNING BITCH")
-    
+def predict(segments, model):    
     return list(map(partial(prediction_fn, model=model), segments))
                  
 

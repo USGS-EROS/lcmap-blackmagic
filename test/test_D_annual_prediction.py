@@ -1,13 +1,17 @@
 import json
 import os
 import pytest
+import random
 import test
 
 from blackmagic import app
 from blackmagic import db
 from cassandra.cluster import Cluster
 from cytoolz import get
+from cytoolz import merge
 from cytoolz import reduce
+
+from datetime import date
 
 
 def delete_annual_predictions(cx, cy):
@@ -20,6 +24,75 @@ def client():
     app.app.config['TESTING'] = True
     yield app.app.test_client()
 
+
+def annual_prediction_test_data(segment):
+    return merge(segment,
+                 {'sday': date.fromordinal(2).isoformat(),
+                  'eday': date.fromordinal(20000).isoformat(),
+                  'blcoef': [random.uniform(0, 1) for i in range(7)],
+                  'blint':  random.randint(0, 90),
+                  'blmag':  random.randint(0, 10),
+                  'blrmse': random.random(),
+                  'grcoef': [random.uniform(0, 1) for i in range(7)],
+                  'grint':  random.randint(0, 90),
+                  'grmag':  random.randint(0, 10),
+                  'grrmse': random.random(),
+                  'nicoef': [random.uniform(0, 1) for i in range(7)],
+                  'niint':  random.randint(0, 90),
+                  'nimag':  random.randint(0, 10),
+                  'nirmse': random.random(),
+                  'recoef': [random.uniform(0, 1) for i in range(7)],
+                  'reint':  random.randint(0, 90),
+                  'remag':  random.randint(0, 10),
+                  'rermse': random.random(),                     
+                  's1coef': [random.uniform(0, 1) for i in range(7)],
+                  's1int':  random.randint(0, 90),
+                  's1mag':  random.randint(0, 10),
+                  's1rmse': random.random(),
+                  's2coef': [random.uniform(0, 1) for i in range(7)],
+                  's2int':  random.randint(0, 90),
+                  's2mag':  random.randint(0, 10),
+                  's2rmse': random.random(),
+                  'thcoef': [random.uniform(0, 1) for i in range(7)],
+                  'thint':  random.randint(0, 90),
+                  'thmag':  random.randint(0, 10),
+                  'thrmse': random.random()})
+    
+
+def create_annual_prediction_test_data(client):
+
+    # prepopulate a chip of segments
+    assert client.post('/segment',
+                       json={'cx': test.cx,
+                             'cy': test.cy,
+                             'acquired': test.acquired}).status == '200 OK'
+
+    # pull the segments
+    segments = db.execute_statement(app.cfg,
+                                    db.select_segments(cfg=app.cfg,
+                                                       cx=test.cx,
+                                                       cy=test.cy))
+
+    # remove old and busted test data
+    db.execute_statement(app.cfg,
+                         db.delete_segments(cfg=app.cfg,
+                                            cx=test.cx,
+                                            cy=test.cy))
+
+    # add new and better test data
+    db.insert_segments(app.cfg,
+                       map(annual_prediction_test_data,
+                           map(lambda x: x._asdict(), segments)))      
+               
+    # train tile against new segment values
+    assert client.post('/tile',
+                       json={'tx': test.tx,
+                             'ty': test.ty,
+                             'acquired': test.acquired,
+                             'chips': test.chips,
+                             'date': '0001-01-02'}).status == '200 OK'
+    return True
+    
     
 def test_annual_prediction_runs_as_expected(client):
     '''
@@ -28,20 +101,7 @@ def test_annual_prediction_runs_as_expected(client):
     so that they can be retrieved later.
     '''
 
-    # prepopulate a chip of segments
-    assert client.post('/segment',
-                       json={'cx': test.cx,
-                             'cy': test.cy,
-                             'acquired': test.acquired}).status == '200 OK'
-    
-    # prepopulate a trained model
-    assert client.post('/tile',
-                       json={'tx': test.tx,
-                             'ty': test.ty,
-                             'acquired': test.acquired,
-                             'chips': test.chips,
-                             'date': test.training_date}).status == '200 OK'
-    
+    create_annual_prediction_test_data(client)    
 
     # test prediction
 
@@ -68,7 +128,7 @@ def test_annual_prediction_runs_as_expected(client):
     assert get('day', response.get_json()) == test.prediction_day
     assert get('exception', response.get_json(), None) == None
 
-    assert len([p for p in predictions]) == 0
+    assert len([p for p in predictions]) == 349194
     
 
 def test_annual_prediction_bad_parameters(client):
