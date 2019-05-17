@@ -180,7 +180,8 @@ def parameters(r):
                 'chips': list(map(lambda chip: (int(first(chip)), int(second(chip))), chips)),
                 'test_data_exception': get('test_data_exception', r, None),
                 'test_training_exception': get('test_training_exception', r, None),
-                'test_cassandra_exception': get('test_cassandra_exception', r, None)}
+                'test_delete_exception': get('test_delete_exception', r, None),
+                'test_save_exception': get('test_save_exception', r, None)}
 
     
 @skip_on_exception
@@ -205,14 +206,29 @@ def load_model(ctx, cfg):
         raise Exception("No model found for tx:{tx} and ty:{ty}".format(**ctx))
     else:
         return assoc(ctx, 'model_bytes', model)
-                 
 
-@raise_on('test_cassandra_exception')
+    
+@raise_on('test_delete_exception')
+@skip_on_exception
+@measure
+def delete(ctx, cfg):                                                
+    '''Delete existing predictions'''
+
+    # delete all existing predictions in the chips we just processed
+    cxcy = set(map(lambda x: (x['cx'], x['cy'],), ctx['predictions']))
+    deletions = list(map(lambda x: db.delete_annual_predictions(cfg, first(x), second(x)), cxcy))
+    db.execute_statements(cfg, deletions)    
+
+    return ctx
+
+
+@raise_on('test_save_exception')
 @skip_on_exception
 @measure
 def save(ctx, cfg):                                                
     '''Saves annual predictions to Cassandra'''
 
+    # save all new predictions
     db.insert_annual_predictions(cfg, ctx['predictions'])
                 
     return ctx
@@ -268,5 +284,6 @@ def annual_predictions():
                         partial(exception_handler, http_status=500, name='add_cluster', fn=partial(add_cluster, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='load_model', fn=partial(load_model, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='predictions', fn=partial(predictions, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='delete', fn=partial(delete, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
                         respond)
