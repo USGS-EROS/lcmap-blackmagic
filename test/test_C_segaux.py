@@ -174,24 +174,7 @@ def test_prediction_dates():
 
     assert expected == outputs
 
-    
-def test_default_prediction_dates():
-    inputs = {'segments': [{'sday': '0001-01-01',
-                            'eday': '0001-01-01'},
-                           {'sday': '1980-12-12',
-                            'eday': '1982-08-15'}]}
 
-    expected = [{'sday': '0001-01-01',
-                 'eday': '0001-01-01',
-                 'date': '0001-01-01'},
-                {'sday': '1980-12-12',
-                 'eday': '1982-08-15'}]
-
-    outputs = list(segaux.default_prediction_dates(**inputs))
-
-    assert expected == outputs
-    
-    
 def test_training_date():
     inputs = {'date': '1980-01-01',
               'data': {'a': 1}}

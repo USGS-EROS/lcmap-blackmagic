@@ -131,6 +131,8 @@ def prediction_date_fn(sday, eday, month, day):
         prediction_date = arrow.Arrow(year=y, month=int(month), day=int(day))
         if prediction_date >= start and prediction_date <= end:
             dates.append(prediction_date.date().isoformat())
+        elif sday == '0001-01-01' and eday == '0001-01-01':
+            dates.append('0001-01-01')
     return dates
     
         
@@ -144,15 +146,7 @@ def prediction_dates(segments, month, day):
         for date in dates:
             yield assoc(s, 'date', date)
 
-            
-def default_prediction_dates(segments):
-    for s in segments:
-        if get('sday', s) == '0001-01-01' and get('eday', s) == '0001-01-01':
-            yield assoc(s, 'date', '0001-01-01')
-        else:
-            yield s
-            
-            
+                      
 def training_date(data, date):
     return assoc(data, 'date', date)
 
