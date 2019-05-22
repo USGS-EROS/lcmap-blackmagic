@@ -188,9 +188,8 @@ def parameters(r):
 def add_cluster(ctx, cfg):
     return assoc(ctx, 'cluster', db.cluster(cfg))
 
-    
+
 @skip_on_exception
-@raise_on('test_load_model_exception')
 @measure
 def load_model(ctx, cfg):
 

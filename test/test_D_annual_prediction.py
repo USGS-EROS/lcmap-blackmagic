@@ -103,9 +103,7 @@ def test_annual_prediction_runs_as_expected(client):
 
     create_annual_prediction_test_data(client)    
 
-    # test prediction
-
-    
+    # test annual prediction    
     response = client.post('/annual-prediction',
                            json={'tx': test.tx,
                                  'ty': test.ty,
@@ -128,6 +126,8 @@ def test_annual_prediction_runs_as_expected(client):
     assert get('day', response.get_json()) == test.prediction_day
     assert get('exception', response.get_json(), None) == None
 
+    # The number of predictions is dictated by the NLCDTRN dataset for the chip,
+    # and the number of non-zero classifications available.
     assert len([p for p in predictions]) == 349194
     
 
