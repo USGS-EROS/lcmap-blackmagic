@@ -127,24 +127,35 @@ def prediction_date_fn(sday, eday, month, day):
     end   = arrow.get(eday)
     years = list(map(lambda x: x.year, arrow.Arrow.range('year', start, end)))
     dates = []
+
     for y in years:
         prediction_date = arrow.Arrow(year=y, month=int(month), day=int(day))
         if prediction_date >= start and prediction_date <= end:
             dates.append(prediction_date.date().isoformat())
-        elif sday == '0001-01-01' and eday == '0001-01-01':
-            dates.append('0001-01-01')
     return dates
+
+
+def default_prediction_date(s):
+    if get('sday', s) == '0001-01-01' and get('eday', s) == '0001-01-01':
+        return '0001-01-01'
+    else:
+        return None
+
     
-        
 def prediction_dates(segments, month, day):
     
     for s in segments:
-        dates = prediction_date_fn(sday=get('sday', s),
-                                   eday=get('eday', s),
-                                   month=month,
-                                   day=day)
-        for date in dates:
-            yield assoc(s, 'date', date)
+        default_date = default_prediction_date(s)
+
+        if default_date:
+            yield assoc(s, 'date', default_date)
+        else:
+            dates = prediction_date_fn(sday=get('sday', s),
+                                       eday=get('eday', s),
+                                       month=month,
+                                       day=day)
+            for date in dates:
+                yield assoc(s, 'date', date)
 
                       
 def training_date(data, date):

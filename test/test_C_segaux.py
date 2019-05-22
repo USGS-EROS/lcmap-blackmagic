@@ -145,9 +145,19 @@ def test_prediction_date_fn():
     assert expected == outputs
 
     
+def test_default_prediction_date():
+    assert '0001-01-01' == segaux.default_prediction_date({'sday': '0001-01-01',
+                                                           'eday': '0001-01-01'})
+
+    assert segaux.default_prediction_date({'sday': '0001-01-02',
+                                           'eday': '0001-01-03'}) is None
+    
+    
 def test_prediction_dates():
     inputs = {'segments' : [{'sday': '1980-01-01',
-                             'eday': '1986-06-01'}],
+                             'eday': '1986-06-01'},
+                            {'sday': '0001-01-01',
+                             'eday': '0001-01-01'}],
               'month': '07',
               'day'  : '01'}
 
@@ -168,7 +178,10 @@ def test_prediction_dates():
                  'date': '1984-07-01'},
                 {'sday': '1980-01-01',
                  'eday': '1986-06-01',
-                 'date': '1985-07-01'}]
+                 'date': '1985-07-01'},
+                {'sday': '0001-01-01',
+                 'eday': '0001-01-01',
+                 'date': '0001-01-01'}]
                
     outputs = list(segaux.prediction_dates(**inputs))
 
