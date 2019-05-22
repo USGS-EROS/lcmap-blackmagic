@@ -28,7 +28,7 @@ def client():
 def annual_prediction_test_data(segment):
     return merge(segment,
                  {'sday': date.fromordinal(2).isoformat(),
-                  'eday': date.fromordinal(20000).isoformat(),
+                  'eday': date.fromordinal(1000).isoformat(),
                   'blcoef': [random.uniform(0, 1) for i in range(7)],
                   'blint':  random.randint(0, 90),
                   'blmag':  random.randint(0, 10),
@@ -128,7 +128,7 @@ def test_annual_prediction_runs_as_expected(client):
 
     # The number of predictions is dictated by the NLCDTRN dataset for the chip,
     # and the number of non-zero classifications available.
-    assert len([p for p in predictions]) == 349194
+    assert len([p for p in predictions]) == 19046
     
 
 def test_annual_prediction_bad_parameters(client):

@@ -145,6 +145,14 @@ def prediction_dates(segments, month, day):
             yield assoc(s, 'date', date)
 
             
+def default_prediction_dates(segments):
+    for s in segments:
+        if get('sday', s) == '0001-01-01' and get('eday', s) == '0001-01-01':
+            yield assoc(s, 'date', '0001-01-01')
+        else:
+            yield s
+            
+            
 def training_date(data, date):
     return assoc(data, 'date', date)
 
