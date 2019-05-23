@@ -59,23 +59,24 @@ def exception_handler(ctx, http_status, name, fn):
                                      'month': get('month', ctx, None),
                                      'day':   get('day', ctx, None),
                                      'acquired': get('acquired', ctx, None),
-                                     'chips': get('chips', ctx, None),
+                                     'chips': len(get('chips', ctx, [])),
                                      'exception': '{name} exception: {ex}'.format(name=name, ex=e),
                                      'http_status': http_status})
 
-def log_chip(segments):
-    m = '{{"cx":{cx}, "cy":{cy}, "date":{date}, "msg":"generating probabilities"}}'
 
+def log_chip(segments):
+    m = '{{"cx":{cx}, "cy":{cy}, "msg":"generating probabilities"}}'
+    
+    segments = list(segments)
     logger.info(m.format(**first(segments)))
     
     return segments
 
     
 def prediction_fn(segment, model):
-   
     ind = segment['independent']
     ind = ind.reshape(1, -1) if ind.ndim < 2 else ind
-    
+
     return assoc(segment,
                  'prob',
                  model.predict(xgb.DMatrix(ind))[0])
@@ -83,7 +84,7 @@ def prediction_fn(segment, model):
     
 def predict(segments, model):    
     return list(map(partial(prediction_fn, model=model), segments))
-                 
+
 
 def reformat(segments):
     return map(segaux.prediction_format, segments)
@@ -149,7 +150,25 @@ def predictions(ctx, cfg):
                 cfg=cfg)
 
     with workers(cfg) as w:
-        return assoc(ctx, 'predictions', list(flatten(w.map(p, ctx['chips']))))
+        logger.info('a')
+        a = w.map(p, ctx['chips'])
+
+        # filter out the Nones from the Nones...
+
+        logger.info('b')
+        b = filter(lambda x: x is not None, a)
+                
+        logger.info('c')
+        c = flatten(b)
+
+        logger.info('d')
+        d = list(c)
+
+        logger.info('e')
+        return assoc(ctx, 'predictions', d)
+    
+        #return assoc(ctx, 'predictions', list(flatten(filter(lambda x: x is not None,
+        #                                                     w.map(p, ctx['chips']))))
 
 
 @skip_on_exception
