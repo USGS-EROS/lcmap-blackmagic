@@ -260,7 +260,7 @@ def respond(ctx):
             'acquired': get('acquired', ctx, None),
             'month': get('month', ctx, None),
             'day': get('day', ctx, None),
-            'chips': get('chips', ctx, None)}
+            'chips': count(get('chips', ctx, []))}
 
     e = get('exception', ctx, None)
     
