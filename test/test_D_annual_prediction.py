@@ -128,7 +128,7 @@ def test_annual_prediction_runs_as_expected(client):
 
     # The number of predictions is dictated by the NLCDTRN dataset for the chip,
     # and the number of non-zero classifications available.
-    assert len([p for p in predictions]) == 19046
+    assert len([p for p in predictions]) == 19047
     
 
 def test_annual_prediction_bad_parameters(client):
