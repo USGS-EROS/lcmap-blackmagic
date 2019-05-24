@@ -7,6 +7,7 @@ import test
 from blackmagic import app
 from blackmagic import db
 from cassandra.cluster import Cluster
+from cytoolz import count
 from cytoolz import get
 from cytoolz import merge
 from cytoolz import reduce
@@ -121,7 +122,7 @@ def test_annual_prediction_runs_as_expected(client):
     assert get('tx', response.get_json()) == test.tx
     assert get('ty', response.get_json()) == test.ty
     assert get('acquired', response.get_json()) == test.acquired
-    assert get('chips', response.get_json()) == test.chips
+    assert get('chips', response.get_json()) == count(test.chips)
     assert get('month', response.get_json()) == test.prediction_month
     assert get('day', response.get_json()) == test.prediction_day
     assert get('exception', response.get_json(), None) == None
@@ -165,7 +166,7 @@ def test_annual_prediction_bad_parameters(client):
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
     assert get('acquired', response.get_json()) == a
-    assert get('chips', response.get_json()) == chips
+    assert get('chips', response.get_json()) == count(chips)
     assert get('month', response.get_json()) == month
     assert get('day', response.get_json()) == day
     assert type(get('exception', response.get_json())) is str
@@ -209,7 +210,7 @@ def test_annual_prediction_missing_model(client):
     assert get('acquired', response.get_json()) == a
     assert get('month', response.get_json()) == month
     assert get('day', response.get_json()) == day
-    assert get('chips', response.get_json()) == chips
+    assert get('chips', response.get_json()) == count(chips)
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
@@ -252,7 +253,7 @@ def test_annual_prediction_delete_exception(client):
     assert get('acquired', response.get_json()) == acquired
     assert get('month', response.get_json()) == month
     assert get('day', response.get_json()) == day
-    assert get('chips', response.get_json()) == chips
+    assert get('chips', response.get_json()) == count(chips)
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
@@ -295,7 +296,7 @@ def test_annual_prediction_save_exception(client):
     assert get('acquired', response.get_json()) == acquired
     assert get('month', response.get_json()) == month
     assert get('day', response.get_json()) == day
-    assert get('chips', response.get_json()) == chips
+    assert get('chips', response.get_json()) == count(chips)
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
