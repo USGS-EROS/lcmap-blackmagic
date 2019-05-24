@@ -198,8 +198,8 @@ def delete(ctx, cfg):
     cx = int(get('cx', ctx))
     cy = int(get('cy', ctx))
     db.execute_statements(cfg, [db.delete_chip(cfg, cx, cy),
-                                db.delete_pixel(cfg, cx, cy),
-                                db.delete_segment(cfg, cx, cy)])
+                                db.delete_pixels(cfg, cx, cy),
+                                db.delete_segments(cfg, cx, cy)])
     return ctx
 
 

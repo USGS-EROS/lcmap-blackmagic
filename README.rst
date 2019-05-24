@@ -70,7 +70,7 @@ From Github:
     $ cd lcmap-blackmagic
     $ conda create --name=blackmagic python=3.7
     $ source activate blackmagic
-    $ pip install -e .
+    $ pip install -e .[test]
     $ export CASSANDRA_BATCH_SIZE=1000
     $ export CASSANDRA_HOST=localhost
     $ export CASSANDRA_PORT=9042

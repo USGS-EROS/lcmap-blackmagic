@@ -1,25 +1,20 @@
 from blackmagic import cfg
 from blackmagic import db
 from blackmagic import raise_on
-from blackmagic import skip_on_exception
+from blackmagic import segaux
 from blackmagic import skip_on_empty
+from blackmagic import skip_on_exception
 from blackmagic import workers
-from cassandra import ReadTimeout
-from collections import Counter
 from cytoolz import assoc
 from cytoolz import count
 from cytoolz import dissoc
 from cytoolz import do
-from cytoolz import drop
-from cytoolz import filter
 from cytoolz import first
 from cytoolz import get
 from cytoolz import get_in
 from cytoolz import merge
 from cytoolz import partial
-from cytoolz import reduce
 from cytoolz import second
-from cytoolz import take
 from cytoolz import thread_first
 from datetime import datetime
 from flask import Blueprint
@@ -27,93 +22,29 @@ from flask import jsonify
 from flask import request
 from functools import wraps
 from merlin.functions import flatten
-from requests.exceptions import ConnectionError
+
 from sklearn.model_selection import train_test_split
-from tenacity import retry
-from tenacity import retry_if_exception_type
-from tenacity import stop_after_attempt
-from tenacity import wait_random_exponential
 
 import arrow
-import gc
 import logging
-import io
-import merlin
 import numpy
 import xgboost as xgb
 
 logger = logging.getLogger('blackmagic.tile')
 tile = Blueprint('tile', __name__)
-
-_cluster = None
-
-def dmatrix(data, labels):
-    '''Transforms independent and dependent variables into an xgboost dmatrix'''
-
-    return xgb.DMatrix(data, labels)
+__cluster = None
 
 
-def independent(data):
-    '''Independent variable is (are) all the values except the labels
-        data: 2d numpy array
-        return: 2d numpy array minus the labels (first element of every row)
-    '''
-    
-    return numpy.delete(data, 0, 1)
+def _cluster(cfg):
+    '''Cache db.cluster per module'''
 
+    global __cluster
 
-def dependent(data):
-    '''Dependent variable is (are) the labels
-       data: 2d numpy array
-       return: 1d numpy array of labels
-    '''
-    
-    return numpy.delete(data, numpy.s_[1:], 1).flatten().astype('int8')
+    if __cluster is None:
+        __cluster = db.cluster(cfg)
 
+    return __cluster
 
-def watchlist(training_data, eval_data):
-    return [(training_data, 'train'), (eval_data, 'eval')]
-
-
-@retry(retry=retry_if_exception_type(ConnectionError),
-       stop=stop_after_attempt(10),
-       reraise=True,
-       wait=wait_random_exponential(multiplier=1, max=60))
-def aux(ctx, cfg):
-    '''Retrieve aux data'''
-    
-    data = merlin.create(x=ctx['cx'],
-                         y=ctx['cy'],
-                         acquired=ctx['acquired'],  #'1982/2018',
-                         cfg=merlin.cfg.get(profile='chipmunk-aux',
-                                            env={'CHIPMUNK_URL': cfg['aux_url']}))
-
-    return assoc(ctx,
-                 'aux',
-                 {first(d): second(d) for d in merlin.functions.denumpify(data)})
-
-
-def aux_filter(ctx):
-    
-    return assoc(ctx,
-                 'aux',
-                 dict(list(filter(lambda d: first(get('nlcdtrn', second(d))) != 0,
-                                  ctx['aux'].items()))))
-
-
-@retry(retry=retry_if_exception_type(ReadTimeout),
-       stop=stop_after_attempt(10),
-       reraise=True,
-       wait=wait_random_exponential(multiplier=1, max=60))
-def segments(ctx, cfg):
-    '''Return segments stored in Cassandra'''
-
-    s = db.session(cfg, ctx['cluster'])
-    
-    return assoc(ctx,
-                 'segments',
-                 [r for r in s.execute(db.select_segment(cfg, ctx['cx'], ctx['cy']))])
-                                        
 
 def segments_filter(ctx):
     '''Yield segments that span the supplied date'''
@@ -126,109 +57,26 @@ def segments_filter(ctx):
                              ctx['segments'])))
 
 
-def cluster(cfg):
-    '''Create dbconn and add to context'''
+def log_request(ctx):
+    '''Create log message for HTTP request'''
 
-    global _cluster
+    tx = get('tx', ctx, None)
+    ty = get('ty', ctx, None)
+    a  = get('acquired', ctx, None)
+    d  = get('date', ctx, None)
+    c  = get('chips', ctx, None)
     
-    if _cluster is None:
-        _cluster = db.cluster(cfg)
-
-    return _cluster
-
-    
-def combine(ctx):
-    '''Combine segments with matching aux entry'''
-
-    data = []
+    logger.info("POST /tile {x},{y},{a},{d},{c}".format(x=tx, y=ty, a=a, d=d, c=c))
         
-    for s in ctx['segments']:
-
-        key = (s.cx, s.cy, s.px, s.py)
-        a   = get_in(['aux', key], ctx, None)
-
-        if a is not None:
-            data.append(merge(a, s._asdict()))
-
-    return assoc(ctx, 'data', data)
-
-      
-def unload_segments(ctx):
-    '''Manage memory, unload segments following combine'''
-
-    return dissoc(ctx, 'segments')
-
-
-def unload_aux(ctx):
-    '''Manage memory, unload aux following combine'''
-
-    return dissoc(ctx, 'aux')
-
- 
-def format(ctx):
-
-    # return [[]] numpy array from ctx
-    '''Properly format training entries'''
-
-    '''
-    {'nlcdtrn': [2], 'aspect': [0], 'posidex': [25.0], 'nlcd': [82], 'slope': [6.3103461265563965], 'mpw': [0], 'dem': [276.5125427246094], 'dates': ['2000-07-31T00:00:00Z/2001-01-01T00:00:00Z'], 'cx': 1646415, 'cy': 2237805, 'px': 1649385, 'py': 2235045, 'sday': '1984-03-24', 'eday': '2016-10-06', 'bday': '2016-10-06', 'blcoef': [-0.010404632426798344, 54.50187301635742, 101.96070861816406, -38.63310623168945, -3.4969518184661865, 0.0, -38.35179138183594], 'blint': 8016.1611328125, 'blmag': 93.25048828125, 'blrmse': 140.84637451171875, 'chprob': 0.0, 'curqa': 8, 'grcoef': [-0.014921323396265507, -13.973718643188477, 126.78702545166016, -62.550445556640625, -22.54693603515625, 4.363803386688232, -13.57226276397705], 'grint': 11458.1923828125, 'grmag': 85.9715805053711, 'grrmse': 140.90208435058594, 'nicoef': [0.001133676152676344, -1567.1834716796875, -167.4553680419922, 355.0714416503906, 191.9523468017578, -142.80911254882812, 342.6976013183594], 'niint': 1595.630126953125, 'nimag': 212.36441040039062, 'nirmse': 421.1643371582031, 'recoef': [-0.016207082197070122, 104.48441314697266, 211.29937744140625, -158.95477294921875, -42.79849624633789, -19.37449836730957, -89.44105529785156], 'reint': 12387.9248046875, 'remag': 69.07315826416016, 'rermse': 137.7318878173828, 's1coef': [-0.02014756016433239, -300.4599609375, 386.727294921875, -299.61871337890625, -55.58943557739258, -62.033470153808594, -161.67315673828125], 's1int': 16410.873046875, 's1mag': 89.79656219482422, 's1rmse': 272.87200927734375, 's2coef': [-0.01282140240073204, 29.842893600463867, 383.56500244140625, -260.76898193359375, -67.41301727294922, -13.364554405212402, -178.7677459716797], 's2int': 10256.634765625, 's2mag': 119.9651870727539, 's2rmse': 196.84481811523438, 'thcoef': [0.0017974661896005273, -1176.3935546875, -116.62395477294922, -229.40621948242188, -38.72520065307617, 11.268446922302246, -49.42088317871094], 'thint': -226.81626892089844, 'thmag': 251.63075256347656, 'thrmse': 417.1956481933594}
-
-    '''
-
-
-    # instead of a list comprehension, build a numpy array out of each
-    # entry directly and bypass all the straight python datastructures.
-    
-    training = [list(flatten([get('nlcdtrn', e),
-                             get('aspect' , e),
-                             get('posidex', e),
-                             get('slope'  , e),
-                             get('mpw'    , e),
-                             get('dem'    , e),
-                             get('blcoef' , e),
-                             [get('blint'  , e)],
-                             [get('blmag'  , e)],
-                             [get('blrmse' , e)],
-                             get('grcoef' , e),
-                             [get('grint'  , e)],
-                             [get('grmag'  , e)],
-                             [get('grrmse' , e)],
-                             get('nicoef' , e),
-                             [get('niint'  , e)],
-                             [get('nimag'  , e)],
-                             [get('nirmse' , e)],
-                             get('recoef' , e),
-                             [get('reint'  , e)], 
-                             [get('remag'  , e)],
-                             [get('rermse' , e)],
-                             get('s1coef' , e),
-                             [get('s1int'  , e)],
-                             [get('s1mag'  , e)],
-                             [get('s1rmse' , e)],
-                             get('s2coef' , e),
-                             [get('s2int'  , e)],
-                             [get('s2mag'  , e)],
-                             [get('s2rmse' , e)],
-                             get('thcoef' , e),
-                             [get('thint'  , e)],
-                             [get('thmag'  , e)],
-                             [get('thrmse' , e)]])) for e in ctx['data']]
-
-    # create and return 2d numpy array
-    return assoc(ctx, 'data', numpy.array(training, dtype=numpy.float32))
-
-
-def log_chip(ctx):
-
-    m = '{{"tx":{tx}, "ty":{ty}, "cx":{cx}, "cy":{cy}, "date":{date}, "acquired":{acquired}, "msg":"loading data"}}'
-
-    logger.info(m.format(**ctx))
-    
     return ctx
 
 
-def exit_pipeline(ctx):
-    return ctx['data']
+def watchlist(training_data, eval_data):
+    return [(training_data, 'train'), (eval_data, 'eval')]
+
+
+def add_average_reflectance(ctx):
+    return assoc(ctx, 'data', segaux.average_reflectance(ctx['data']))
 
 
 def pipeline(chip, tx, ty, date, acquired, cfg):
@@ -239,23 +87,38 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
            'cy': second(chip),
            'date': date,
            'acquired': acquired,
-           'cluster': cluster(cfg)}
+           'cluster': _cluster(cfg)}
 
-    # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001/07/01', aux:{}, segments:[], data:[]}
+    # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001-07-01', aux:{}, segments:[], data:[]}
 
     return thread_first(ctx,
-                        partial(segments, cfg=cfg),
+                        partial(segaux.segments, cfg=cfg),
                         segments_filter,
-                        partial(aux, cfg=cfg),
-                        aux_filter,                        
-                        combine,
-                        unload_segments,
-                        unload_aux,
-                        format,
-                        log_chip,
-                        exit_pipeline)
-    
+                        partial(segaux.aux, cfg=cfg),
+                        segaux.aux_filter,                        
+                        segaux.combine,                        
+                        segaux.unload_segments,
+                        segaux.unload_aux,
+                        segaux.add_training_dates,
+                        add_average_reflectance,
+                        segaux.training_format,
+                        segaux.log_chip,
+                        segaux.exit_pipeline)
 
+
+def exception_handler(ctx, http_status, name, fn):
+    try:
+        return fn(ctx)
+    except Exception as e:        
+        return do(logger.exception, {'tx': get('tx', ctx, None),
+                                     'ty': get('ty', ctx, None),
+                                     'acquired': get('acquired', ctx, None),
+                                     'date': get('date', ctx, None),
+                                     'chips': get('chips', ctx, None),
+                                     'exception': '{name} exception: {ex}'.format(name=name, ex=e),
+                                     'http_status': http_status})
+
+    
 def measure(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
@@ -298,33 +161,6 @@ def parameters(r):
                 'test_training_exception': get('test_training_exception', r, None),
                 'test_cassandra_exception': get('test_cassandra_exception', r, None)}
 
-        
-def log_request(ctx):
-    '''Create log message for HTTP request'''
-
-    tx = get('tx', ctx, None)
-    ty = get('ty', ctx, None)
-    a  = get('acquired', ctx, None)
-    d  = get('date', ctx, None)
-    c  = get('chips', ctx, None)
-    
-    logger.info("POST /tile {x},{y},{a},{d},{c}".format(x=tx, y=ty, a=a, d=d, c=c))
-        
-    return ctx
-
-
-def exception_handler(ctx, http_status, name, fn):
-    try:
-        return fn(ctx)
-    except Exception as e:        
-        return do(logger.exception, {'tx': get('tx', ctx, None),
-                                     'ty': get('ty', ctx, None),
-                                     'acquired': get('acquired', ctx, None),
-                                     'date': get('date', ctx, None),
-                                     'chips': get('chips', ctx, None),
-                                     'exception': '{name} exception: {ex}'.format(name=name, ex=e),
-                                     'http_status': http_status})
-    
 
 @skip_on_exception
 @raise_on('test_data_exception')
@@ -332,18 +168,15 @@ def exception_handler(ctx, http_status, name, fn):
 def data(ctx, cfg):
     '''Retrieve training data for all chips in parallel'''
     
-    p = partial(pipeline, tx=ctx['tx'], ty=ctx['ty'], date=ctx['date'], acquired=ctx['acquired'], cfg=cfg)
+    p = partial(pipeline,
+                tx=ctx['tx'],
+                ty=ctx['ty'],
+                date=ctx['date'],
+                acquired=ctx['acquired'],
+                cfg=cfg)
 
     with workers(cfg) as w:
         return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
-
-
-def counts(data):
-    '''Count the occurance of each label in data'''
-    
-    c = Counter()
-    c[first(data)] += 1
-    return c
 
     
 @skip_on_exception
@@ -376,8 +209,8 @@ def randomize(ctx, cfg):
 def split_data(ctx):
 
     return merge(dissoc(ctx, 'data'),
-                 {'independent': independent(ctx['data']),
-                  'dependent': dependent(ctx['data'])})
+                 {'independent': segaux.independent(ctx['data']),
+                  'dependent': segaux.dependent(ctx['data'])})
     
 
 @skip_on_exception
@@ -443,10 +276,15 @@ def save(ctx, cfg):
     # >>> bytes.fromhex('deadbeef')
     #b'\xde\xad\xbe\xef'
         
+    #db.insert_tile(cfg,
+    #               ctx['tx'],
+    #               ctx['ty'],
+    #               ctx['model'].save_raw().hex())
+
     db.insert_tile(cfg,
                    ctx['tx'],
                    ctx['ty'],
-                   ctx['model'].save_raw().hex())
+                   segaux.bytes_from_booster(ctx['model']).hex())
     return ctx
 
 

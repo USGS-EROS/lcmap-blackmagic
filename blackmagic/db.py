@@ -35,24 +35,9 @@ def session(cfg, cluster, keyspace=None):
     return session
 
 
-#def connect(cfg, keyspace=None):
-#    _cluster = cluster(cfg, keyspace)
-#    _session = session(cfg, _cluster, keyspace)
-#    return {'cluster': _cluster, 'session': _session}
-
-
 def none_as_null(s):
     return s.replace('None', 'null')
 
-  
-#def execute(cfg, stmt, connection):
-#    try:
-#        s = none_as_null(stmt)
-#        return connection['session'].execute(s)
-#    except Exception as e:
-#        logger.error('statement:{}'.format(s))
-#        raise e
-    
 
 def execute_statement(cfg, stmt, keyspace=None):
     s = None
@@ -376,6 +361,37 @@ def insert_segments(cfg, detections):
     finally:
         if s:
             s.shutdown()
+
+            
+def insert_annual_predictions(cfg, predictions):
+    s = session(cfg, cluster(cfg))
+    
+    try:
+        st = '''INSERT INTO {keyspace}.annual_prediction 
+                    (cx, cy, px, py, sday, eday, date, prob) 
+                VALUES 
+                    (?, ?, ?, ?, ?, ?, ?, ?)'''.format(keyspace=cfg['cassandra_keyspace'])
+        
+        stmt = s.prepare(st)
+
+        chunks = partition_all(cfg['cassandra_batch_size'], predictions)
+        
+        batches = []
+
+        for chunk in chunks:
+                        
+            batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+
+            for c in chunk:
+                
+                batch.add(stmt, [c['cx'], c['cy'], c['px'], c['py'], c['sday'], c['eday'], c['date'], c['prob']])
+            batches.append(batch)
+           
+        return [s.execute(b) for b in batches]
+
+    finally:
+        if s:
+            s.shutdown()
             
 
 def delete_chip(cfg, cx, cy):
@@ -383,13 +399,23 @@ def delete_chip(cfg, cx, cy):
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
-def delete_pixel(cfg, cx, cy):
+def delete_pixels(cfg, cx, cy):
     s = 'DELETE FROM {keyspace}.pixel WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
-def delete_segment(cfg, cx, cy):
+def delete_segments(cfg, cx, cy):
     s = 'DELETE FROM {keyspace}.segment WHERE cx={cx} AND cy={cy};'
+    return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
+
+
+def delete_tile(cfg, tx, ty):
+    s = 'DELETE FROM {keyspace}.tile WHERE tx={tx} AND ty={ty};'
+    return s.format(keyspace=cfg['cassandra_keyspace'], tx=tx, ty=ty)
+
+
+def delete_annual_predictions(cfg, cx, cy):
+    s = 'DELETE FROM {keyspace}.annual_prediction WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
@@ -398,11 +424,20 @@ def select_chip(cfg, cx, cy):
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
-def select_pixel(cfg, cx, cy):
+def select_pixels(cfg, cx, cy):
     s = 'SELECT * FROM {keyspace}.pixel WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
-def select_segment(cfg, cx, cy):
+def select_segments(cfg, cx, cy):
     s = 'SELECT * FROM {keyspace}.segment WHERE cx={cx} AND cy={cy};'
+    return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
+
+
+def select_tile(cfg, tx, ty):
+    s = 'SELECT * FROM {keyspace}.tile WHERE tx={tx} AND ty={ty};'
+    return s.format(keyspace=cfg['cassandra_keyspace'], tx=tx, ty=ty)
+
+def select_annual_predictions(cfg, cx, cy):
+    s = 'SELECT * FROM {keyspace}.annual_prediction WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)

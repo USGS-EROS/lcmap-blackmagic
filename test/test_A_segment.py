@@ -13,8 +13,8 @@ from cytoolz import reduce
 def delete_detections(cx, cy):
     return db.execute_statements(app.cfg,
                                  [db.delete_chip(app.cfg, cx, cy),
-                                  db.delete_pixel(app.cfg, cx, cy),
-                                  db.delete_segment(app.cfg, cx, cy)])
+                                  db.delete_pixels(app.cfg, cx, cy),
+                                  db.delete_segments(app.cfg, cx, cy)])
 
 @pytest.fixture
 def client():
@@ -30,7 +30,7 @@ def test_segment_runs_as_expected(client):
     '''
     
     response = client.post('/segment',
-                           json={'cx': test.cx, 'cy': test.cy, 'acquired': test.a})
+                           json={'cx': test.cx, 'cy': test.cy, 'acquired': test.acquired})
 
     chips = db.execute_statement(cfg=app.cfg,
                                  stmt=db.select_chip(cfg=app.cfg,
@@ -38,18 +38,18 @@ def test_segment_runs_as_expected(client):
                                                      cy=test.cy))
     
     pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixel(cfg=app.cfg,
-                                                       cx=test.cx,
-                                                       cy=test.cy))
+                                  stmt=db.select_pixels(cfg=app.cfg,
+                                                        cx=test.cx,
+                                                        cy=test.cy))
     
     segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segment(cfg=app.cfg,
-                                                           cx=test.cx,
-                                                           cy=test.cy))
+                                    stmt=db.select_segments(cfg=app.cfg,
+                                                            cx=test.cx,
+                                                            cy=test.cy))
     assert response.status == '200 OK'
     assert get('cx', response.get_json()) == test.cx
     assert get('cy', response.get_json()) == test.cy
-    assert get('acquired', response.get_json()) == test.a
+    assert get('acquired', response.get_json()) == test.acquired
     assert get('exception', response.get_json(), None) == None
     
     assert len(list(map(lambda x: x, chips))) == 1
@@ -67,7 +67,7 @@ def test_segment_bad_parameters(client):
     # bad parameters
     cx = None
     cy = test.cy
-    a = test.a
+    a = test.acquired
 
     delete_detections(test.cx, test.cy)
     
@@ -80,14 +80,14 @@ def test_segment_bad_parameters(client):
                                                      cy=test.cy))
     
     pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixel(cfg=app.cfg,
-                                                       cx=test.cx,
-                                                       cy=test.cy))
+                                  stmt=db.select_pixels(cfg=app.cfg,
+                                                        cx=test.cx,
+                                                        cy=test.cy))
     
     segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segment(cfg=app.cfg,
-                                                           cx=test.cx,
-                                                           cy=test.cy))
+                                    stmt=db.select_segments(cfg=app.cfg,
+                                                            cx=test.cx,
+                                                            cy=test.cy))
     assert response.status == '400 BAD REQUEST'
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
@@ -122,14 +122,14 @@ def test_segment_merlin_exception(client):
                                                      cy=test.cy))
     
     pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixel(cfg=app.cfg,
-                                                       cx=test.cx,
-                                                       cy=test.cy))
+                                  stmt=db.select_pixels(cfg=app.cfg,
+                                                        cx=test.cx,
+                                                        cy=test.cy))
     
     segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segment(cfg=app.cfg,
-                                                           cx=test.cx,
-                                                           cy=test.cy))
+                                    stmt=db.select_segments(cfg=app.cfg,
+                                                            cx=test.cx,
+                                                            cy=test.cy))
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
@@ -165,14 +165,14 @@ def test_segment_merlin_no_input_data(client):
                                                      cy=test.cy))
     
     pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixel(cfg=app.cfg,
-                                                       cx=test.cx,
-                                                       cy=test.cy))
+                                  stmt=db.select_pixels(cfg=app.cfg,
+                                                        cx=test.cx,
+                                                        cy=test.cy))
     
     segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segment(cfg=app.cfg,
-                                                           cx=test.cx,
-                                                           cy=test.cy))
+                                    stmt=db.select_segments(cfg=app.cfg,
+                                                            cx=test.cx,
+                                                            cy=test.cy))
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
@@ -195,7 +195,7 @@ def test_segment_detection_exception(client):
 
     cx = test.cx
     cy = test.cy
-    a = test.a
+    a  = test.acquired
 
     delete_detections(test.cx, test.cy)
     
@@ -211,14 +211,14 @@ def test_segment_detection_exception(client):
                                                      cy=test.cy))
     
     pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixel(cfg=app.cfg,
-                                                       cx=test.cx,
-                                                       cy=test.cy))
+                                  stmt=db.select_pixels(cfg=app.cfg,
+                                                        cx=test.cx,
+                                                        cy=test.cy))
     
     segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segment(cfg=app.cfg,
-                                                           cx=test.cx,
-                                                           cy=test.cy))
+                                    stmt=db.select_segments(cfg=app.cfg,
+                                                            cx=test.cx,
+                                                            cy=test.cy))
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
@@ -241,7 +241,7 @@ def test_segment_cassandra_exception(client):
 
     cx = test.cx
     cy = test.cy
-    a = test.a
+    a  = test.acquired
 
     delete_detections(test.cx, test.cy)
     
@@ -257,14 +257,14 @@ def test_segment_cassandra_exception(client):
                                                      cy=test.cy))
     
     pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixel(cfg=app.cfg,
-                                                       cx=test.cx,
-                                                       cy=test.cy))
+                                  stmt=db.select_pixels(cfg=app.cfg,
+                                                        cx=test.cx,
+                                                        cy=test.cy))
     
     segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segment(cfg=app.cfg,
-                                                           cx=test.cx,
-                                                           cy=test.cy))
+                                    stmt=db.select_segments(cfg=app.cfg,
+                                                            cx=test.cx,
+                                                            cy=test.cy))
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
