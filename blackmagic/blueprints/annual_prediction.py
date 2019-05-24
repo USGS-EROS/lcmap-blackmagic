@@ -153,7 +153,7 @@ def predictions(ctx, cfg):
         return assoc(ctx,
                      'predictions',
                      list(flatten(filter(lambda x: x is not None,
-                                         w.map(p, ctx['chips']))))
+                                         w.map(p, ctx['chips'])))))
 
 
 @skip_on_exception
