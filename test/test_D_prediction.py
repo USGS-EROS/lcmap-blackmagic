@@ -15,9 +15,9 @@ from cytoolz import reduce
 from datetime import date
 
 
-def delete_annual_predictions(cx, cy):
+def delete_predictions(cx, cy):
     return db.execute_statements(app.cfg,
-                                 [db.delete_annual_predictions(app.cfg, cx, cy)])
+                                 [db.delete_predictions(app.cfg, cx, cy)])
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def client():
     yield app.app.test_client()
 
 
-def annual_prediction_test_data(segment):
+def prediction_test_data(segment):
     return merge(segment,
                  {'sday': date.fromordinal(2).isoformat(),
                   'eday': date.fromordinal(1000).isoformat(),
@@ -60,7 +60,7 @@ def annual_prediction_test_data(segment):
                   'thrmse': random.random()})
     
 
-def create_annual_prediction_test_data(client):
+def create_prediction_test_data(client):
 
     # prepopulate a chip of segments
     assert client.post('/segment',
@@ -82,7 +82,7 @@ def create_annual_prediction_test_data(client):
 
     # add new and better test data
     db.insert_segments(app.cfg,
-                       map(annual_prediction_test_data,
+                       map(prediction_test_data,
                            map(lambda x: x._asdict(), segments)))      
                
     # train tile against new segment values
@@ -95,17 +95,17 @@ def create_annual_prediction_test_data(client):
     return True
     
     
-def test_annual_prediction_runs_as_expected(client):
+def test_prediction_runs_as_expected(client):
     '''
     As a blackmagic user, when I send tx, ty, acquired, month, day and chip list
-    via HTTP POST, annual predictions are generated and saved to Cassandra
+    via HTTP POST, predictions are generated and saved to Cassandra
     so that they can be retrieved later.
     '''
 
-    create_annual_prediction_test_data(client)    
+    create_prediction_test_data(client)    
 
-    # test annual prediction    
-    response = client.post('/annual-prediction',
+    # test prediction    
+    response = client.post('/prediction',
                            json={'tx': test.tx,
                                  'ty': test.ty,
                                  'chips': test.chips,
@@ -114,9 +114,9 @@ def test_annual_prediction_runs_as_expected(client):
                                  'acquired': test.acquired})
 
     predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_annual_predictions(cfg=app.cfg,
-                                                                         cx=test.cx,
-                                                                         cy=test.cy))
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
      
     assert response.status == '200 OK'
     assert get('tx', response.get_json()) == test.tx
@@ -132,7 +132,7 @@ def test_annual_prediction_runs_as_expected(client):
     assert len([p for p in predictions]) == 19047
     
 
-def test_annual_prediction_bad_parameters(client):
+def test_prediction_bad_parameters(client):
     '''
     As a blackmagic user, when I don't send tx, ty, acquired, date and chips list
     via HTTP POST the HTTP status is 400 and the response body tells
@@ -147,7 +147,7 @@ def test_annual_prediction_bad_parameters(client):
     day = test.prediction_day
     chips = test.chips
     
-    response = client.post('/annual-prediction',
+    response = client.post('/prediction',
                            json={'tx': tx,
                                  'ty': ty,
                                  'acquired': a,
@@ -155,12 +155,12 @@ def test_annual_prediction_bad_parameters(client):
                                  'day': day,
                                  'chips': chips})
 
-    delete_annual_predictions(test.cx, test.cy)
+    delete_predictions(test.cx, test.cy)
     
     predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_annual_predictions(cfg=app.cfg,
-                                                                         cx=test.cx,
-                                                                         cy=test.cy))
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
     
     assert response.status == '400 BAD REQUEST'
     assert get('tx', response.get_json()) == tx
@@ -175,7 +175,7 @@ def test_annual_prediction_bad_parameters(client):
     assert len(list(map(lambda x: x, predictions))) == 0
 
     
-def test_annual_prediction_missing_model(client):
+def test_prediction_missing_model(client):
     '''
     As a blackmagic user, when I send tx, ty, acquired, month, day, and chips via HTTP POST
     and no trained xgboost model is found for the given tx/ty, an exception is raised
@@ -189,9 +189,9 @@ def test_annual_prediction_missing_model(client):
     day = test.prediction_day
     chips = test.chips
 
-    delete_annual_predictions(test.cx, test.cy)
+    delete_predictions(test.cx, test.cy)
     
-    response = client.post('/annual-prediction',
+    response = client.post('/prediction',
                            json={'tx': tx,
                                  'ty': ty,
                                  'chips': chips,
@@ -200,9 +200,9 @@ def test_annual_prediction_missing_model(client):
                                  'acquired': a})
 
     predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_annual_predictions(cfg=app.cfg,
-                                                                         cx=test.cx,
-                                                                         cy=test.cy))
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -216,7 +216,7 @@ def test_annual_prediction_missing_model(client):
     assert len(list(map(lambda x: x, predictions))) == 0
     
 
-def test_annual_prediction_delete_exception(client):
+def test_prediction_delete_exception(client):
     '''
     As a blackmagic user, when an exception occurs deleting 
     predictions from Cassandra, an HTTP 500 is issued
@@ -231,9 +231,9 @@ def test_annual_prediction_delete_exception(client):
     day = test.prediction_day
     chips = test.chips
 
-    delete_annual_predictions(test.cx, test.cy)
+    delete_predictions(test.cx, test.cy)
     
-    response = client.post('/annual-prediction',
+    response = client.post('/prediction',
                            json={'tx': tx,
                                  'ty': ty,
                                  'acquired': acquired,
@@ -243,9 +243,9 @@ def test_annual_prediction_delete_exception(client):
                                  'test_delete_exception': True})
     
     predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_annual_predictions(cfg=app.cfg,
-                                                                         cx=test.cx,
-                                                                         cy=test.cy))
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -259,7 +259,7 @@ def test_annual_prediction_delete_exception(client):
     assert len(list(map(lambda x: x, predictions))) == 0
 
     
-def test_annual_prediction_save_exception(client):
+def test_prediction_save_exception(client):
     '''
     As a blackmagic user, when an exception occurs saving 
     a predictions to Cassandra, an HTTP 500 is issued
@@ -274,9 +274,9 @@ def test_annual_prediction_save_exception(client):
     day = test.prediction_day
     chips = test.chips
 
-    delete_annual_predictions(test.cx, test.cy)
+    delete_predictions(test.cx, test.cy)
     
-    response = client.post('/annual-prediction',
+    response = client.post('/prediction',
                            json={'tx': tx,
                                  'ty': ty,
                                  'acquired': acquired,
@@ -286,9 +286,9 @@ def test_annual_prediction_save_exception(client):
                                  'test_save_exception': True})
     
     predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_annual_predictions(cfg=app.cfg,
-                                                                         cx=test.cx,
-                                                                         cy=test.cy))
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx

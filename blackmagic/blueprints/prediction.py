@@ -31,8 +31,8 @@ import merlin
 import numpy
 import xgboost as xgb
 
-logger = logging.getLogger('blackmagic.annual_prediction')
-annual_prediction = Blueprint('annual_prediction', __name__)
+logger = logging.getLogger('blackmagic.prediction')
+prediction = Blueprint('prediction', __name__)
 
 
 def log_request(ctx):
@@ -219,7 +219,7 @@ def delete(ctx, cfg):
 
     # delete all existing predictions in the chips we just processed
     cxcy = set(map(lambda x: (x['cx'], x['cy'],), ctx['predictions']))
-    deletions = list(map(lambda x: db.delete_annual_predictions(cfg, first(x), second(x)), cxcy))
+    deletions = list(map(lambda x: db.delete_predictions(cfg, first(x), second(x)), cxcy))
     db.execute_statements(cfg, deletions)    
 
     return ctx
@@ -229,10 +229,10 @@ def delete(ctx, cfg):
 @skip_on_exception
 @measure
 def save(ctx, cfg):                                                
-    '''Saves annual predictions to Cassandra'''
+    '''Saves predictions to Cassandra'''
 
     # save all new predictions
-    db.insert_annual_predictions(cfg, ctx['predictions'])
+    db.insert_predictions(cfg, ctx['predictions'])
                 
     return ctx
 
@@ -278,8 +278,8 @@ def respond(ctx):
 # so 100MB + space for the segments will be needed
 # for each chip in memory.
                 
-@annual_prediction.route('/annual-prediction', methods=['POST'])        
-def annual_predictions():
+@prediction.route('/prediction', methods=['POST'])        
+def predictions_route():
     
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),

@@ -80,8 +80,7 @@ def create_tile(cfg):
            model   text,
            PRIMARY KEY((tx, ty)))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
-           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
-           AND  GC_GRACE_SECONDS = 172800;'''
+           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -98,8 +97,7 @@ def create_chip(cfg):
            dates frozen<list<text>>,
            PRIMARY KEY((cx, cy)))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
-           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
-           AND  GC_GRACE_SECONDS = 172800;'''
+           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
     
@@ -122,8 +120,7 @@ def create_pixel(cfg):
            mask frozen<list<tinyint>>,,
            PRIMARY KEY((cx, cy), px, py))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
-           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
-           AND  GC_GRACE_SECONDS = 172800;'''
+           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}'''
     
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -210,13 +207,12 @@ def create_segment(cfg):
            thint  float,    
            PRIMARY KEY((cx, cy), px, py, sday, eday))     
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
-           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
-           AND  GC_GRACE_SECONDS = 172800;'''
+           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
 
-def create_annual_prediction(cfg):
+def create_prediction(cfg):
     '''
         cx:   upper left x of the chip
         cy:   upper left y of the chip
@@ -224,22 +220,21 @@ def create_annual_prediction(cfg):
         py:   y pixel coordinate
         sday: start date
         eday: end date
-        date: prediction date
+        pday: prediction date
         prob: xgboost classification probabilities
     '''
-    s = '''CREATE TABLE IF NOT EXISTS {keyspace}.annual_prediction (
+    s = '''CREATE TABLE IF NOT EXISTS {keyspace}.prediction (
            cx   int,
            cy   int,
            px   int,
            py   int,
            sday text,
            eday text,
-           date text,
+           pday text,
            prob frozen<list<float>>,
-           PRIMARY KEY((cx, cy), px, py, sday, eday, date))
+           PRIMARY KEY((cx, cy), px, py, sday, eday, pday))
            WITH COMPRESSION = {{ 'sstable_compression': 'LZ4Compressor' }}
-           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}
-           AND  GC_GRACE_SECONDS = 172800;'''
+           AND  COMPACTION  = {{ 'class': 'LeveledCompactionStrategy' }}'''
 
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -252,7 +247,7 @@ def setup(cfg):
              create_chip(cfg),
              create_pixel(cfg),
              create_segment(cfg),
-             create_annual_prediction(cfg)]
+             create_prediction(cfg)]
         execute_statements(cfg, s)
         
     except Exception as e:
@@ -363,12 +358,12 @@ def insert_segments(cfg, detections):
             s.shutdown()
 
             
-def insert_annual_predictions(cfg, predictions):
+def insert_predictions(cfg, predictions):
     s = session(cfg, cluster(cfg))
     
     try:
-        st = '''INSERT INTO {keyspace}.annual_prediction 
-                    (cx, cy, px, py, sday, eday, date, prob) 
+        st = '''INSERT INTO {keyspace}.prediction 
+                    (cx, cy, px, py, sday, eday, pday, prob) 
                 VALUES 
                     (?, ?, ?, ?, ?, ?, ?, ?)'''.format(keyspace=cfg['cassandra_keyspace'])
         
@@ -384,7 +379,7 @@ def insert_annual_predictions(cfg, predictions):
 
             for c in chunk:
                 
-                batch.add(stmt, [c['cx'], c['cy'], c['px'], c['py'], c['sday'], c['eday'], c['date'], c['prob']])
+                batch.add(stmt, [c['cx'], c['cy'], c['px'], c['py'], c['sday'], c['eday'], c['pday'], c['prob']])
             batches.append(batch)
            
         return [s.execute(b) for b in batches]
@@ -414,8 +409,8 @@ def delete_tile(cfg, tx, ty):
     return s.format(keyspace=cfg['cassandra_keyspace'], tx=tx, ty=ty)
 
 
-def delete_annual_predictions(cfg, cx, cy):
-    s = 'DELETE FROM {keyspace}.annual_prediction WHERE cx={cx} AND cy={cy};'
+def delete_predictions(cfg, cx, cy):
+    s = 'DELETE FROM {keyspace}.prediction WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
@@ -438,6 +433,6 @@ def select_tile(cfg, tx, ty):
     s = 'SELECT * FROM {keyspace}.tile WHERE tx={tx} AND ty={ty};'
     return s.format(keyspace=cfg['cassandra_keyspace'], tx=tx, ty=ty)
 
-def select_annual_predictions(cfg, cx, cy):
-    s = 'SELECT * FROM {keyspace}.annual_prediction WHERE cx={cx} AND cy={cy};'
+def select_predictions(cfg, cx, cy):
+    s = 'SELECT * FROM {keyspace}.prediction WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)

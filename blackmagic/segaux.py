@@ -266,7 +266,7 @@ def prediction_format(segment):
             'py'  : get('py', segment),
             'sday': get('sday', segment),
             'eday': get('eday', segment),
-            'date': get('date', segment),
+            'pday': get('date', segment),
             'independent': independent(to_numpy(standard_format(segment)))}
 
         
