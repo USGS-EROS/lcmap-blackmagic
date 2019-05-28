@@ -216,7 +216,7 @@ def create_segment(cfg):
     return s.format(keyspace=cfg['cassandra_keyspace'])
 
 
-def create_annual_prediction(cfg):
+def create_prediction(cfg):
     '''
         cx:   upper left x of the chip
         cy:   upper left y of the chip
@@ -227,7 +227,7 @@ def create_annual_prediction(cfg):
         date: prediction date
         prob: xgboost classification probabilities
     '''
-    s = '''CREATE TABLE IF NOT EXISTS {keyspace}.annual_prediction (
+    s = '''CREATE TABLE IF NOT EXISTS {keyspace}.prediction (
            cx   int,
            cy   int,
            px   int,
@@ -252,7 +252,7 @@ def setup(cfg):
              create_chip(cfg),
              create_pixel(cfg),
              create_segment(cfg),
-             create_annual_prediction(cfg)]
+             create_prediction(cfg)]
         execute_statements(cfg, s)
         
     except Exception as e:
@@ -363,11 +363,11 @@ def insert_segments(cfg, detections):
             s.shutdown()
 
             
-def insert_annual_predictions(cfg, predictions):
+def insert_predictions(cfg, predictions):
     s = session(cfg, cluster(cfg))
     
     try:
-        st = '''INSERT INTO {keyspace}.annual_prediction 
+        st = '''INSERT INTO {keyspace}.prediction 
                     (cx, cy, px, py, sday, eday, date, prob) 
                 VALUES 
                     (?, ?, ?, ?, ?, ?, ?, ?)'''.format(keyspace=cfg['cassandra_keyspace'])
@@ -414,8 +414,8 @@ def delete_tile(cfg, tx, ty):
     return s.format(keyspace=cfg['cassandra_keyspace'], tx=tx, ty=ty)
 
 
-def delete_annual_predictions(cfg, cx, cy):
-    s = 'DELETE FROM {keyspace}.annual_prediction WHERE cx={cx} AND cy={cy};'
+def delete_predictions(cfg, cx, cy):
+    s = 'DELETE FROM {keyspace}.prediction WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
 
 
@@ -438,6 +438,6 @@ def select_tile(cfg, tx, ty):
     s = 'SELECT * FROM {keyspace}.tile WHERE tx={tx} AND ty={ty};'
     return s.format(keyspace=cfg['cassandra_keyspace'], tx=tx, ty=ty)
 
-def select_annual_predictions(cfg, cx, cy):
-    s = 'SELECT * FROM {keyspace}.annual_prediction WHERE cx={cx} AND cy={cy};'
+def select_predictions(cfg, cx, cy):
+    s = 'SELECT * FROM {keyspace}.prediction WHERE cx={cx} AND cy={cy};'
     return s.format(keyspace=cfg['cassandra_keyspace'], cx=cx, cy=cy)
