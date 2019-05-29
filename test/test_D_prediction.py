@@ -108,7 +108,8 @@ def test_prediction_runs_as_expected(client):
     response = client.post('/prediction',
                            json={'tx': test.tx,
                                  'ty': test.ty,
-                                 'chips': test.chips,
+                                 'cx': test.cx,
+                                 'cy': test.cy,
                                  'month': test.prediction_month,
                                  'day': test.prediction_day,
                                  'acquired': test.acquired})
@@ -121,8 +122,10 @@ def test_prediction_runs_as_expected(client):
     assert response.status == '200 OK'
     assert get('tx', response.get_json()) == test.tx
     assert get('ty', response.get_json()) == test.ty
+    assert get('cx', response.get_json()) == test.cx
+    assert get('cy', response.get_json()) == test.cy
+    
     assert get('acquired', response.get_json()) == test.acquired
-    assert get('chips', response.get_json()) == count(test.chips)
     assert get('month', response.get_json()) == test.prediction_month
     assert get('day', response.get_json()) == test.prediction_day
     assert get('exception', response.get_json(), None) == None
@@ -141,19 +144,21 @@ def test_prediction_bad_parameters(client):
 
     # bad parameters
     tx = None
-    ty = test.cy
+    ty = test.ty
+    cx = test.cx
+    cy = test.cy
     a = test.acquired
     month = test.prediction_month
     day = test.prediction_day
-    chips = test.chips
     
     response = client.post('/prediction',
                            json={'tx': tx,
                                  'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
                                  'acquired': a,
                                  'month': month,
-                                 'day': day,
-                                 'chips': chips})
+                                 'day': day})
 
     delete_predictions(test.cx, test.cy)
     
@@ -165,8 +170,9 @@ def test_prediction_bad_parameters(client):
     assert response.status == '400 BAD REQUEST'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
-    assert get('chips', response.get_json()) == count(chips)
     assert get('month', response.get_json()) == month
     assert get('day', response.get_json()) == day
     assert type(get('exception', response.get_json())) is str
@@ -184,17 +190,19 @@ def test_prediction_missing_model(client):
 
     tx = test.missing_tx
     ty = test.missing_ty
+    cx = test.cx
+    cy = test.cy
     a = test.acquired
     month = test.prediction_month
     day = test.prediction_day
-    chips = test.chips
 
     delete_predictions(test.cx, test.cy)
     
     response = client.post('/prediction',
                            json={'tx': tx,
                                  'ty': ty,
-                                 'chips': chips,
+                                 'cx': cx,
+                                 'cy': cy,
                                  'month': month,
                                  'day': day,
                                  'acquired': a})
@@ -207,15 +215,156 @@ def test_prediction_missing_model(client):
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == a
     assert get('month', response.get_json()) == month
     assert get('day', response.get_json()) == day
-    assert get('chips', response.get_json()) == count(chips)
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, predictions))) == 0
+
+    
+def test_prediction_load_model_exception(client):
+    '''
+    As a blackmagic user, when an exception occurs loading
+    a model from Cassandra, an HTTP 500 is issued
+    with a descriptive message so that the issue may be 
+    investigated, corrected & retried.
+    '''
+
+    tx = test.tx
+    ty = test.ty
+    cx = test.cx
+    cy = test.cy
+    acquired = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
+
+    delete_predictions(test.cx, test.cy)
+    
+    response = client.post('/prediction',
+                           json={'tx': tx,
+                                 'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
+                                 'acquired': acquired,
+                                 'month': month,
+                                 'day': day,
+                                 'test_load_model_exception': True})
+    
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
+    
+    assert response.status == '500 INTERNAL SERVER ERROR'
+    assert get('tx', response.get_json()) == tx
+    assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == acquired
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
     
+    
+def test_prediction_load_data_exception(client):
+    '''
+    As a blackmagic user, when an exception occurs loading 
+    data, an HTTP 500 is issued
+    with a descriptive message so that the issue may be 
+    investigated, corrected & retried.
+    '''
 
+    tx = test.tx
+    ty = test.ty
+    cx = test.cx
+    cy = test.cy
+    acquired = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
+
+    delete_predictions(test.cx, test.cy)
+    
+    response = client.post('/prediction',
+                           json={'tx': tx,
+                                 'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
+                                 'acquired': acquired,
+                                 'month': month,
+                                 'day': day,
+                                 'test_load_data_exception': True})
+    
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
+    
+    assert response.status == '500 INTERNAL SERVER ERROR'
+    assert get('tx', response.get_json()) == tx
+    assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == acquired
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, predictions))) == 0
+
+
+    
+
+def test_prediction_prediction_exception(client):
+    '''
+    As a blackmagic user, when an exception occurs predicting
+    probabilities, an HTTP 500 is issued
+    with a descriptive message so that the issue may be 
+    investigated, corrected & retried.
+    '''
+
+    tx = test.tx
+    ty = test.ty
+    cx = test.cx
+    cy = test.cy
+    acquired = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
+
+    delete_predictions(test.cx, test.cy)
+    
+    response = client.post('/prediction',
+                           json={'tx': tx,
+                                 'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
+                                 'acquired': acquired,
+                                 'month': month,
+                                 'day': day,
+                                 'test_prediction_exception': True})
+    
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
+    
+    assert response.status == '500 INTERNAL SERVER ERROR'
+    assert get('tx', response.get_json()) == tx
+    assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == acquired
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, predictions))) == 0
+
+    
 def test_prediction_delete_exception(client):
     '''
     As a blackmagic user, when an exception occurs deleting 
@@ -226,20 +375,22 @@ def test_prediction_delete_exception(client):
 
     tx = test.tx
     ty = test.ty
+    cx = test.cx
+    cy = test.cy
     acquired = test.acquired
     month = test.prediction_month
     day = test.prediction_day
-    chips = test.chips
 
     delete_predictions(test.cx, test.cy)
     
     response = client.post('/prediction',
                            json={'tx': tx,
                                  'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
                                  'acquired': acquired,
                                  'month': month,
                                  'day': day,
-                                 'chips': chips,
                                  'test_delete_exception': True})
     
     predictions = db.execute_statement(cfg=app.cfg,
@@ -250,10 +401,11 @@ def test_prediction_delete_exception(client):
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == acquired
     assert get('month', response.get_json()) == month
     assert get('day', response.get_json()) == day
-    assert get('chips', response.get_json()) == count(chips)
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
@@ -269,20 +421,22 @@ def test_prediction_save_exception(client):
 
     tx = test.tx
     ty = test.ty
+    cx = test.cx
+    cy = test.cy
     acquired = test.acquired
     month = test.prediction_month
     day = test.prediction_day
-    chips = test.chips
 
     delete_predictions(test.cx, test.cy)
     
     response = client.post('/prediction',
                            json={'tx': tx,
                                  'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
                                  'acquired': acquired,
                                  'month': month,
                                  'day': day,
-                                 'chips': chips,
                                  'test_save_exception': True})
     
     predictions = db.execute_statement(cfg=app.cfg,
@@ -293,10 +447,11 @@ def test_prediction_save_exception(client):
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
     assert get('acquired', response.get_json()) == acquired
     assert get('month', response.get_json()) == month
     assert get('day', response.get_json()) == day
-    assert get('chips', response.get_json()) == count(chips)
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
