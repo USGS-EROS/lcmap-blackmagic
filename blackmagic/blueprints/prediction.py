@@ -40,13 +40,19 @@ def log_request(ctx):
 
     tx = get('tx', ctx, None)
     ty = get('ty', ctx, None)
+    cx = get('cx', ctx, None)
+    cy = get('cy', ctx, None)
     m  = get('month', ctx, None)
     d  = get('day', ctx, None)
     a  = get('acquired', ctx, None)
-    c  = get('chips', ctx, None)
     
-    logger.info("POST /tile {x},{y},{a},{d},{c}".format(x=tx, y=ty, a=a, d=d, c=c))
-        
+    logger.info("POST /tile {tx},{ty},{cx},{cy},{m},{d},{a}".format(tx=tx,
+                                                                    ty=ty,
+                                                                    cx=cx,
+                                                                    cy=cy,
+                                                                    m=m,
+                                                                    d=d,
+                                                                    a=a))
     return ctx
 
 
@@ -56,21 +62,13 @@ def exception_handler(ctx, http_status, name, fn):
     except Exception as e:        
         return do(logger.exception, {'tx': get('tx', ctx, None),
                                      'ty': get('ty', ctx, None),
+                                     'cx': get('cx', ctx, None),
+                                     'cy': get('cy', ctx, None),
                                      'month': get('month', ctx, None),
                                      'day':   get('day', ctx, None),
                                      'acquired': get('acquired', ctx, None),
-                                     'chips': get('chips', ctx, []),
                                      'exception': '{name} exception: {ex}'.format(name=name, ex=e),
                                      'http_status': http_status})
-
-
-def log_chip(segments):
-    m = '{{"cx":{cx}, "cy":{cy}, "msg":"generating probabilities"}}'
-    
-    segments = list(segments)
-    logger.info(m.format(**first(segments)))
-    
-    return segments
 
     
 def prediction_fn(segment, model):
@@ -82,8 +80,9 @@ def prediction_fn(segment, model):
                  model.predict(xgb.DMatrix(ind))[0])
 
     
-def predict(segments, model):    
-    return list(map(partial(prediction_fn, model=model), segments))
+def predict(segment, model_bytes):
+    model = booster(model_bytes)    
+    return prediction_fn(segment, model)
 
 
 def reformat(segments):
@@ -98,26 +97,6 @@ def extract_segments(ctx):
     return ctx['data']
 
 
-def prediction_pipeline(chip, model_bytes, month, day, acquired, cfg):
-    
-    return thread_first({'cx': first(chip),
-                         'cy': second(chip),
-                         'acquired': acquired,
-                         'cluster': db.cluster(cfg)},
-                        partial(segaux.segments, cfg=cfg),
-                        partial(segaux.aux, cfg=cfg),
-                        segaux.aux_filter,                        
-                        segaux.combine,
-                        segaux.unload_segments,
-                        segaux.unload_aux,
-                        extract_segments,
-                        partial(segaux.prediction_dates, month=month, day=day),
-                        segaux.average_reflectance,
-                        reformat,
-                        log_chip,                       
-                        partial(predict, model=booster(model_bytes)))
-
-
 def measure(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
@@ -126,10 +105,11 @@ def measure(fn):
         
         d = {"tx":get("tx", ctx, None),
              "ty":get("ty", ctx, None),
+             "cx":get("cx", ctx, None),
+             "cy":get("cy", ctx, None),
              "acquired":get("acquired", ctx, None),
              "month":get("month", ctx, None),
-             "day":get("day", ctx, None),
-             "chips":"count:{}".format(count(get("chips", ctx, [])))}
+             "day":get("day", ctx, None)}
             
         logger.info(assoc(d,
                           "{name}_elapsed_seconds".format(name=fn.__name__),
@@ -138,24 +118,42 @@ def measure(fn):
     return wrapper
 
 
-@raise_on('test_predictions_exception')
+@raise_on('test_load_data_exception')
+@skip_on_exception
+@measure
+def load_data(ctx, cfg):
+    
+    return assoc(ctx,
+                 'data',
+                 thread_first(ctx,
+                              partial(segaux.segments, cfg=cfg),
+                              partial(segaux.aux, cfg=cfg),
+                              segaux.aux_filter,                        
+                              segaux.combine,
+                              segaux.unload_segments,
+                              segaux.unload_aux,
+                              extract_segments,
+                              partial(segaux.prediction_dates,
+                                      month=get("month", ctx),
+                                      day=get("day", ctx)),
+                              segaux.average_reflectance,
+                              reformat))
+
+
+@raise_on('test_prediction_exception')
 @skip_on_exception
 @measure
 def predictions(ctx, cfg):
-    p = partial(prediction_pipeline,
-                model_bytes=ctx['model_bytes'],
-                month=ctx['month'],
-                day=ctx['day'],
-                acquired=ctx['acquired'],
-                cfg=cfg)
 
-    with workers(cfg) as w:    
-        return assoc(ctx,
-                     'predictions',
-                     list(flatten(filter(lambda x: x is not None,
-                                         w.map(p, ctx['chips'])))))
+    p = partial(predict, model_bytes=get('model_bytes', ctx))
+                 
+    with workers(cfg) as w:
+       return assoc(ctx,
+                    'predictions',
+                    list(filter(lambda x: x is not None,
+                                w.map(p, ctx['data']))))
 
-
+                 
 @skip_on_exception
 @measure
 def parameters(r):
@@ -164,26 +162,30 @@ def parameters(r):
     tx       = get('tx', r, None)
     ty       = get('ty', r, None)
     acquired = get('acquired', r, None)
-    chips    = get('chips', r, None)
+    cx       = get('cx', r, None)
+    cy       = get('cy', r, None)
     month    = get('month', r, None)
     day      = get('day', r, None)
         
     if (tx is None or
         ty is None or
         acquired is None or
-        chips is None or
+        cx is None or
+        cy is None or
         month is None or
         day is None):
-        raise Exception('tx, ty, acquired, chips, month and day are required parameters')
+        raise Exception('tx, ty, cx, cy, acquired, month and day are required parameters')
     else:
         return {'tx': int(tx),
                 'ty': int(ty),
                 'acquired': acquired,
                 'month': month,
                 'day': day,
-                'chips': list(map(lambda chip: (int(first(chip)), int(second(chip))), chips)),
-                'test_data_exception': get('test_data_exception', r, None),
-                'test_training_exception': get('test_training_exception', r, None),
+                'cx': int(cx),
+                'cy': int(cy),
+                'test_load_model_exception': get('test_load_model_exception', r, None),
+                'test_load_data_exception': get('test_load_data_exception', r, None),
+                'test_prediction_exception': get('test_prediction_exception', r, None),
                 'test_delete_exception': get('test_delete_exception', r, None),
                 'test_save_exception': get('test_save_exception', r, None)}
 
@@ -193,6 +195,7 @@ def add_cluster(ctx, cfg):
     return assoc(ctx, 'cluster', db.cluster(cfg))
 
 
+@raise_on('test_load_model_exception')
 @skip_on_exception
 @measure
 def load_model(ctx, cfg):
@@ -217,10 +220,8 @@ def load_model(ctx, cfg):
 def delete(ctx, cfg):                                                
     '''Delete existing predictions'''
 
-    # delete all existing predictions in the chips we just processed
-    cxcy = set(map(lambda x: (x['cx'], x['cy'],), ctx['predictions']))
-    deletions = list(map(lambda x: db.delete_predictions(cfg, first(x), second(x)), cxcy))
-    db.execute_statements(cfg, deletions)    
+    stmt = db.delete_predictions(cfg, get('cx', ctx), get('cy', ctx))
+    db.execute_statement(cfg, stmt)
 
     return ctx
 
@@ -231,6 +232,7 @@ def delete(ctx, cfg):
 def save(ctx, cfg):                                                
     '''Saves predictions to Cassandra'''
 
+    #print("PREDICTIONS TO SAVE:{}".format(ctx['predictions']))
     # save all new predictions
     db.insert_predictions(cfg, ctx['predictions'])
                 
@@ -245,7 +247,8 @@ def respond(ctx):
             'acquired': get('acquired', ctx, None),
             'month': get('month', ctx, None),
             'day': get('day', ctx, None),
-            'chips': count(get('chips', ctx, []))}
+            'cx': get('cx', ctx, None),
+            'cy': get('cy', ctx, None)}
 
     e = get('exception', ctx, None)
     
@@ -269,14 +272,13 @@ def respond(ctx):
 # each process that is going to run.
 
 # In seperate processes, a model can be created,
-# data can be loaded, prediction can occur and
-# format into correct datastructures,
-# then results can be collected from pool.map()
+# and prediction can occur.
+# Results can be collected from pool.map()
 # for persistence into Cassandra using batches
 
 # The models saved to Cassandra are around 100MB,
 # so 100MB + space for the segments will be needed
-# for each chip in memory.
+# per segments for cx, cy.
                 
 @prediction.route('/prediction', methods=['POST'])        
 def predictions_route():
@@ -286,6 +288,7 @@ def predictions_route():
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
                         partial(exception_handler, http_status=500, name='add_cluster', fn=partial(add_cluster, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='load_model', fn=partial(load_model, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='load_data', fn=partial(load_data, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='predictions', fn=partial(predictions, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='delete', fn=partial(delete, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
