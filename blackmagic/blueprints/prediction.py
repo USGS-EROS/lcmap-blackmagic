@@ -70,20 +70,6 @@ def exception_handler(ctx, http_status, name, fn):
                                      'exception': '{name} exception: {ex}'.format(name=name, ex=e),
                                      'http_status': http_status})
 
-    
-def prediction_fn(segment, model):
-    ind = segment['independent']
-    ind = ind.reshape(1, -1) if ind.ndim < 2 else ind
-
-    return assoc(segment,
-                 'prob',
-                 model.predict(xgb.DMatrix(ind))[0])
-
-    
-def predict(segment, model_bytes):
-    model = booster(model_bytes)    
-    return prediction_fn(segment, model)
-
 
 def reformat(segments):
     return map(segaux.prediction_format, segments)
@@ -156,19 +142,39 @@ def predictions(ctx, cfg):
 
     return assoc(ctx, 'predictions', preds)
 
-    # extract 2d numpy array from ctx['data']
-    # create model with nthreads == configured value for CPU count
-    # predict the 2d numpy array
-    # zip the results back into ctx['data']
-
-        
-    #p = partial(predict, model_bytes=get('model_bytes', ctx))
-                 
-    #with workers(cfg) as w:
-    #   return assoc(ctx,
-    #                'predictions',
-    #                list(filter(lambda x: x is not None,
-    #                            w.map(p, ctx['data']))))
+    #############################################################
+    # relying on position in a collection is highly error prone,
+    # but in this case we have to use xgboost parallelization for
+    # performance so there's no other way to do it.
+    #
+    # Previous implementation used Python workers and resulted
+    # in a single chip runtime of approximately 970 seconds for
+    # predictions over 1982-2017 for a single cx,cy.
+    #
+    #############################################################
+    # Python worker method:
+    #
+    # def prediction_fn(segment, model):
+    #     ind = segment['independent']
+    #     ind = ind.reshape(1, -1) if ind.ndim < 2 else ind
+    #
+    #     return assoc(segment,
+    #                  'prob',
+    #                  model.predict(xgb.DMatrix(ind))[0])
+    #
+    #
+    # def predict(segment, model_bytes):
+    #     model = booster(model_bytes)    
+    #     return prediction_fn(segment, model)
+    #
+    #
+    # p = partial(predict, model_bytes=get('model_bytes', ctx))             
+    # with workers(cfg) as w:
+    #    return assoc(ctx,
+    #                 'predictions',
+    #                 list(filter(lambda x: x is not None,
+    #                             w.map(p, ctx['data']))))
+    #############################################################
 
                  
 @skip_on_exception
@@ -277,24 +283,6 @@ def respond(ctx):
 
     return response
 
-
-# xgboost models are not thread safe nor are they sharable
-# across processes because the Python object holds a
-# reference to the underlying C XGBoost memory locations.
-
-# This means that we should load the model from Cassandra
-# one time, decode it from hex into bytes one time,
-# but then instantiate a new XGBoost Classifier for
-# each process that is going to run.
-
-# In seperate processes, a model can be created,
-# and prediction can occur.
-# Results can be collected from pool.map()
-# for persistence into Cassandra using batches
-
-# The models saved to Cassandra are around 100MB,
-# so 100MB + space for the segments will be needed
-# per segments for cx, cy.
                 
 @prediction.route('/prediction', methods=['POST'])        
 def predictions_route():
