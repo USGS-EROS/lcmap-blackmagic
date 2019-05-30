@@ -115,7 +115,6 @@ def load_data(ctx, cfg):
                  thread_first(ctx,
                               partial(segaux.segments, cfg=cfg),
                               partial(segaux.aux, cfg=cfg),
-                              segaux.aux_filter,                        
                               segaux.combine,
                               segaux.unload_segments,
                               segaux.unload_aux,
