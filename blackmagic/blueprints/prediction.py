@@ -89,8 +89,9 @@ def reformat(segments):
     return map(segaux.prediction_format, segments)
 
 
-def booster(model_bytes):
-    return segaux.booster_from_bytes(model_bytes, {'nthread': 1})
+def booster(cfg, model_bytes):
+    return segaux.booster_from_bytes(model_bytes,
+                                     {'nthread': get_in(['xgboost', 'parameters', 'nthread'], cfg)})
 
 
 def extract_segments(ctx):
@@ -144,14 +145,30 @@ def load_data(ctx, cfg):
 @skip_on_exception
 @measure
 def predictions(ctx, cfg):
+    data  = list(ctx['data'])
+    ndata = numpy.array([get('independent', d) for d in data])
+    model = booster(cfg, get('model_bytes', ctx))
+    probs = model.predict(xgb.DMatrix(ndata))
+    preds = []
+    
+    for i,v in enumerate(probs):
+        preds.append(assoc(data[i], 'prob', v))
 
-    p = partial(predict, model_bytes=get('model_bytes', ctx))
+    return assoc(ctx, 'predictions', preds)
+
+    # extract 2d numpy array from ctx['data']
+    # create model with nthreads == configured value for CPU count
+    # predict the 2d numpy array
+    # zip the results back into ctx['data']
+
+        
+    #p = partial(predict, model_bytes=get('model_bytes', ctx))
                  
-    with workers(cfg) as w:
-       return assoc(ctx,
-                    'predictions',
-                    list(filter(lambda x: x is not None,
-                                w.map(p, ctx['data']))))
+    #with workers(cfg) as w:
+    #   return assoc(ctx,
+    #                'predictions',
+    #                list(filter(lambda x: x is not None,
+    #                            w.map(p, ctx['data']))))
 
                  
 @skip_on_exception
@@ -232,7 +249,6 @@ def delete(ctx, cfg):
 def save(ctx, cfg):                                                
     '''Saves predictions to Cassandra'''
 
-    #print("PREDICTIONS TO SAVE:{}".format(ctx['predictions']))
     # save all new predictions
     db.insert_predictions(cfg, ctx['predictions'])
                 
