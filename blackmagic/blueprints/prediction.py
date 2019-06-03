@@ -126,23 +126,31 @@ def load_data(ctx, cfg):
                               reformat))
 
 
+@raise_on('test_prediction_prediction_matrix')
+@skip_on_exception
+@measure
+def prediction_matrix(ctx):
+
+    data = list(ctx['data'])
+
+    # we need an empty numpy array if there is a default segment as input
+    default = lambda x: numpy.empty(shape=4) if len(x) == 0 else x
+    
+    return merge(ctx, {'data':  data,
+                       'ndata': numpy.array([default(get('independent', d)) for d in data])})
+
+    
 @raise_on('test_prediction_exception')
 @skip_on_exception
 @measure
 def predictions(ctx, cfg):
-    data  = list(ctx['data'])
-    ndata = numpy.array([get('independent', d) for d in data])
 
-    if ndata.ndim < 2:
-        msg = "NDATA DIM < 2:{}".format(ndata)
-        raise Exception(msg)
-    
     model = booster(cfg, get('model_bytes', ctx))
-    probs = model.predict(xgb.DMatrix(ndata))
+    probs = model.predict(xgb.DMatrix(ctx['ndata']))
     preds = []
     
     for i,v in enumerate(probs):
-        preds.append(assoc(data[i], 'prob', v))
+        preds.append(assoc(ctx['data'][i], 'prob', v))
 
     return assoc(ctx, 'predictions', preds)
 
@@ -179,6 +187,18 @@ def predictions(ctx, cfg):
     #                 list(filter(lambda x: x is not None,
     #                             w.map(p, ctx['data']))))
     #############################################################
+
+                 
+@raise_on('test_prediction_default_predictions')
+@skip_on_exception
+@measure
+def default_predictions(ctx):
+                 
+    default = lambda x: assoc(x, 'prob', []) if x['pday'] == '0001-01-01' else x
+
+    return assoc(ctx,
+                 'predictions',
+                 list(map(default, ctx['predictions'])))
 
                  
 @skip_on_exception
@@ -297,7 +317,9 @@ def predictions_route():
                         partial(exception_handler, http_status=500, name='add_cluster', fn=partial(add_cluster, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='load_model', fn=partial(load_model, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='load_data', fn=partial(load_data, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='prediction_matrix', fn=prediction_matrix),
                         partial(exception_handler, http_status=500, name='predictions', fn=partial(predictions, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='default_predictions', fn=default_predictions),
                         partial(exception_handler, http_status=500, name='delete', fn=partial(delete, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
                         respond)
