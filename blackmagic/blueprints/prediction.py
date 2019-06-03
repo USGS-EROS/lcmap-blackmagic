@@ -134,7 +134,7 @@ def prediction_matrix(ctx):
     data = list(ctx['data'])
 
     # we need an empty numpy array if there is a default segment as input
-    default = lambda x: numpy.empty(shape=4) if len(x) == 0 else x
+    default = lambda x: numpy.zeros(shape=4, dtype='int32') if len(x) == 0 else x
     
     return merge(ctx, {'data':  data,
                        'ndata': numpy.array([default(get('independent', d)) for d in data])})
@@ -144,6 +144,13 @@ def prediction_matrix(ctx):
 @skip_on_exception
 @measure
 def predictions(ctx, cfg):
+
+    if ctx['ndata'].ndim != 2:
+        msg = "DTYPE:{} NDIM:{} DATA:{}".format(ctx['ndata'].dtype,
+                                                ctx['ndata'].ndim,
+                                                ctx['ndata'])
+        print(msg)
+        raise Exception(msg)
 
     model = booster(cfg, get('model_bytes', ctx))
     probs = model.predict(xgb.DMatrix(ctx['ndata']))
