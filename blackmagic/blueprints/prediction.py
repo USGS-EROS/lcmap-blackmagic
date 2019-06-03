@@ -46,13 +46,13 @@ def log_request(ctx):
     d  = get('day', ctx, None)
     a  = get('acquired', ctx, None)
     
-    logger.info("POST /tile {tx},{ty},{cx},{cy},{m},{d},{a}".format(tx=tx,
-                                                                    ty=ty,
-                                                                    cx=cx,
-                                                                    cy=cy,
-                                                                    m=m,
-                                                                    d=d,
-                                                                    a=a))
+    logger.info("POST /prediction {tx},{ty},{cx},{cy},{m},{d},{a}".format(tx=tx,
+                                                                          ty=ty,
+                                                                          cx=cx,
+                                                                          cy=cy,
+                                                                          m=m,
+                                                                          d=d,
+                                                                          a=a))
     return ctx
 
 
@@ -137,7 +137,8 @@ def prediction_matrix(ctx):
     default = lambda x: numpy.zeros(shape=4, dtype='int32') if len(x) == 0 else x
     
     return merge(ctx, {'data':  data,
-                       'ndata': numpy.array([default(get('independent', d)) for d in data])})
+                       'ndata': numpy.array([default(get('independent', d)) for d in data],
+                                            dtype='int32')})
 
     
 @raise_on('test_prediction_exception')
