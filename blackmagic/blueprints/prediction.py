@@ -132,6 +132,11 @@ def load_data(ctx, cfg):
 def predictions(ctx, cfg):
     data  = list(ctx['data'])
     ndata = numpy.array([get('independent', d) for d in data])
+
+    if ndata.ndim < 2:
+        msg = "NDATA DIM < 2:{}".format(ndata)
+        raise Exception(msg)
+    
     model = booster(cfg, get('model_bytes', ctx))
     probs = model.predict(xgb.DMatrix(ndata))
     preds = []
@@ -147,7 +152,7 @@ def predictions(ctx, cfg):
     # performance so there's no other way to do it.
     #
     # Previous implementation used Python workers and resulted
-    # in a single chip runtime of approximately 970 seconds for
+    # in a chip runtime of approximately 970 seconds for
     # predictions over 1982-2017 for a single cx,cy.
     #
     #############################################################
