@@ -150,7 +150,7 @@ def load_model(ctx, cfg):
         return assoc(ctx, 'model_bytes', model)
     
 
-@raise_on('test_prediction_group_data')
+@raise_on('test_group_data_exception')
 @skip_on_exception
 @measure
 def group_data(ctx):
@@ -161,7 +161,7 @@ def group_data(ctx):
                   'defaults': get('defaults', groups, [])})
     
 
-@raise_on('test_prediction_matrix')
+@raise_on('test_matrix_exception')
 @skip_on_exception
 @measure
 def matrix(ctx):
@@ -218,7 +218,7 @@ def predictions(ctx, cfg):
     #############################################################
 
                  
-@raise_on('test_prediction_default_predictions')
+@raise_on('test_default_predictions_exception')
 @skip_on_exception
 @measure
 def default_predictions(ctx):
@@ -260,7 +260,10 @@ def parameters(r):
                 'cy': int(cy),
                 'test_load_model_exception': get('test_load_model_exception', r, None),
                 'test_load_data_exception': get('test_load_data_exception', r, None),
+                'test_group_data_exception': get('test_group_data_exception', r, None),
+                'test_matrix_exception': get('test_matrix_exception', r, None),
                 'test_prediction_exception': get('test_prediction_exception', r, None),
+                'test_default_predictions_exception': get('test_default_predictions_exception', r, None),
                 'test_delete_exception': get('test_delete_exception', r, None),
                 'test_save_exception': get('test_save_exception', r, None)}
 

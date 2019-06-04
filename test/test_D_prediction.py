@@ -270,6 +270,144 @@ def test_prediction_load_model_exception(client):
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
+
+    
+def test_prediction_group_data_exception(client):
+    '''
+    As a blackmagic user, when an exception occurs
+    grouping prediction data, an HTTP 500 is issued
+    with a descriptive message so that the issue may be 
+    investigated, corrected & retried.
+    '''
+
+    tx = test.tx
+    ty = test.ty
+    cx = test.cx
+    cy = test.cy
+    acquired = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
+
+    delete_predictions(test.cx, test.cy)
+    
+    response = client.post('/prediction',
+                           json={'tx': tx,
+                                 'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
+                                 'acquired': acquired,
+                                 'month': month,
+                                 'day': day,
+                                 'test_group_data_exception': True})
+    
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
+    
+    assert response.status == '500 INTERNAL SERVER ERROR'
+    assert get('tx', response.get_json()) == tx
+    assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == acquired
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, predictions))) == 0
+
+    
+def test_prediction_matrix_exception(client):
+    '''
+    As a blackmagic user, when an exception occurs
+    constructing a prediction matrix, an HTTP 500 is issued
+    with a descriptive message so that the issue may be 
+    investigated, corrected & retried.
+    '''
+
+    tx = test.tx
+    ty = test.ty
+    cx = test.cx
+    cy = test.cy
+    acquired = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
+
+    delete_predictions(test.cx, test.cy)
+    
+    response = client.post('/prediction',
+                           json={'tx': tx,
+                                 'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
+                                 'acquired': acquired,
+                                 'month': month,
+                                 'day': day,
+                                 'test_matrix_exception': True})
+    
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
+    
+    assert response.status == '500 INTERNAL SERVER ERROR'
+    assert get('tx', response.get_json()) == tx
+    assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == acquired
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, predictions))) == 0
+
+    
+def test_prediction_default_predictions_exception(client):
+    '''
+    As a blackmagic user, when an exception occurs
+    creating default predictions, an HTTP 500 is issued
+    with a descriptive message so that the issue may be 
+    investigated, corrected & retried.
+    '''
+
+    tx = test.tx
+    ty = test.ty
+    cx = test.cx
+    cy = test.cy
+    acquired = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
+
+    delete_predictions(test.cx, test.cy)
+    
+    response = client.post('/prediction',
+                           json={'tx': tx,
+                                 'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
+                                 'acquired': acquired,
+                                 'month': month,
+                                 'day': day,
+                                 'test_default_predictions_exception': True})
+    
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
+    
+    assert response.status == '500 INTERNAL SERVER ERROR'
+    assert get('tx', response.get_json()) == tx
+    assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == acquired
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, predictions))) == 0
     
     
 def test_prediction_load_data_exception(client):
@@ -317,8 +455,6 @@ def test_prediction_load_data_exception(client):
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
 
-
-    
 
 def test_prediction_prediction_exception(client):
     '''
