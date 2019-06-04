@@ -1,18 +1,19 @@
-import json
-import os
-import pytest
-import random
-import test
-
 from blackmagic import app
 from blackmagic import db
+from blackmagic.blueprints import prediction
 from cassandra.cluster import Cluster
 from cytoolz import count
 from cytoolz import get
 from cytoolz import merge
 from cytoolz import reduce
-
 from datetime import date
+
+import json
+import numpy
+import os
+import pytest
+import random
+import test
 
 
 def delete_predictions(cx, cy):
@@ -455,3 +456,150 @@ def test_prediction_save_exception(client):
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
+
+    
+def test_prediction_group_data():
+    # both data and default
+    inputs = {'data': [{'sday': '0001-01-01', 'eday': '0001-01-01'},
+                       {'sday': '0001-01-02', 'eday': '0001-01-02'}]}
+
+    expected = {'data':     [{'sday': '0001-01-02', 'eday': '0001-01-02'}],
+                'defaults': [{'sday': '0001-01-01', 'eday': '0001-01-01'}]}
+    
+    outputs = prediction.group_data(inputs)
+
+    assert expected == outputs
+
+    
+    # data only
+    inputs = {'data': [{'sday': '0001-01-03', 'eday': '0001-01-03'},
+                       {'sday': '0001-01-02', 'eday': '0001-01-02'}]}
+
+    expected = {'data': [{'sday': '0001-01-03', 'eday': '0001-01-03'},
+                         {'sday': '0001-01-02', 'eday': '0001-01-02'}],
+                'defaults': []}
+    
+    outputs = prediction.group_data(inputs)
+
+    assert expected == outputs
+
+    
+    # defaults only
+    inputs = {'data': [{'sday': '0001-01-01', 'eday': '0001-01-01'},
+                       {'sday': '0001-01-01', 'eday': '0001-01-01'}]}
+
+    expected = {'data': [],
+                'defaults': [{'sday': '0001-01-01', 'eday': '0001-01-01'},
+                             {'sday': '0001-01-01', 'eday': '0001-01-01'}]}
+    
+    outputs = prediction.group_data(inputs)
+
+    assert expected == outputs
+
+    
+def test_prediction_matrix():
+    # normal independent variables have 68 values
+    # independent variables derived from default segments
+    # have 19 values because there were no coefficients saved
+    # but there are aux data + other vals.
+    #
+    # You cannot build a 2d numpy array out of
+    # numpy arrays of varying size.
+    #
+    # How to represent default predictions in the system?
+    #
+    # Doing checks for length 19 and 68 is a horrible idea.
+    #
+    # This demonstrates the error
+    # >>> numpy.array([numpy.array([1,2,3]), numpy.array([1,1,1,1,1,1])], dtype='float32')
+    # Traceback (most recent call last):
+    # File "<stdin>", line 1, in <module>
+    # ValueError: setting an array element with a sequence.
+    #
+    # One idea is to detect and split all records that will wind up being
+    # a default prediction prior to constructing the matrix.  They are detectable
+    # by the sday & eday being set to '0001-01-01'.
+    #
+    # Another idea is to (somehow) detect the default independent variables without
+    # hardcoding the length as a check and pad or change them so they fit into the
+    # 2d array.
+    #
+    # Using the 2nd approach, if the interface requires a zero length probability array,
+    # you'll need to detect them again post-prediction, wipe out the predicted values
+    # and then save those to Cassandra.
+    #
+    # Approach 1 seems least complex.  Detect default segments, group them, run prediction
+    # on the remainder, combine default segments back into the resultset with the desired
+    # default value ([]), save to Cassandra.
+
+    
+    # normal expected input with no default segments
+    inputs = {'data': [{'independent': [1.,2.,3.,4.]},
+                       {'independent': [5.,6.,7.,8.]}]}
+
+    expected = {'data':  [{'independent': [1.,2.,3.,4.]},
+                          {'independent': [5.,6.,7.,8.]}],
+                'ndata': numpy.array([[1.,2.,3.,4.],
+                                      [5.,6.,7.,8.]], dtype='float32')}
+
+    outputs = prediction.matrix(inputs)
+
+    assert numpy.array_equal(outputs['ndata'], expected['ndata'])
+    assert expected['data'] == outputs['data']
+
+
+def test_prediction_default_predictions():
+
+    # both defaults and predictions
+    inputs = {'defaults':    [{"a": 1}, {"a": 2}],
+              'predictions': [{"b": 3}, {"b": 4}]}
+
+    expected = {'defaults': [{"a": 1}, {"a": 2}],
+                'predictions': [{"a": 1, "prob": []},
+                                {"a": 2, "prob": []},
+                                {"b": 3},
+                                {"b": 4}]}
+
+    outputs = prediction.default_predictions(inputs)
+
+    assert outputs == expected
+
+
+    # defaults only
+
+    inputs = {'defaults':    [{"a": 1}, {"a": 2}],
+              'predictions': []}
+
+    expected = {'defaults': [{"a": 1}, {"a": 2}],
+                'predictions': [{"a": 1, "prob": []},
+                                {"a": 2, "prob": []}]}
+                                
+    outputs = prediction.default_predictions(inputs)
+
+    assert outputs == expected
+
+    # predictions only
+
+    inputs = {'defaults':    [],
+              'predictions': [{"b": 3}, {"b": 4}]}
+
+    expected = {'defaults': [],
+                'predictions': [{"b": 3},{"b": 4}]}
+    
+    outputs = prediction.default_predictions(inputs)
+
+    assert outputs == expected
+
+    # neither
+    inputs = {'defaults': [],
+              'predictions': []}
+
+    expected = {'defaults': [],
+                'predictions': []}
+
+    outputs = prediction.default_predictions(inputs)
+
+    assert outputs == expected
+
+
+

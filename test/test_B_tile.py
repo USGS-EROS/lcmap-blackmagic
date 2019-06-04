@@ -1,10 +1,3 @@
-import json
-import os
-import pytest
-import numpy
-import requests
-import test
-
 from blackmagic import app
 from blackmagic import db
 from blackmagic.blueprints import tile
@@ -14,6 +7,12 @@ from cytoolz import first
 from cytoolz import get
 from cytoolz import reduce
 
+import json
+import os
+import pytest
+import numpy
+import requests
+import test
 
 def delete_tile(tx, ty):
     return db.execute_statements(app.cfg,

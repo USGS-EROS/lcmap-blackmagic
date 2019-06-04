@@ -14,6 +14,7 @@ from cytoolz import do
 from cytoolz import first
 from cytoolz import get
 from cytoolz import get_in
+from cytoolz import groupby
 from cytoolz import merge
 from cytoolz import partial
 from cytoolz import second
@@ -24,6 +25,7 @@ from flask import jsonify
 from flask import request
 from functools import wraps
 from merlin.functions import flatten
+from operator import add
 from xgboost.core import Booster
 
 import logging
@@ -105,11 +107,15 @@ def measure(fn):
     return wrapper
 
 
+@skip_on_exception
+def add_cluster(ctx, cfg):
+    return assoc(ctx, 'cluster', db.cluster(cfg))
+
+
 @raise_on('test_load_data_exception')
 @skip_on_exception
 @measure
 def load_data(ctx, cfg):
-    
     return assoc(ctx,
                  'data',
                  thread_first(ctx,
@@ -126,33 +132,48 @@ def load_data(ctx, cfg):
                               reformat))
 
 
-@raise_on('test_prediction_prediction_matrix')
+@raise_on('test_load_model_exception')
 @skip_on_exception
 @measure
-def prediction_matrix(ctx):
-
-    data = list(ctx['data'])
-
-    # we need an empty numpy array if there is a default segment as input
-    default = lambda x: [0,0,0,0] if len(x) == 0 else x
+def load_model(ctx, cfg):
+    sess  = db.session(cfg, ctx['cluster']) 
+    stmt  = db.select_tile(cfg, ctx['tx'], ctx['ty'])
     
-    return merge(ctx, {'data':  data,
-                       'ndata': numpy.array([default(get('independent', d)) for d in data],
-                                            dtype='int32')})
+    fn = excepts(StopIteration,
+                 lambda session, statement: bytes.fromhex(first(session.execute(statement)).model))
+
+    model = fn(sess, stmt)
+
+    if model is None:
+        raise Exception("No model found for tx:{tx} and ty:{ty}".format(**ctx))
+    else:
+        return assoc(ctx, 'model_bytes', model)
+    
+
+@raise_on('test_prediction_group_data')
+@skip_on_exception
+@measure
+def group_data(ctx):
+    grouper = lambda x: 'defaults' if x['sday'] == '0001-01-01' and x['eday'] == '0001-01-01' else 'data'
+    groups  = groupby(grouper, ctx['data'])
+    return merge(ctx,
+                 {'data': get('data', groups, []),
+                  'defaults': get('defaults', groups, [])})
+    
+
+@raise_on('test_prediction_matrix')
+@skip_on_exception
+@measure
+def matrix(ctx):
+    return assoc(ctx,
+                 'ndata',
+                 numpy.array([d['independent'] for d in ctx['data']], dtype='float32'))
 
     
 @raise_on('test_prediction_exception')
 @skip_on_exception
 @measure
 def predictions(ctx, cfg):
-
-    if ctx['ndata'].ndim != 2:
-        msg = "DTYPE:{} NDIM:{} DATA:{}".format(ctx['ndata'].dtype,
-                                                ctx['ndata'].ndim,
-                                                ctx['ndata'])
-        print(msg)
-        raise Exception(msg)
-
     model = booster(cfg, get('model_bytes', ctx))
     probs = model.predict(xgb.DMatrix(ctx['ndata']))
     preds = []
@@ -201,12 +222,11 @@ def predictions(ctx, cfg):
 @skip_on_exception
 @measure
 def default_predictions(ctx):
-                 
-    default = lambda x: assoc(x, 'prob', []) if x['pday'] == '0001-01-01' else x
-
+    default = lambda x: assoc(x, 'prob', [])
     return assoc(ctx,
                  'predictions',
-                 list(map(default, ctx['predictions'])))
+                 add(list(map(default, get('defaults', ctx, []))),
+                     ctx['predictions']))
 
                  
 @skip_on_exception
@@ -245,28 +265,7 @@ def parameters(r):
                 'test_save_exception': get('test_save_exception', r, None)}
 
     
-@skip_on_exception
-def add_cluster(ctx, cfg):
-    return assoc(ctx, 'cluster', db.cluster(cfg))
 
-
-@raise_on('test_load_model_exception')
-@skip_on_exception
-@measure
-def load_model(ctx, cfg):
-
-    sess  = db.session(cfg, ctx['cluster']) 
-    stmt  = db.select_tile(cfg, ctx['tx'], ctx['ty'])
-    
-    fn = excepts(StopIteration,
-                 lambda session, statement: bytes.fromhex(first(session.execute(statement)).model))
-
-    model = fn(sess, stmt)
-
-    if model is None:
-        raise Exception("No model found for tx:{tx} and ty:{ty}".format(**ctx))
-    else:
-        return assoc(ctx, 'model_bytes', model)
 
     
 @raise_on('test_delete_exception')
@@ -325,7 +324,8 @@ def predictions_route():
                         partial(exception_handler, http_status=500, name='add_cluster', fn=partial(add_cluster, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='load_model', fn=partial(load_model, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='load_data', fn=partial(load_data, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='prediction_matrix', fn=prediction_matrix),
+                        partial(exception_handler, http_status=500, name='group_data', fn=group_data),
+                        partial(exception_handler, http_status=500, name='matrix', fn=matrix),
                         partial(exception_handler, http_status=500, name='predictions', fn=partial(predictions, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='default_predictions', fn=default_predictions),
                         partial(exception_handler, http_status=500, name='delete', fn=partial(delete, cfg=cfg)),
