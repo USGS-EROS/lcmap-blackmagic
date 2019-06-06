@@ -40,14 +40,16 @@ def none_as_null(s):
 
 
 def execute_statement(cfg, stmt, keyspace=None):
-    with session(cfg, cluster(cfg, keyspace), keyspace) as s:
-        return s.execute(none_as_null(stmt))
+    with cluster(cfg, keyspace) as c:
+        sess = session(cfg, c, keyspace)
+        return sess.execute(none_as_null(stmt))
                 
                            
 def execute_statements(cfg, stmts, keyspace=None):
-    with session(cfg, cluster(cfg, keyspace), keyspace) as s:
-        return [s.execute(none_as_null(st)) for st in stmts]
-                
+    with cluster(cfg, keyspace) as c:
+        sess = session(cfg, c, keyspace)
+        return [sess.execute(none_as_null(st)) for st in stmts]
+               
 
 def create_keyspace(cfg):
     s = '''CREATE KEYSPACE IF NOT EXISTS {keyspace} 
@@ -246,7 +248,8 @@ def setup(cfg):
 
 
 def insert_chips(cfg, detections):
-    with session(cfg, cluster(cfg)) as s:
+    with cluster(cfg) as c:
+        s = session(cfg, c)
         detection = first(detections)
         st = 'INSERT INTO {keyspace}.chip (cx, cy, dates) VALUES (?, ?, ?)'.format(keyspace=cfg['cassandra_keyspace'])
         stmt = s.prepare(st)
@@ -256,7 +259,8 @@ def insert_chips(cfg, detections):
 
 
 def insert_pixels(cfg, detections):
-    with session(cfg, cluster(cfg)) as s:
+    with cluster(cfg) as c:
+        s = session(cfg, c)
         st = 'INSERT INTO {keyspace}.pixel (cx, cy, px, py, mask) VALUES (?, ?, ?, ?, ?)'.format(keyspace=cfg['cassandra_keyspace'])
         stmt = s.prepare(st)
 
@@ -273,7 +277,8 @@ def insert_pixels(cfg, detections):
 
             
 def insert_tile(cfg, tx, ty, model):
-    with session(cfg, cluster(cfg)) as s:
+    with cluster(cfg) as c:
+        s = session(cfg, c)
         st = 'INSERT INTO {keyspace}.tile (tx, ty, model) VALUES (%(tx)s, %(ty)s, %(model)s);'
         st = st.format(keyspace=cfg['cassandra_keyspace'])
 
@@ -285,8 +290,8 @@ def insert_tile(cfg, tx, ty, model):
                   
                 
 def insert_segments(cfg, detections):
-    with session(cfg, cluster(cfg)) as s:
-    
+    with cluster(cfg) as c:
+        s = session(cfg, c)    
         st = '''INSERT INTO {keyspace}.segment 
                     (cx, cy, px, py, sday, eday, bday, chprob, curqa,
                      blcoef, blint, blmag, blrmse,
@@ -330,8 +335,8 @@ def insert_segments(cfg, detections):
 
                 
 def insert_predictions(cfg, predictions):
-    with session(cfg, cluster(cfg)) as s:
-    
+    with cluster(cfg) as c:
+        s = session(cfg, c)    
         st = '''INSERT INTO {keyspace}.prediction 
                     (cx, cy, px, py, sday, eday, pday, prob) 
                 VALUES 
