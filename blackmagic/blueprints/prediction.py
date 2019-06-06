@@ -14,6 +14,7 @@ from cytoolz import do
 from cytoolz import first
 from cytoolz import get
 from cytoolz import get_in
+from cytoolz import groupby
 from cytoolz import merge
 from cytoolz import partial
 from cytoolz import second
@@ -24,6 +25,7 @@ from flask import jsonify
 from flask import request
 from functools import wraps
 from merlin.functions import flatten
+from operator import add
 from xgboost.core import Booster
 
 import logging
@@ -46,13 +48,13 @@ def log_request(ctx):
     d  = get('day', ctx, None)
     a  = get('acquired', ctx, None)
     
-    logger.info("POST /tile {tx},{ty},{cx},{cy},{m},{d},{a}".format(tx=tx,
-                                                                    ty=ty,
-                                                                    cx=cx,
-                                                                    cy=cy,
-                                                                    m=m,
-                                                                    d=d,
-                                                                    a=a))
+    logger.info("POST /prediction {tx},{ty},{cx},{cy},{m},{d},{a}".format(tx=tx,
+                                                                          ty=ty,
+                                                                          cx=cx,
+                                                                          cy=cy,
+                                                                          m=m,
+                                                                          d=d,
+                                                                          a=a))
     return ctx
 
 
@@ -70,27 +72,14 @@ def exception_handler(ctx, http_status, name, fn):
                                      'exception': '{name} exception: {ex}'.format(name=name, ex=e),
                                      'http_status': http_status})
 
-    
-def prediction_fn(segment, model):
-    ind = segment['independent']
-    ind = ind.reshape(1, -1) if ind.ndim < 2 else ind
-
-    return assoc(segment,
-                 'prob',
-                 model.predict(xgb.DMatrix(ind))[0])
-
-    
-def predict(segment, model_bytes):
-    model = booster(model_bytes)    
-    return prediction_fn(segment, model)
-
 
 def reformat(segments):
     return map(segaux.prediction_format, segments)
 
 
-def booster(model_bytes):
-    return segaux.booster_from_bytes(model_bytes, {'nthread': 1})
+def booster(cfg, model_bytes):
+    return segaux.booster_from_bytes(model_bytes,
+                                     {'nthread': get_in(['xgboost', 'parameters', 'nthread'], cfg)})
 
 
 def extract_segments(ctx):
@@ -122,13 +111,11 @@ def measure(fn):
 @skip_on_exception
 @measure
 def load_data(ctx, cfg):
-    
     return assoc(ctx,
                  'data',
                  thread_first(ctx,
                               partial(segaux.segments, cfg=cfg),
                               partial(segaux.aux, cfg=cfg),
-                              segaux.aux_filter,                        
                               segaux.combine,
                               segaux.unload_segments,
                               segaux.unload_aux,
@@ -140,18 +127,100 @@ def load_data(ctx, cfg):
                               reformat))
 
 
+@raise_on('test_load_model_exception')
+@skip_on_exception
+@measure
+def load_model(ctx, cfg):
+    stmt  = db.select_tile(cfg, ctx['tx'], ctx['ty'])
+    
+    fn = excepts(StopIteration,
+                 lambda cfg, statement: bytes.fromhex(first(db.execute_statement(cfg, statement)).model))
+
+    model = fn(cfg, stmt)
+
+    if model is None:
+        raise Exception("No model found for tx:{tx} and ty:{ty}".format(**ctx))
+    else:
+        return assoc(ctx, 'model_bytes', model)
+    
+
+@raise_on('test_group_data_exception')
+@skip_on_exception
+@measure
+def group_data(ctx):
+    grouper = lambda x: 'defaults' if x['sday'] == '0001-01-01' and x['eday'] == '0001-01-01' else 'data'
+    groups  = groupby(grouper, ctx['data'])
+    return merge(ctx,
+                 {'data': get('data', groups, []),
+                  'defaults': get('defaults', groups, [])})
+    
+
+@raise_on('test_matrix_exception')
+@skip_on_exception
+@measure
+def matrix(ctx):
+    return assoc(ctx,
+                 'ndata',
+                 numpy.array([d['independent'] for d in ctx['data']], dtype='float32'))
+
+    
 @raise_on('test_prediction_exception')
 @skip_on_exception
 @measure
 def predictions(ctx, cfg):
+    model = booster(cfg, get('model_bytes', ctx))
+    probs = model.predict(xgb.DMatrix(ctx['ndata']))
+    preds = []
+    
+    for i,v in enumerate(probs):
+        preds.append(assoc(ctx['data'][i], 'prob', v))
 
-    p = partial(predict, model_bytes=get('model_bytes', ctx))
+    return assoc(ctx, 'predictions', preds)
+
+    #############################################################
+    # relying on position in a collection is highly error prone,
+    # but in this case we have to use xgboost parallelization for
+    # performance so there's no other way to do it.
+    #
+    # Previous implementation used Python workers and resulted
+    # in a chip runtime of approximately 970 seconds for
+    # predictions over 1982-2017 for a single cx,cy.
+    #
+    #############################################################
+    # Python worker method:
+    #
+    # def prediction_fn(segment, model):
+    #     ind = segment['independent']
+    #     ind = ind.reshape(1, -1) if ind.ndim < 2 else ind
+    #
+    #     return assoc(segment,
+    #                  'prob',
+    #                  model.predict(xgb.DMatrix(ind))[0])
+    #
+    #
+    # def predict(segment, model_bytes):
+    #     model = booster(model_bytes)    
+    #     return prediction_fn(segment, model)
+    #
+    #
+    # p = partial(predict, model_bytes=get('model_bytes', ctx))             
+    # with workers(cfg) as w:
+    #    return assoc(ctx,
+    #                 'predictions',
+    #                 list(filter(lambda x: x is not None,
+    #                             w.map(p, ctx['data']))))
+    #############################################################
+
                  
-    with workers(cfg) as w:
-       return assoc(ctx,
-                    'predictions',
-                    list(filter(lambda x: x is not None,
-                                w.map(p, ctx['data']))))
+@raise_on('test_default_predictions_exception')
+@skip_on_exception
+@measure
+def default_predictions(ctx):
+    default = lambda x: assoc(x, 'prob', [])
+    return assoc(ctx,
+                 'predictions',
+                 add(list(map(default, get('defaults', ctx, []))),
+                     ctx['predictions']))
 
                  
 @skip_on_exception
@@ -185,33 +254,15 @@ def parameters(r):
                 'cy': int(cy),
                 'test_load_model_exception': get('test_load_model_exception', r, None),
                 'test_load_data_exception': get('test_load_data_exception', r, None),
+                'test_group_data_exception': get('test_group_data_exception', r, None),
+                'test_matrix_exception': get('test_matrix_exception', r, None),
                 'test_prediction_exception': get('test_prediction_exception', r, None),
+                'test_default_predictions_exception': get('test_default_predictions_exception', r, None),
                 'test_delete_exception': get('test_delete_exception', r, None),
                 'test_save_exception': get('test_save_exception', r, None)}
 
     
-@skip_on_exception
-def add_cluster(ctx, cfg):
-    return assoc(ctx, 'cluster', db.cluster(cfg))
 
-
-@raise_on('test_load_model_exception')
-@skip_on_exception
-@measure
-def load_model(ctx, cfg):
-
-    sess  = db.session(cfg, ctx['cluster']) 
-    stmt  = db.select_tile(cfg, ctx['tx'], ctx['ty'])
-    
-    fn = excepts(StopIteration,
-                 lambda session, statement: bytes.fromhex(first(session.execute(statement)).model))
-
-    model = fn(sess, stmt)
-
-    if model is None:
-        raise Exception("No model found for tx:{tx} and ty:{ty}".format(**ctx))
-    else:
-        return assoc(ctx, 'model_bytes', model)
 
     
 @raise_on('test_delete_exception')
@@ -232,7 +283,6 @@ def delete(ctx, cfg):
 def save(ctx, cfg):                                                
     '''Saves predictions to Cassandra'''
 
-    #print("PREDICTIONS TO SAVE:{}".format(ctx['predictions']))
     # save all new predictions
     db.insert_predictions(cfg, ctx['predictions'])
                 
@@ -261,24 +311,6 @@ def respond(ctx):
 
     return response
 
-
-# xgboost models are not thread safe nor are they sharable
-# across processes because the Python object holds a
-# reference to the underlying C XGBoost memory locations.
-
-# This means that we should load the model from Cassandra
-# one time, decode it from hex into bytes one time,
-# but then instantiate a new XGBoost Classifier for
-# each process that is going to run.
-
-# In seperate processes, a model can be created,
-# and prediction can occur.
-# Results can be collected from pool.map()
-# for persistence into Cassandra using batches
-
-# The models saved to Cassandra are around 100MB,
-# so 100MB + space for the segments will be needed
-# per segments for cx, cy.
                 
 @prediction.route('/prediction', methods=['POST'])        
 def predictions_route():
@@ -286,10 +318,12 @@ def predictions_route():
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
-                        partial(exception_handler, http_status=500, name='add_cluster', fn=partial(add_cluster, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='load_model', fn=partial(load_model, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='load_data', fn=partial(load_data, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='group_data', fn=group_data),
+                        partial(exception_handler, http_status=500, name='matrix', fn=matrix),
                         partial(exception_handler, http_status=500, name='predictions', fn=partial(predictions, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='default_predictions', fn=default_predictions),
                         partial(exception_handler, http_status=500, name='delete', fn=partial(delete, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
                         respond)

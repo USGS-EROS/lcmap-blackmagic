@@ -1,18 +1,19 @@
-import json
-import os
-import pytest
-import random
-import test
-
 from blackmagic import app
 from blackmagic import db
+from blackmagic.blueprints import prediction
 from cassandra.cluster import Cluster
 from cytoolz import count
 from cytoolz import get
 from cytoolz import merge
 from cytoolz import reduce
-
 from datetime import date
+
+import json
+import numpy
+import os
+import pytest
+import random
+import test
 
 
 def delete_predictions(cx, cy):
@@ -132,7 +133,7 @@ def test_prediction_runs_as_expected(client):
 
     # The number of predictions is dictated by the NLCDTRN dataset for the chip,
     # and the number of non-zero classifications available.
-    assert len([p for p in predictions]) == 19047
+    assert len([p for p in predictions]) == 30000
     
 
 def test_prediction_bad_parameters(client):
@@ -269,6 +270,144 @@ def test_prediction_load_model_exception(client):
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
+
+    
+def test_prediction_group_data_exception(client):
+    '''
+    As a blackmagic user, when an exception occurs
+    grouping prediction data, an HTTP 500 is issued
+    with a descriptive message so that the issue may be 
+    investigated, corrected & retried.
+    '''
+
+    tx = test.tx
+    ty = test.ty
+    cx = test.cx
+    cy = test.cy
+    acquired = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
+
+    delete_predictions(test.cx, test.cy)
+    
+    response = client.post('/prediction',
+                           json={'tx': tx,
+                                 'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
+                                 'acquired': acquired,
+                                 'month': month,
+                                 'day': day,
+                                 'test_group_data_exception': True})
+    
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
+    
+    assert response.status == '500 INTERNAL SERVER ERROR'
+    assert get('tx', response.get_json()) == tx
+    assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == acquired
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, predictions))) == 0
+
+    
+def test_prediction_matrix_exception(client):
+    '''
+    As a blackmagic user, when an exception occurs
+    constructing a prediction matrix, an HTTP 500 is issued
+    with a descriptive message so that the issue may be 
+    investigated, corrected & retried.
+    '''
+
+    tx = test.tx
+    ty = test.ty
+    cx = test.cx
+    cy = test.cy
+    acquired = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
+
+    delete_predictions(test.cx, test.cy)
+    
+    response = client.post('/prediction',
+                           json={'tx': tx,
+                                 'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
+                                 'acquired': acquired,
+                                 'month': month,
+                                 'day': day,
+                                 'test_matrix_exception': True})
+    
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
+    
+    assert response.status == '500 INTERNAL SERVER ERROR'
+    assert get('tx', response.get_json()) == tx
+    assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == acquired
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, predictions))) == 0
+
+    
+def test_prediction_default_predictions_exception(client):
+    '''
+    As a blackmagic user, when an exception occurs
+    creating default predictions, an HTTP 500 is issued
+    with a descriptive message so that the issue may be 
+    investigated, corrected & retried.
+    '''
+
+    tx = test.tx
+    ty = test.ty
+    cx = test.cx
+    cy = test.cy
+    acquired = test.acquired
+    month = test.prediction_month
+    day = test.prediction_day
+
+    delete_predictions(test.cx, test.cy)
+    
+    response = client.post('/prediction',
+                           json={'tx': tx,
+                                 'ty': ty,
+                                 'cx': cx,
+                                 'cy': cy,
+                                 'acquired': acquired,
+                                 'month': month,
+                                 'day': day,
+                                 'test_default_predictions_exception': True})
+    
+    predictions = db.execute_statement(cfg=app.cfg,
+                                       stmt=db.select_predictions(cfg=app.cfg,
+                                                                  cx=test.cx,
+                                                                  cy=test.cy))
+    
+    assert response.status == '500 INTERNAL SERVER ERROR'
+    assert get('tx', response.get_json()) == tx
+    assert get('ty', response.get_json()) == ty
+    assert get('cx', response.get_json()) == cx
+    assert get('cy', response.get_json()) == cy
+    assert get('acquired', response.get_json()) == acquired
+    assert get('month', response.get_json()) == month
+    assert get('day', response.get_json()) == day
+    assert type(get('exception', response.get_json())) is str
+    assert len(get('exception', response.get_json())) > 0
+    assert len(list(map(lambda x: x, predictions))) == 0
     
     
 def test_prediction_load_data_exception(client):
@@ -316,8 +455,6 @@ def test_prediction_load_data_exception(client):
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
 
-
-    
 
 def test_prediction_prediction_exception(client):
     '''
@@ -455,3 +592,150 @@ def test_prediction_save_exception(client):
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, predictions))) == 0
+
+    
+def test_prediction_group_data():
+    # both data and default
+    inputs = {'data': [{'sday': '0001-01-01', 'eday': '0001-01-01'},
+                       {'sday': '0001-01-02', 'eday': '0001-01-02'}]}
+
+    expected = {'data':     [{'sday': '0001-01-02', 'eday': '0001-01-02'}],
+                'defaults': [{'sday': '0001-01-01', 'eday': '0001-01-01'}]}
+    
+    outputs = prediction.group_data(inputs)
+
+    assert expected == outputs
+
+    
+    # data only
+    inputs = {'data': [{'sday': '0001-01-03', 'eday': '0001-01-03'},
+                       {'sday': '0001-01-02', 'eday': '0001-01-02'}]}
+
+    expected = {'data': [{'sday': '0001-01-03', 'eday': '0001-01-03'},
+                         {'sday': '0001-01-02', 'eday': '0001-01-02'}],
+                'defaults': []}
+    
+    outputs = prediction.group_data(inputs)
+
+    assert expected == outputs
+
+    
+    # defaults only
+    inputs = {'data': [{'sday': '0001-01-01', 'eday': '0001-01-01'},
+                       {'sday': '0001-01-01', 'eday': '0001-01-01'}]}
+
+    expected = {'data': [],
+                'defaults': [{'sday': '0001-01-01', 'eday': '0001-01-01'},
+                             {'sday': '0001-01-01', 'eday': '0001-01-01'}]}
+    
+    outputs = prediction.group_data(inputs)
+
+    assert expected == outputs
+
+    
+def test_prediction_matrix():
+    # normal independent variables have 68 values
+    # independent variables derived from default segments
+    # have 19 values because there were no coefficients saved
+    # but there are aux data + other vals.
+    #
+    # You cannot build a 2d numpy array out of
+    # numpy arrays of varying size.
+    #
+    # How to represent default predictions in the system?
+    #
+    # Doing checks for length 19 and 68 is a horrible idea.
+    #
+    # This demonstrates the error
+    # >>> numpy.array([numpy.array([1,2,3]), numpy.array([1,1,1,1,1,1])], dtype='float32')
+    # Traceback (most recent call last):
+    # File "<stdin>", line 1, in <module>
+    # ValueError: setting an array element with a sequence.
+    #
+    # One idea is to detect and split all records that will wind up being
+    # a default prediction prior to constructing the matrix.  They are detectable
+    # by the sday & eday being set to '0001-01-01'.
+    #
+    # Another idea is to (somehow) detect the default independent variables without
+    # hardcoding the length as a check and pad or change them so they fit into the
+    # 2d array.
+    #
+    # Using the 2nd approach, if the interface requires a zero length probability array,
+    # you'll need to detect them again post-prediction, wipe out the predicted values
+    # and then save those to Cassandra.
+    #
+    # Approach 1 seems least complex.  Detect default segments, group them, run prediction
+    # on the remainder, combine default segments back into the resultset with the desired
+    # default value ([]), save to Cassandra.
+
+    
+    # normal expected input with no default segments
+    inputs = {'data': [{'independent': [1.,2.,3.,4.]},
+                       {'independent': [5.,6.,7.,8.]}]}
+
+    expected = {'data':  [{'independent': [1.,2.,3.,4.]},
+                          {'independent': [5.,6.,7.,8.]}],
+                'ndata': numpy.array([[1.,2.,3.,4.],
+                                      [5.,6.,7.,8.]], dtype='float32')}
+
+    outputs = prediction.matrix(inputs)
+
+    assert numpy.array_equal(outputs['ndata'], expected['ndata'])
+    assert expected['data'] == outputs['data']
+
+
+def test_prediction_default_predictions():
+
+    # both defaults and predictions
+    inputs = {'defaults':    [{"a": 1}, {"a": 2}],
+              'predictions': [{"b": 3}, {"b": 4}]}
+
+    expected = {'defaults': [{"a": 1}, {"a": 2}],
+                'predictions': [{"a": 1, "prob": []},
+                                {"a": 2, "prob": []},
+                                {"b": 3},
+                                {"b": 4}]}
+
+    outputs = prediction.default_predictions(inputs)
+
+    assert outputs == expected
+
+
+    # defaults only
+
+    inputs = {'defaults':    [{"a": 1}, {"a": 2}],
+              'predictions': []}
+
+    expected = {'defaults': [{"a": 1}, {"a": 2}],
+                'predictions': [{"a": 1, "prob": []},
+                                {"a": 2, "prob": []}]}
+                                
+    outputs = prediction.default_predictions(inputs)
+
+    assert outputs == expected
+
+    # predictions only
+
+    inputs = {'defaults':    [],
+              'predictions': [{"b": 3}, {"b": 4}]}
+
+    expected = {'defaults': [],
+                'predictions': [{"b": 3},{"b": 4}]}
+    
+    outputs = prediction.default_predictions(inputs)
+
+    assert outputs == expected
+
+    # neither
+    inputs = {'defaults': [],
+              'predictions': []}
+
+    expected = {'defaults': [],
+                'predictions': []}
+
+    outputs = prediction.default_predictions(inputs)
+
+    assert outputs == expected
+
+
+

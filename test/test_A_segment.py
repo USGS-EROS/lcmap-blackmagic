@@ -1,13 +1,13 @@
-import json
-import os
-import pytest
-import test
-
 from blackmagic import app
 from blackmagic import db
 from cassandra.cluster import Cluster
 from cytoolz import get
 from cytoolz import reduce
+
+import json
+import os
+import pytest
+import test
 
 
 def delete_detections(cx, cy):

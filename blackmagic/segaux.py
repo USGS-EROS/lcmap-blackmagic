@@ -98,12 +98,10 @@ def aux_filter(ctx):
        wait=wait_random_exponential(multiplier=1, max=60))
 def segments(ctx, cfg):
     '''Return segments stored in Cassandra'''
-
-    s = db.session(cfg, ctx['cluster'])
     
     return assoc(ctx,
                  'segments',
-                 [r for r in s.execute(db.select_segments(cfg, ctx['cx'], ctx['cy']))])
+                 [r for r in db.execute_statement(cfg, db.select_segments(cfg, ctx['cx'], ctx['cy']))])
                                         
 
 def combine(ctx):
