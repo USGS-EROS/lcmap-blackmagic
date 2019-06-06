@@ -107,11 +107,6 @@ def measure(fn):
     return wrapper
 
 
-@skip_on_exception
-def add_cluster(ctx, cfg):
-    return assoc(ctx, 'cluster', db.cluster(cfg))
-
-
 @raise_on('test_load_data_exception')
 @skip_on_exception
 @measure
@@ -136,13 +131,12 @@ def load_data(ctx, cfg):
 @skip_on_exception
 @measure
 def load_model(ctx, cfg):
-    sess  = db.session(cfg, ctx['cluster']) 
     stmt  = db.select_tile(cfg, ctx['tx'], ctx['ty'])
     
     fn = excepts(StopIteration,
-                 lambda session, statement: bytes.fromhex(first(session.execute(statement)).model))
+                 lambda cfg, statement: bytes.fromhex(first(db.execute_statement(cfg, statement)).model))
 
-    model = fn(sess, stmt)
+    model = fn(cfg, stmt)
 
     if model is None:
         raise Exception("No model found for tx:{tx} and ty:{ty}".format(**ctx))
@@ -324,7 +318,6 @@ def predictions_route():
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
-                        partial(exception_handler, http_status=500, name='add_cluster', fn=partial(add_cluster, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='load_model', fn=partial(load_model, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='load_data', fn=partial(load_data, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='group_data', fn=group_data),
