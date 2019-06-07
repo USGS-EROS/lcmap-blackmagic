@@ -38,13 +38,12 @@ URLs
 |                        | date, chips            | at tx,ty for chips in list for     |
 |                        |                        | prediction date.  Acquired         |
 |                        |                        | controls aux data inputs to        |
-|                        |                        | to training entries                |
+|                        |                        | training entries                   |
 +------------------------+------------------------+------------------------------------+
 | POST /prediction       | tx, ty, cx, cy         | Save xgboost predictions for       |
-|                        | acquired, month, day   | chip x (cx) and chip y (cy) using  |
-|                        |                        | model saved at tx,ty for segments  |
-|                        |                        | in acquired range with prediction  |
-|                        |                        | date of month & day.               |
+|                        | acquired, month, day   | cx,cy using model saved at tx,ty   |
+|                        |                        | for segments in acquired range     |
+|                        |                        | with prediction date of month-day  |
 +------------------------+------------------------+------------------------------------+
 | GET /health            | None                   | Determine health of server         |
 +------------------------+------------------------+------------------------------------+
