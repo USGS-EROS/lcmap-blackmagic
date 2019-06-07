@@ -16,7 +16,7 @@ setup(name='lcmap-blackmagic',
       description='HTTP server that saves detected changes and predictions to Apache Cassandra for LCMAP',
       long_description=readme(),
       classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Stable',
         'License :: OSI Approved :: Unlicense',
         'Programming Language :: Python :: 3.7',
       ],
