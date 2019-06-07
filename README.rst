@@ -6,7 +6,6 @@ lcmap-blackmagic
 ================
 HTTP server that saves land change segment, trained classifiers & land cover probabilities to Apache Cassandra  
 
-PyCCD, XGBoost & land cover probabilities to Apache Cassandra
 
 What does it do?
 ----------------
@@ -15,6 +14,7 @@ What does it do?
 * Applies classifiers to create land cover probabilities
 * Automatic schema creation on startup
 
+  
 Use 
 ----
 .. code-block:: bash
@@ -26,6 +26,7 @@ Use
 
     $ http --timeout=12000 POST http://localhost:9876/prediction tx=1484415 ty=2414805 cx=1556415 cy=2366805 acquired=1982/2017 month=7 day=1 
 
+    
 URLs
 ----
 +------------------------+------------------------+------------------------------------+
@@ -48,6 +49,7 @@ URLs
 | GET /health            | None                   | Determine health of server         |
 +------------------------+------------------------+------------------------------------+
 
+
 Requirements
 ------------
 * lcmap-chipmunk running with ARD & NLCD data ingested
@@ -55,6 +57,7 @@ Requirements
 * An Apache Cassandra cluster to save outputs
 * HTTP traffic load balancer (optional)
 
+  
 Install & Run
 -------------
 
@@ -155,7 +158,6 @@ Deployment Examples
     -e CPUS_PER_WORKER=<number of cores available>
 
     
-
 HTTP Requests & Responses
 -------------------------
 .. code-block:: bash
@@ -265,6 +267,7 @@ HTTP Requests & Responses
 
     # Add /prediction examples here
 
+    
 Testing
 -------
 Tests are available in the ``test/`` directory.  To properly test blackmagic
@@ -300,6 +303,7 @@ See ``Makefile``, ``deps/docker-compose.yml``, ``deps/nginx.conf``, ``.travis.ym
 Versioning
 ----------
 lcmap-blackmagic follows semantic versioning: http://semver.org/
+
 
 License
 -------
