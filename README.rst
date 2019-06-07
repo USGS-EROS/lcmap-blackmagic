@@ -4,15 +4,57 @@
 ================
 lcmap-blackmagic
 ================
-HTTP server that saves PyCCD & prediction output to Apache Cassandra
+HTTP server that saves land change segment, trained classifiers & land cover probabilities to Apache Cassandra  
+
+PyCCD, XGBoost & land cover probabilities to Apache Cassandra
 
 What does it do?
 ----------------
-* Executes PyCCD over HTTP
-* Executes XGBoost model training over HTTP
-* Applies trained XGBoost models to PyCCD results over HTTP
-* Saves outputs to Apache Cassandra (automatic schema creation on startup)
-  
+* Uses PyCCD to detect land change segments
+* Trains & persists XGBoost classifiers from change segments & NLCD reference data
+* Applies classifiers to create land cover probabilities
+* Automatic schema creation on startup
+
+Use 
+----
+.. code-block:: bash
+
+    
+    $ http --timeout=12000 POST http://localhost:9876/segment cx=1556415 cy=2366805 acquired=1980/2017
+
+    $ http --timeout=12000 POST http://localhost:9876/tile tx=1484415 ty=2414805 acquired=1980/2017 date=2001-07-01 chips=[[1484415,2414805], [...]]
+
+    $ http --timeout=12000 POST http://localhost:9876/prediction tx=1484415 ty=2414805 cx=1556415 cy=2366805 acquired=1982/2017 month=7 day=1 
+
+URLs
+----
++------------------------+------------------------+------------------------------------+
+| URL                    | Parameters             | Description                        |
++========================+========================+====================================+
+| POST /segment          | cx, cy, acquired       | Save change detection segments     |
++------------------------+------------------------+------------------------------------+
+| POST /tile             | tx, ty, acquired,      | Create and save xgboost model      |
+|                        | date, chips            | at tx,ty for chips in list for     |
+|                        |                        | prediction date.  Acquired         |
+|                        |                        | controls aux data inputs to        |
+|                        |                        | to training entries                |
++------------------------+------------------------+------------------------------------+
+| POST /prediction       | tx, ty, cx, cy         | Save xgboost predictions for       |
+|                        | acquired, month, day   | chip x (cx) and chip y (cy) using  |
+|                        |                        | model saved at tx,ty for segments  |
+|                        |                        | in acquired range with prediction  |
+|                        |                        | date of month & day.               |
++------------------------+------------------------+------------------------------------+
+| GET /health            | None                   | Determine health of server         |
++------------------------+------------------------+------------------------------------+
+
+Requirements
+------------
+* lcmap-chipmunk running with ARD & NLCD data ingested
+* Ability to run Docker containers
+* An Apache Cassandra cluster to save outputs
+* HTTP traffic load balancer (optional)
+
 Install & Run
 -------------
 
@@ -88,23 +130,6 @@ From Github:
     $ ./bin/blackmagic.sh
 
     
-URLs
-----
-+------------------------+------------------------+------------------------------------+
-| URL                    | Parameters             | Description                        |
-+========================+========================+====================================+
-| POST /segment          | cx, cy, acquired       | Save change detection segments     |
-+------------------------+------------------------+------------------------------------+
-| POST /tile             | tx, ty, acquired,      | Create and save xgboost model      |
-| (WIP)                  | date, chips            | chips/date at tile x and tile y    | 
-+------------------------+------------------------+------------------------------------+
-| POST /prediction       | cx, cy                 | Save xgboost predictions for       |
-| (not yet implemented)  |                        | chip x (cx) and chip y (cy)        |
-+------------------------+------------------------+------------------------------------+
-| GET /health            | None                   | Determine health of server         |
-+------------------------+------------------------+------------------------------------+
-
-    
 Tuning
 ------
 Blackmagic has two primary controls that determine the nature of its parallelism and concurrency: ``WORKERS`` and ``CPUS_PER_WORKER``.
@@ -130,20 +155,11 @@ Deployment Examples
     -e CPUS_PER_WORKER=<number of cores available>
 
     
+
 HTTP Requests & Responses
 -------------------------
 .. code-block:: bash
-
 		
-    # run change detection on a chip
-    
-    $ http --timeout=12000 POST http://localhost:5000/segment cx=1556415 cy=2366805 acquired=1980/2017
-
-    # train and save an XGBoost model for a tile
-
-    $ http --timeout=12000 POST http://localhost:5000/tile tx=1484415 ty=2414805 acquired=1980/2017 date=2001-07-01 chips=[[1484415,2414805], [...]]
-   
-
     # /segment resource expects cx (chip x) and cy (chip y) as parameters
     # If parameters are missing /segment returns HTTP 400 with JSON message
 		
@@ -244,6 +260,10 @@ HTTP Requests & Responses
         "cy": "2414805", 
         "msg": "db connection error"
     }
+
+    # Add /tile examples here
+
+    # Add /prediction examples here
 
 Testing
 -------
