@@ -261,10 +261,7 @@ def parameters(r):
                 'test_delete_exception': get('test_delete_exception', r, None),
                 'test_save_exception': get('test_save_exception', r, None)}
 
-    
-
-
-    
+        
 @raise_on('test_delete_exception')
 @skip_on_exception
 @measure

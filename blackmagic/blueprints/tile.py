@@ -27,6 +27,7 @@ from sklearn.model_selection import train_test_split
 
 import arrow
 import logging
+import json
 import numpy
 import xgboost as xgb
 
@@ -89,8 +90,6 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
            'acquired': acquired,
            'cluster': _cluster(cfg)}
 
-    # {'cx': 0, 'cy': 0, 'acquired': '1980/2018', 'date': '2001-07-01', aux:{}, segments:[], data:[]}
-
     return thread_first(ctx,
                         partial(segaux.segments, cfg=cfg),
                         segments_filter,
@@ -109,14 +108,19 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
 def exception_handler(ctx, http_status, name, fn):
     try:
         return fn(ctx)
-    except Exception as e:        
-        return do(logger.exception, {'tx': get('tx', ctx, None),
-                                     'ty': get('ty', ctx, None),
-                                     'acquired': get('acquired', ctx, None),
-                                     'date': get('date', ctx, None),
-                                     'chips': get('chips', ctx, None),
-                                     'exception': '{name} exception: {ex}'.format(name=name, ex=e),
-                                     'http_status': http_status})
+    except Exception as e:
+        d = {'tx': get('tx', ctx, None),
+             'ty': get('ty', ctx, None),
+             'acquired': get('acquired', ctx, None),
+             'date': get('date', ctx, None),
+             'chips': get('chips', ctx, None),
+             'exception': '{name} exception: {ex}'.format(name=name, ex=e),
+             'http_status': http_status}
+
+        logger.exception(json.dumps(assoc(d,
+                                          'chips',
+                                          count(get('chips', ctx, [])))))
+        return d
 
     
 def measure(fn):
@@ -129,11 +133,12 @@ def measure(fn):
              "ty":get("ty", ctx, None),
              "date":get("date", ctx, None),
              "acquired":get("acquired", ctx, None),
-             "chips":"count:{}".format(count(get("chips", ctx, [])))}
-            
-        logger.info(assoc(d,
-                          "{name}_elapsed_seconds".format(name=fn.__name__),
-                          (datetime.now() - start).total_seconds()))            
+             "chips":count(get("chips", ctx, []))}
+                        
+        logger.info(json.dumps(assoc(d,
+                                     "{name}_elapsed_seconds".format(name=fn.__name__),
+                                     (datetime.now() - start).total_seconds())))
+
         return ctx
     return wrapper                 
 
@@ -295,7 +300,7 @@ def respond(ctx):
             'ty': get('ty', ctx, None),
             'acquired': get('acquired', ctx, None),
             'date': get('date', ctx, None),
-            'chips': get('chips', ctx, None)}
+            'chips': count(get('chips', ctx, []))}
 
     e = get('exception', ctx, None)
     

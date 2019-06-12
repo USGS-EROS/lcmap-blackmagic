@@ -3,6 +3,7 @@ from blackmagic import db
 from blackmagic.blueprints import tile
 from cassandra.cluster import Cluster
 from collections import namedtuple
+from cytoolz import count
 from cytoolz import first
 from cytoolz import get
 from cytoolz import reduce
@@ -65,7 +66,7 @@ def test_tile_runs_as_expected(client):
     assert get('ty', response.get_json()) == ty
     assert get('acquired', response.get_json()) == acquired
     assert get('date', response.get_json()) == date
-    assert get('chips', response.get_json()) == chips
+    assert get('chips', response.get_json()) == count(chips)
     assert get('exception', response.get_json(), None) == None
     assert len(list(map(lambda x: x, tiles))) == 1
 
@@ -102,7 +103,7 @@ def test_tile_bad_parameters(client):
     assert get('ty', response.get_json()) == ty
     assert get('acquired', response.get_json()) == acquired
     assert get('date', response.get_json()) == date
-    assert get('chips', response.get_json()) == chips
+    assert get('chips', response.get_json()) == count(chips)
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, tiles))) == 0
@@ -141,7 +142,7 @@ def test_tile_data_exception(client):
     assert get('ty', response.get_json()) == ty
     assert get('acquired', response.get_json()) == acquired
     assert get('date', response.get_json()) == date
-    assert get('chips', response.get_json()) == chips
+    assert get('chips', response.get_json()) == count(chips)
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, tiles))) == 0
@@ -180,7 +181,7 @@ def test_tile_training_exception(client):
     assert get('ty', response.get_json()) == ty
     assert get('acquired', response.get_json()) == acquired
     assert get('date', response.get_json()) == date
-    assert get('chips', response.get_json()) == chips
+    assert get('chips', response.get_json()) == count(chips)
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, tiles))) == 0
@@ -220,7 +221,7 @@ def test_tile_cassandra_exception(client):
     assert get('ty', response.get_json()) == ty
     assert get('acquired', response.get_json()) == acquired
     assert get('date', response.get_json()) == date
-    assert get('chips', response.get_json()) == chips
+    assert get('chips', response.get_json()) == count(chips)
     assert type(get('exception', response.get_json())) is str
     assert len(get('exception', response.get_json())) > 0
     assert len(list(map(lambda x: x, tiles))) == 0
