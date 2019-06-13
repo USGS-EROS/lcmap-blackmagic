@@ -159,6 +159,7 @@ def group_data(ctx):
 @skip_on_exception
 @measure
 def matrix(ctx):
+    
     return assoc(ctx,
                  'ndata',
                  numpy.array([d['independent'] for d in ctx['data']], dtype='float32'))
@@ -169,7 +170,7 @@ def matrix(ctx):
 @measure
 def predictions(ctx, cfg):
     model = booster(cfg, get('model_bytes', ctx))
-    probs = model.predict(xgb.DMatrix(ctx['ndata']))
+    probs = model.predict(xgb.DMatrix(ctx['ndata'])) if len(ctx['ndata']) > 0 else []
     preds = []
     
     for i,v in enumerate(probs):
