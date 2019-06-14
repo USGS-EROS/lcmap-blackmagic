@@ -84,7 +84,7 @@ From Dockerhub:
 	       -e WORKER_TIMEOUT=12000 \
                usgseros/lcmap-blackmagic:1.0
 
-From PyPI (available after first production release to Master):
+From PyPI:
 
 .. code-block:: bash
 
@@ -261,10 +261,6 @@ HTTP Requests & Responses
         "cy": "2414805", 
         "msg": "db connection error"
     }
-
-    # Add /tile examples here
-
-    # Add /prediction examples here
 
     
 Testing
