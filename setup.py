@@ -13,12 +13,12 @@ def version():
 
 setup(name='lcmap-blackmagic',
       version=version(),
-      description='HTTP server that saves detected changes and predictions to Apache Cassandra for LCMAP',
+      description='HTTP server that saves LCMAP change segments, classifiers & land cover probabilities to Apache Cassandra',
       long_description=readme(),
       classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Stable',
         'License :: OSI Approved :: Unlicense',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
       ],
       keywords='usgs lcmap eros pyccd ccdc',
       url='http://github.com/usgs-eros/lcmap-blackmagic',
@@ -27,13 +27,14 @@ setup(name='lcmap-blackmagic',
       license='Unlicense',
       packages=['blackmagic'],
       install_requires=[
-          'click==6.7',
+          'arrow',
           'cython',
           'lcmap-merlin>=2.3.1',
           'lcmap-pyccd==2018.10.17',
           'xgboost',
           'flask',
           'gunicorn',
+          'tenacity',
           'cassandra-driver'
           
       ],
@@ -42,9 +43,7 @@ setup(name='lcmap-blackmagic',
       # for example:
       # $ pip install -e .[test]
       extras_require={
-          'test': ['pytest',
-                   'vcrpy',
-                  ],
+          'test': ['pytest'],
           'dev': ['',],
       },
       #test_suite='nose.collector',

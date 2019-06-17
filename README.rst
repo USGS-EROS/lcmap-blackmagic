@@ -4,64 +4,29 @@
 ================
 lcmap-blackmagic
 ================
-HTTP server that saves PyCCD & prediction output to Apache Cassandra
+HTTP server that saves land change segment, trained classifiers & land cover probabilities to Apache Cassandra  
 
 
-On DockerHub
-------------
+What does it do?
+----------------
+* Uses PyCCD to detect land change segments
+* Trains & persists XGBoost classifiers from change segments & NLCD reference data
+* Applies classifiers to create land cover probabilities
+* Automatic schema creation on startup
 
-https://hub.docker.com/r/usgseros/lcmap-blackmagic/
-
-
-On PyPi
--------
+  
+Use 
+----
 .. code-block:: bash
-
-    pip install lcmap-blackmagic
 
     
-Features
---------
-* Exposes execution of PyCCD over HTTP
-* Saves results to Apache Cassandra
-* Automatic schema creation on startup
-* Highly tunable
-* Available as Python package or Docker image
+    $ http --timeout=12000 POST http://localhost:9876/segment cx=1556415 cy=2366805 acquired=1980/2017
 
+    $ http --timeout=12000 POST http://localhost:9876/tile tx=1484415 ty=2414805 acquired=1980/2017 date=2001-07-01 chips=[[1484415,2414805], [...]]
 
-Example
--------
+    $ http --timeout=12000 POST http://localhost:9876/prediction tx=1484415 ty=2414805 cx=1556415 cy=2366805 acquired=1982/2017 month=7 day=1 
 
-Start BlackMagic
-
-.. code-block:: bash
-
-    docker run -it \
-               --rm \
-               --net=host \
-               --pid=host \
-	       -e CASSANDRA_HOST=localhost \
-	       -e CASSANDRA_PORT=9042 \
-	       -e CASSANDRA_USER=cassandra \
-	       -e CASSANDRA_PASS=cassandra \
-	       -e CASSANDRA_KEYSPACE=some_keyspace \
-	       -e CASSANDRA_TIMEOUT=600 \
-	       -e CASSANDRA_CONSISTENCY=QUORUM \
-	       -e CASSANDRA_CONCURRENT_WRITES=1 \
-	       -e CHIPMUNK_URL=http://host:port/path \
-	       -e CPUS_PER_WORKER=4 \
-	       -e HTTP_PORT=5000 \
-	       -e WORKERS=4 \
-	       -e WORKER_TIMEOUT=12000 \
-               usgseros/lcmap-blackmagic:1.0
-
-	    
-Send a request
-
-.. code-block:: bash
-
-    http --timeout=12000 POST http://localhost:5000/segment cx:=1556415.0 cy:=2366805.0 acquired=1980/2017
-
+    
 URLs
 ----
 +------------------------+------------------------+------------------------------------+
@@ -69,27 +34,112 @@ URLs
 +========================+========================+====================================+
 | POST /segment          | cx, cy, acquired       | Save change detection segments     |
 +------------------------+------------------------+------------------------------------+
-| POST /tile             | tx, ty, date, chips    | Create and save xgboost model      |
-| (not yet implemented)  |                        | chips/date at tile x and tile y    | 
+| POST /tile             | tx, ty, acquired,      | Create and save xgboost model      |
+|                        | date, chips            | at tx,ty for chips in list for     |
+|                        |                        | prediction date.  Acquired         |
+|                        |                        | controls aux data inputs to        |
+|                        |                        | training entries                   |
 +------------------------+------------------------+------------------------------------+
-| POST /prediction       | cx, cy                 | Save xgboost predictions for       |
-| (not yet implemented)  |                        | chip x (cx) and chip y (cy)        |
+| POST /prediction       | tx, ty, cx, cy         | Save xgboost predictions for       |
+|                        | acquired, month, day   | cx,cy using model saved at tx,ty   |
+|                        |                        | for segments in acquired range     |
+|                        |                        | with prediction date of month-day  |
 +------------------------+------------------------+------------------------------------+
 | GET /health            | None                   | Determine health of server         |
 +------------------------+------------------------+------------------------------------+
 
+
+Requirements
+------------
+* lcmap-chipmunk running with ARD & NLCD data ingested
+* Ability to run Docker containers
+* An Apache Cassandra cluster to save outputs
+* HTTP traffic load balancer (optional)
+
+  
+Install & Run
+-------------
+
+From Dockerhub:
+
+.. code-block:: bash
+
+    docker run -it \
+               --rm \
+               --net=host \
+               --pid=host \
+	       -e CASSANDRA_BATCH_SIZE=1000 \
+	       -e CASSANDRA_HOST=localhost \
+	       -e CASSANDRA_PORT=9042 \
+	       -e CASSANDRA_USER=cassandra \
+	       -e CASSANDRA_PASS=cassandra \
+	       -e CASSANDRA_KEYSPACE=some_keyspace \
+	       -e CASSANDRA_TIMEOUT=600 \
+	       -e CASSANDRA_CONSISTENCY=ALL \
+	       -e ARD_URL=http://host:port/path \
+     	       -e AUX_URL=http://host:port/path \
+	       -e CPUS_PER_WORKER=4 \
+	       -e HTTP_PORT=5000 \
+	       -e WORKERS=4 \
+	       -e WORKER_TIMEOUT=12000 \
+               usgseros/lcmap-blackmagic:1.0
+
+From PyPI:
+
+.. code-block:: bash
+
+    $ pip install lcmap-blackmagic
+    $ export CASSANDRA_BATCH_SIZE=1000
+    $ export CASSANDRA_HOST=localhost
+    $ export CASSANDRA_PORT=9042
+    $ export CASSANDRA_USER=cassandra
+    $ export CASSANDRA_PASS=cassandra
+    $ export CASSANDRA_KEYSPACE=some_keyspace
+    $ export CASSANDRA_TIMEOUT=600
+    $ export CASSANDRA_CONSISTENCY=ALL
+    $ export ARD_URL=http://host:port/path
+    $ export AUX_URL=http://host:port/path
+    $ export CPUS_PER_WORKER=4
+    $ export HTTP_PORT=5000
+    $ export WORKERS=4
+    $ export WORKER_TIMEOUT=12000
+    $ blackmagic.sh
+
+    
+From Github:
+
+.. code-block:: bash
+		
+    $ git clone https://github.com/usgs-eros/lcmap-blackmagic
+    $ cd lcmap-blackmagic
+    $ conda create --name=blackmagic python=3.7
+    $ source activate blackmagic
+    $ pip install -e .[test]
+    $ export CASSANDRA_BATCH_SIZE=1000
+    $ export CASSANDRA_HOST=localhost
+    $ export CASSANDRA_PORT=9042
+    $ export CASSANDRA_USER=cassandra
+    $ export CASSANDRA_PASS=cassandra
+    $ export CASSANDRA_KEYSPACE=some_keyspace
+    $ export CASSANDRA_TIMEOUT=600
+    $ export CASSANDRA_CONSISTENCY=ALL
+    $ export ARD_URL=http://host:port/path
+    $ export AUX_URL=http://host:port/path
+    $ export CPUS_PER_WORKER=4
+    $ export HTTP_PORT=5000
+    $ export WORKERS=4
+    $ export WORKER_TIMEOUT=12000
+    $ ./bin/blackmagic.sh
+
     
 Tuning
 ------
-Blackmagic has three primary controls that determine the nature of its parallelism and concurrency: ``WORKERS``, ``CPUS_PER_WORKER`` & ``CASSANDRA_CONCURRENT_WRITES``.
+Blackmagic has two primary controls that determine the nature of its parallelism and concurrency: ``WORKERS`` and ``CPUS_PER_WORKER``.
 
 ``WORKERS`` controls the number of HTTP listener processes (gunicorn workers) and thus, the number of simultaneous HTTP requests that can be serviced.
 
 ``CPUS_PER_WORKER`` controls the number of cores available to each ``WORKER``.
 
-``CASSANDRA_CONCURRENT_WRITES`` controls the number of parallel cassandra writes from each worker.
-
-``CPUS_PER_WORKER`` & ``CASSANDRA_CONCURRENT_WRITES`` combined determine how quickly an individual request is completed.
 
 Deployment Examples
 ~~~~~~~~~~~~~~~~~~~
@@ -100,31 +150,21 @@ Deployment Examples
 
     -e WORKERS=<number of cores available>
     -e CPUS_PER_WORKER=1
-    -e CASSANDRA_CONCURRENT_WRITES=1
 
     # One fast HTTP request
     
     -e WORKERS=1
     -e CPUS_PER_WORKER=<number of cores available>
-    -e CASSANDRA_CONCURRENT_WRITES=1  #unless memory is climbing in WORKER process.
 
     
-Requirements
-------------
-
-* Python3 or Docker
-* Network access to Cassandra
-* Network access to Chipmunk
-
 HTTP Requests & Responses
 -------------------------
 .. code-block:: bash
-
-
+		
     # /segment resource expects cx (chip x) and cy (chip y) as parameters
     # If parameters are missing /segment returns HTTP 400 with JSON message
 		
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 
+    $ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 67
@@ -139,7 +179,7 @@ HTTP Requests & Responses
         "msg": "cx, cy, and acquired are required parameters"
     }
 
-    [user@machine]$ http --timeout 1200 POST http://localhost:9876/segment cy=1484415 
+    $ http --timeout 12000 POST http://localhost:9876/segment cy=1484415 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 67
@@ -154,7 +194,7 @@ HTTP Requests & Responses
         "msg": "cx, cy, and acquired are required parameters"
     }
 
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment 
+    $ http --timeout 12000 POST http://localhost:9876/segment 
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 64
@@ -172,7 +212,7 @@ HTTP Requests & Responses
     # if no input data was available from Chipmunk for cx/cy & acquired date range,
     # /segment returns HTTP 400 with msg = "no input data"
     
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=-99999999 acquired=1980-01-01/2017-12-31
+    $ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=-99999999 acquired=1980-01-01/2017-12-31
     HTTP/1.1 400 BAD REQUEST
     Connection: close
     Content-Length: 52
@@ -190,7 +230,7 @@ HTTP Requests & Responses
 
     # Successful POST to /segment returns HTTP 200 and cx/cy as JSON
     
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
+    $ http --timeout 12000 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
     HTTP/1.1 200 OK
     Connection: close
     Content-Length: 28
@@ -204,16 +244,17 @@ HTTP Requests & Responses
         "cy": 2414805,
     }
 
+
     # Database errors reported with HTTP 500 and the first error that occurred, with request parameters as JSON
     
-    [user@machine bin]$ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
+    $ http --timeout 1200 POST http://localhost:9876/segment cx=1484415 cy=2414805 acquired=1980/2017-12-31
     HTTP/1.1 500 INTERNAL SERVER ERROR
     Connection: close
     Content-Length: 89
     Content-Type: application/json
     Date: Thu, 31 Jan 2019 22:04:57 GMT
     Server: gunicorn/19.9.0
-
+    
     {
         "acquired": "1980/2017-12-31", 
         "cx": "1484415", 
@@ -221,11 +262,43 @@ HTTP Requests & Responses
         "msg": "db connection error"
     }
 
-
     
+Testing
+-------
+Tests are available in the ``test/`` directory.  To properly test blackmagic
+operations, input data and a local Cassandra database are needed.
+
+Input data originates from `lcmap-chipmunk <http://github.com/usgs-eros/lcmap-chipmunk>`_.
+Follow the instructions to download, run and load test data onto your local machine.
+lcmap-blackmagic requires ARD and AUX data from Chipmunk, so ingest both.
+
+To support testing on external CICD servers, a reverse-proxy NGINX cache is set up
+as a project dependency.  Test HTTP requests are sent to NGINX which then serves
+lcmap-chipmunk data to the test code.  Responses are stored at ``deps/nginxcache``.
+This allows responses to be replayed without lcmap-chipmunk running.
+
+To run the tests:
+
+.. code-block:: bash
+
+    $ make tests    
+
+To update test data held in NGINX cache (requires lcmap-chipmunk running at http://localhost:5656):
+
+.. code-block:: bash
+		
+   $ make update-test-data
+
+Tests run automatically on every pushed commit to GitHub.  Travis-CI builds will fail and no
+Docker image will be pushed if tests do not pass.
+
+See ``Makefile``, ``deps/docker-compose.yml``, ``deps/nginx.conf``, ``.travis.yml``.
+
+
 Versioning
 ----------
 lcmap-blackmagic follows semantic versioning: http://semver.org/
+
 
 License
 -------

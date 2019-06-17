@@ -1,7 +1,10 @@
 language: python
-python:
-- '3.5'
-- '3.6'
+
+matrix:
+  include:
+    - python: 3.7
+      dist: xenial
+      sudo: true
 
 install:
 - pip install --upgrade pip
@@ -18,7 +21,7 @@ before_install:
   - make deps-up-d
   - sudo apt-get update -qq
 
-script: pytest
+script: make test-with-manual-deps
 
 deploy:
   - provider: script
