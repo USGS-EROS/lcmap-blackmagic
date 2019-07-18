@@ -18,7 +18,7 @@ deps-down:
 	docker-compose -f deps/docker-compose.yml down
 
 clean:
-	@find . -type f -name "lcmap_blackmagic.egg-info" -exec rm -rf {} \;
+	@find . -type d -name "lcmap_blackmagic.egg-info" -exec rm -rf {} +
 	@find . -type f -name "*pyc" -exec rm -rf {} \;
 	@find . -type f -name "*~" -exec rm -rf {} \;
 	@find . -type d -name "__pycache__" -exec rm -rf {} +

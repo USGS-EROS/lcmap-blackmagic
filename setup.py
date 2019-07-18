@@ -35,6 +35,8 @@ setup(name='lcmap-blackmagic',
           'flask',
           'gunicorn',
           'tenacity',
+          'python-interface',
+          'boto3',
           'cassandra-driver'
           
       ],
