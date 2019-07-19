@@ -12,6 +12,9 @@ delete_segment deletes the entire partition of segments identified by the x & y.
 
 class Storage(Interface):
 
+    def __init__(self, cfg):
+        pass
+    
     def setup(self):
         pass
 
@@ -21,11 +24,47 @@ class Storage(Interface):
     def stop(self):
         pass
 
-    def get(self, prefix, key):
+    def select_tile(self, tx, ty):
+        pass
+    
+    def select_chip(self, cx, cy):
         pass
 
-    def put(self, prefix, key, value):
+    def select_pixels(self, cx, cy):
         pass
 
-    def delete(self, prefix, key):
+    def select_segments(self, cx, cy):
+        pass
+
+    def select_predictions(self, cx, cy):
+        pass
+
+    def insert_tile(self, tx, ty, model):
+        pass
+    
+    def insert_chip(self, detections):
+        pass
+
+    def insert_pixels(self, detections):
+        pass
+
+    def insert_segments(self, detections):
+        pass
+
+    def insert_predictions(self, predictions):
+        pass
+
+    def delete_tile(self, tx, ty):
+        pass
+    
+    def delete_chip(self, cx, cy):
+        pass
+
+    def delete_pixels(self, cx, cy):
+        pass
+
+    def delete_segments(self, cx, cy):
+        pass
+
+    def delete_predictions(self, cx, cy):
         pass

@@ -1,9 +1,13 @@
 from blackmagic.data import Storage
+from cytoolz import first
+from cytoolz import merge
 from interface import implements
 
+import blackmagic
 import boto3
 import json
 import gzip
+import os
 
 """Blackmagic ceph provides the capability of storing and retrieving
 all Blackmagic data with Ceph (S3).
@@ -42,26 +46,21 @@ also be set.
 
 """
 
-keys = {'tile':       lambda tx, ty: 'tile-{tx}-{ty}.xgboost'.format(tx=tx, ty=ty),
-        'chip':       lambda cx, cy: 'chip-{cx}-{cy}.json'.format(cx=cx, cy=cy),
-        'pixel':      lambda cx, cy: 'pixel-{cx}-{cy}.json'.format(cx=cx, cy=cy),
-        'segment':    lambda cx, cy: 'segment-{cx}-{cy}.json'.format(cx=cx, cy=cy),
-        'prediction': lambda cx, cy: 'prediction-{cx}-{cy}.json'.format(cx=cx, cy=cy)}
-    
-prefixes = {'tile':       lambda h, v: '/tile/{h}/{v}'.format(h=h, v=v),
-            'chip':       lambda h, v: '/chip/{h}/{v}'.format(h=h, v=v),
-            'pixel':      lambda h, v: '/pixel/{h}/{v}'.format(h=h, v=v),
-            'segment':    lambda h, v: '/segment/{h}/{v}'.format(h=h, v=v),
-            'prediction': lambda h, v: '/prediction/{h}/{v}'.format(h=h, v=v)}
+cfg = merge(blackmagic.cfg,
+            {'s3_url': os.environ.get('S3_URL', 'http://localhost:4572'),
+             's3_access_key': os.environ.get('S3_ACCESS_KEY', ''),
+             's3_secret_key': os.environ.get('S3_SECRET_KEY', ''),
+             's3_bucket': os.environ.get('S3_BUCKET', 'blackmagic-test-bucket')})
 
-
+   
 class Ceph(implements(Storage)):
 
-    def __init__(self, url, access_key, secret_key, bucket_name):
-        self.url = url
-        self.bucket_name = bucket_name
-        self.access_key = access_key
-        self.secret_key = secret_key
+    def __init__(self, cfg):
+        self.url = cfg['s3_url']
+        self.bucket_name = cfg['s3_bucket']
+        self.access_key = cfg['s3_access_key']
+        self.secret_key = cfg['s3_secret_key']
+        self.cfg = cfg
         
     def setup(self):   
         s3 = boto3.resource('s3',
@@ -98,11 +97,138 @@ class Ceph(implements(Storage)):
         
         self.bucket = resource.Bucket(self.bucket_name)
 
-        
     def stop(self):
         self.bucket = None
 
-    def get_bin(self, prefix, key):
+    def select_tile(self, tx, ty):
+        return self._get_bin(self._tile_key(tx=tx, ty=ty))
+    
+    def select_chip(self, cx, cy):
+        return self._get_json(self._chip_key(cx=cx, cy=cy))
+
+    def select_pixels(self, cx, cy):
+        return self._get_json(self._pixel_key(cx=cx, cy=cy))
+
+    def select_segments(self, cx, cy):
+        return self._get_json(self._segment_key(cx=cx, cy=cy))
+
+    def select_predictions(self, cx, cy):
+        return self._get_json(self._prediction_key(cx=cx, cy=cy))
+
+    def insert_tile(self, h, v, tx, ty, model):
+
+        def tile(tx, ty, tile):
+            return {'tx': tx,
+                    'ty': ty,
+                    'model': model}
+
+        t = tile(tx, ty, model)
+        
+        return self._put_json(self._tile_prefix(h, v),
+                              self._tile_key(tx, ty),
+                              t,
+                              compress=True)
+    
+    def insert_chip(self, h, v, detections):
+
+        def chip(detection):
+            return {'cx':    detection['cx'],
+                    'cy':    detection['cy'],
+                    'dates': detection['dates']}
+
+        c = chip(first(detections))
+
+        return self._put_json(self._chip_prefix(h, v),
+                              self._chip_key(c['cx'], c['cy']),
+                              c,
+                              compress=True)
+
+    def insert_pixels(self, h, v, detections):
+        
+        def pixel(detection):
+            return {'cx':   detection['cx'],
+                    'cy':   detection['cy'],
+                    'px':   detection['px'],
+                    'py':   detection['py'],
+                    'mask': detection['mask']}
+
+        pixels = [pixel(d) for d in detections]
+        
+        return self._put_json(self._pixel_prefix(h, v),
+                              self._pixel_key(first(pixels)['cx'], first(pixels)['cy']),
+                              pixels,
+                              compress=True)
+
+    def insert_segments(self, h, v, detections):
+
+        def segment(detection):
+            return {'cx':     detection['cx'],
+                    'cy':     detection['cy'],
+                    'px':     detection['px'],
+                    'py':     detection['py'],
+                    'sday':   detection['sday'],
+                    'eday':   detection['eday'],
+                    'bday':   detection['bday'],
+                    'chprob': detection['chprob'],
+                    'curqa':  detection['curqa'],
+                    'blcoef': detection['blcoef'],
+                    'blint':  detection['blint'],
+                    'blmag':  detection['blmag'],
+                    'blrmse': detection['blrmse'],
+                    'grcoef': detection['grcoef'],
+                    'grint':  detection['grint'],
+                    'grmag':  detection['grmag'],
+                    'grrmse': detection['grrmse'],
+                    'nicoef': detection['nicoef'],
+                    'niint':  detection['niint'],
+                    'nimag':  detection['nimag'],
+                    'nirmse': detection['nirmse'],
+                    'recoef': detection['recoef'],
+                    'reint':  detection['reint'],
+                    'remag':  detection['remag'],
+                    'rermse': detection['rermse'],
+                    's1coef': detection['s1coef'],
+                    's1int':  detection['s1int'],
+                    's1mag':  detection['s1mag'],
+                    's1rmse': detection['s1rmse'],
+                    's2coef': detection['s2coef'],
+                    's2int':  detection['s2int'],
+                    's2mag':  detection['s2mag'],
+                    's2rmse': detection['s2rmse'],
+                    'thcoef': detection['thcoef'],
+                    'thint':  detection['thint'],
+                    'thmag':  detection['thmag'],
+                    'thrmse': detection['thrmse']}
+
+        segments = [segment(d) for d in detections]
+        
+        return self._put_json(self._segment_prefix(h, v),
+                              self._segment_key(first(detections)['cx'], first(detections)['cy']),
+                              segments,
+                              compress=True)
+
+    def insert_predictions(self, h, v, predictions):
+        return self._put_json(self._prediction_prefix(h, v),
+                              self._prediction_key(tx, ty),
+                              predictions,
+                              compress=True)
+
+    def delete_tile(self, tx, ty):
+        return self._delete(self._tile_key(cx=cx, cy=cy))
+    
+    def delete_chip(self, cx, cy):
+        return self._delete(self._chip_key(cx=cx, cy=cy))
+
+    def delete_pixels(self, cx, cy):
+        return self._delete(self._pixel_key(cx=cx, cy=cy))
+
+    def delete_segments(self, cx, cy):
+        return self._delete(self._segment_key(cx=cx, cy=cy))
+
+    def delete_predictions(self, cx, cy):
+        return self._delete(self._prediction_key(cx=cx, cy=cy))
+
+    def _get_bin(self, key):
         o = self.bucket.get_object(Bucket=self.bucket_name, Key=key)
 
         if o['ContentEncoding'] == 'gzip':
@@ -112,7 +238,7 @@ class Ceph(implements(Storage)):
 
         return v
 
-    def put_bin(self, prefix, key, value, compress=True):
+    def _put_bin(self, prefix, key, value, compress=True):
 
         v = value
 
@@ -134,7 +260,7 @@ class Ceph(implements(Storage)):
                                           ContentType='application/octet-stream',
                                           ContentLength=len(v))
     
-    def get_json(self, prefix, key):
+    def _get_json(self, key):
         o = self.bucket.get_object(Bucket=self.bucket_name, Key=key)
 
         if o['ContentEncoding'] == 'gzip':
@@ -145,7 +271,7 @@ class Ceph(implements(Storage)):
         return json.loads(v)
             
                 
-    def put_json(self, prefix, key, value, compress=True):
+    def _put_json(self, key, value, compress=True):
 
         """if compression is desired, this works:
         json.loads(gzip.decompress(gzip.compress(bytes(json.dumps({'a': 1}), 'utf-8'))))
@@ -173,8 +299,35 @@ class Ceph(implements(Storage)):
                                           ContentType='application/json; charset=utf-8',
                                           ContentLength=len(v))
 
-    def delete(self, prefix, key):
+    def _delete(self, key):
         return self.client.delete_object(Bucket=self.bucket_name, Key=key)
 
+    def _tile_key(self, tx, ty):
+        return '{tx}-{ty}.json'.format(tx=tx, ty=ty),
 
-    
+    def _chip_key(self, cx, cy):
+        return '{cx}-{cy}.json'.format(cx=cx, cy=cy)
+
+    def _pixel_key(self, cx, cy):
+        return '{cx}-{cy}.json'.format(cx=cx, cy=cy)
+
+    def _segment_key(self, cx, cy):
+        return '{cx}-{cy}.json'.format(cx=cx, cy=cy)
+
+    def _prediction_key(self, cx, cy):
+        return '{cx}-{cy}.json'.format(cx=cx, cy=cy),
+
+    def _tile_prefix(self, h, v):
+        return 'tile/{h}/{v}/'.format(h=h, v=v)
+
+    def _chip_prefix(self, h, v):
+        return 'chip/{h}/{v}/'.format(h=h, v=v)
+
+    def _pixel_prefix(self, h, v):
+        return 'pixel/{h}/{v}/'.format(h=h, v=v)
+
+    def _segment_prefix(self, h, v):
+        return 'segment/{h}/{v}/'.format(h=h, v=v)
+
+    def _prediction_prefix(self, h, v):
+        return 'prediction/{h}/{v}/'.format(h=h, v=v)
