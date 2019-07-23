@@ -1,8 +1,8 @@
 from blackmagic import app
-from blackmagic import db
 from blackmagic.blueprints import prediction
-from cassandra.cluster import Cluster
+from blackmagic.data import ceph
 from cytoolz import count
+from cytoolz import first
 from cytoolz import get
 from cytoolz import merge
 from cytoolz import reduce
@@ -15,10 +15,12 @@ import pytest
 import random
 import test
 
+_ceph = ceph.Ceph(app.cfg)
+_ceph.start()
+
 
 def delete_predictions(cx, cy):
-    return db.execute_statements(app.cfg,
-                                 [db.delete_predictions(app.cfg, cx, cy)])
+    return _ceph.delete_predictions(cx, cy)
 
 
 @pytest.fixture
@@ -29,8 +31,8 @@ def client():
 
 def prediction_test_data(segment):
     return merge(segment,
-                 {'sday': date.fromordinal(2).isoformat(),
-                  'eday': date.fromordinal(1000).isoformat(),
+                 {'sday':   date.fromordinal(2).isoformat(),
+                  'eday':   date.fromordinal(1000).isoformat(),
                   'blcoef': [random.uniform(0, 1) for i in range(7)],
                   'blint':  random.randint(0, 90),
                   'blmag':  random.randint(0, 10),
@@ -70,22 +72,14 @@ def create_prediction_test_data(client):
                              'acquired': test.acquired}).status == '200 OK'
 
     # pull the segments
-    segments = db.execute_statement(app.cfg,
-                                    db.select_segments(cfg=app.cfg,
-                                                       cx=test.cx,
-                                                       cy=test.cy))
-
+    segments = _ceph.select_segments(cx=test.cx, cy=test.cy)
+   
     # remove old and busted test data
-    db.execute_statement(app.cfg,
-                         db.delete_segments(cfg=app.cfg,
-                                            cx=test.cx,
-                                            cy=test.cy))
-
+    _ceph.delete_segments(cx=test.cx, cy=test.cy)
+    
     # add new and better test data
-    db.insert_segments(app.cfg,
-                       map(prediction_test_data,
-                           map(lambda x: x._asdict(), segments)))      
-               
+    _ceph.insert_segments(list(map(prediction_test_data, segments)))
+                              
     # train tile against new segment values
     assert client.post('/tile',
                        json={'tx': test.tx,
@@ -115,10 +109,7 @@ def test_prediction_runs_as_expected(client):
                                  'day': test.prediction_day,
                                  'acquired': test.acquired})
 
-    predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_predictions(cfg=app.cfg,
-                                                                  cx=test.cx,
-                                                                  cy=test.cy))
+    predictions = _ceph.select_predictions(cx=test.cx, cy=test.cy)
      
     assert response.status == '200 OK'
     assert get('tx', response.get_json()) == test.tx
@@ -162,11 +153,8 @@ def test_prediction_bad_parameters(client):
                                  'day': day})
 
     delete_predictions(test.cx, test.cy)
-    
-    predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_predictions(cfg=app.cfg,
-                                                                  cx=test.cx,
-                                                                  cy=test.cy))
+
+    predictions = _ceph.select_predictions(cx=test.cx, cy=test.cy)
     
     assert response.status == '400 BAD REQUEST'
     assert get('tx', response.get_json()) == tx
@@ -208,10 +196,7 @@ def test_prediction_missing_model(client):
                                  'day': day,
                                  'acquired': a})
 
-    predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_predictions(cfg=app.cfg,
-                                                                  cx=test.cx,
-                                                                  cy=test.cy))
+    predictions = _ceph.select_predictions(cx=test.cx, cy=test.cy)
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -253,11 +238,8 @@ def test_prediction_load_model_exception(client):
                                  'month': month,
                                  'day': day,
                                  'test_load_model_exception': True})
-    
-    predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_predictions(cfg=app.cfg,
-                                                                  cx=test.cx,
-                                                                  cy=test.cy))
+
+    predictions = _ceph.select_predictions(cx=test.cx, cy=test.cy)
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -299,11 +281,8 @@ def test_prediction_group_data_exception(client):
                                  'month': month,
                                  'day': day,
                                  'test_group_data_exception': True})
-    
-    predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_predictions(cfg=app.cfg,
-                                                                  cx=test.cx,
-                                                                  cy=test.cy))
+
+    predictions = _ceph.select_predictions(cx=test.cx, cy=test.cy)
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -346,10 +325,7 @@ def test_prediction_matrix_exception(client):
                                  'day': day,
                                  'test_matrix_exception': True})
     
-    predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_predictions(cfg=app.cfg,
-                                                                  cx=test.cx,
-                                                                  cy=test.cy))
+    predictions = _ceph.select_predictions(cx=test.cx, cy=test.cy)
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -392,10 +368,8 @@ def test_prediction_default_predictions_exception(client):
                                  'day': day,
                                  'test_default_predictions_exception': True})
     
-    predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_predictions(cfg=app.cfg,
-                                                                  cx=test.cx,
-                                                                  cy=test.cy))
+
+    predictions = _ceph.select_predictions(cx=test.cx, cy=test.cy)
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -437,12 +411,9 @@ def test_prediction_load_data_exception(client):
                                  'month': month,
                                  'day': day,
                                  'test_load_data_exception': True})
-    
-    predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_predictions(cfg=app.cfg,
-                                                                  cx=test.cx,
-                                                                  cy=test.cy))
-    
+
+    predictions = _ceph.select_predictions(cx=test.cx, cy=test.cy)
+        
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
@@ -483,12 +454,9 @@ def test_prediction_prediction_exception(client):
                                  'month': month,
                                  'day': day,
                                  'test_prediction_exception': True})
-    
-    predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_predictions(cfg=app.cfg,
-                                                                  cx=test.cx,
-                                                                  cy=test.cy))
-    
+
+    predictions = _ceph.select_predictions(cx=test.cx, cy=test.cy)
+        
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
@@ -529,12 +497,9 @@ def test_prediction_delete_exception(client):
                                  'month': month,
                                  'day': day,
                                  'test_delete_exception': True})
-    
-    predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_predictions(cfg=app.cfg,
-                                                                  cx=test.cx,
-                                                                  cy=test.cy))
-    
+
+    predictions = _ceph.select_predictions(cx=test.cx, cy=test.cy)
+        
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
@@ -575,11 +540,8 @@ def test_prediction_save_exception(client):
                                  'month': month,
                                  'day': day,
                                  'test_save_exception': True})
-    
-    predictions = db.execute_statement(cfg=app.cfg,
-                                       stmt=db.select_predictions(cfg=app.cfg,
-                                                                  cx=test.cx,
-                                                                  cy=test.cy))
+
+    predictions = _ceph.select_predictions(cx=test.cx, cy=test.cy)
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx

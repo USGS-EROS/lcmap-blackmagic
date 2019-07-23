@@ -1,6 +1,6 @@
 from blackmagic import app
-from blackmagic import db
-from cassandra.cluster import Cluster
+from blackmagic.data import ceph
+from cytoolz import do
 from cytoolz import get
 from cytoolz import reduce
 
@@ -9,12 +9,13 @@ import os
 import pytest
 import test
 
+_ceph = ceph.Ceph(app.cfg)
+_ceph.start()
 
 def delete_detections(cx, cy):
-    return db.execute_statements(app.cfg,
-                                 [db.delete_chip(app.cfg, cx, cy),
-                                  db.delete_pixels(app.cfg, cx, cy),
-                                  db.delete_segments(app.cfg, cx, cy)])
+    return [_ceph.delete_chip(cx, cy),
+            _ceph.delete_pixels(cx, cy),
+            _ceph.delete_segments(cx, cy)]
 
 @pytest.fixture
 def client():
@@ -32,20 +33,14 @@ def test_segment_runs_as_expected(client):
     response = client.post('/segment',
                            json={'cx': test.cx, 'cy': test.cy, 'acquired': test.acquired})
 
-    chips = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_chip(cfg=app.cfg,
-                                                     cx=test.cx,
-                                                     cy=test.cy))
+    chips = _ceph.select_chip(cx=test.cx, cy=test.cy)
+
+    pixels = _ceph.select_pixels(cx=test.cx, cy=test.cy)
+    print("PIXEL LENGTH:{}".format(len(pixels)))
+    print("PIXEL TYPE:{}".format(type(pixels)))
     
-    pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixels(cfg=app.cfg,
-                                                        cx=test.cx,
-                                                        cy=test.cy))
+    segments = _ceph.select_segments(cx=test.cx, cy=test.cy)
     
-    segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segments(cfg=app.cfg,
-                                                            cx=test.cx,
-                                                            cy=test.cy))
     assert response.status == '200 OK'
     assert get('cx', response.get_json()) == test.cx
     assert get('cy', response.get_json()) == test.cy
@@ -74,20 +69,12 @@ def test_segment_bad_parameters(client):
     response = client.post('/segment',
                            json={'cx': cx, 'cy': cy, 'acquired': a})
 
-    chips = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_chip(cfg=app.cfg,
-                                                     cx=test.cx,
-                                                     cy=test.cy))
+    chips = _ceph.select_chip(cx=test.cx, cy=test.cy)
     
-    pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixels(cfg=app.cfg,
-                                                        cx=test.cx,
-                                                        cy=test.cy))
+    pixels = _ceph.select_pixels(cx=test.cx, cy=test.cy)
     
-    segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segments(cfg=app.cfg,
-                                                            cx=test.cx,
-                                                            cy=test.cy))
+    segments = _ceph.select_segments(cx=test.cx, cy=test.cy)
+    
     assert response.status == '400 BAD REQUEST'
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
@@ -116,20 +103,12 @@ def test_segment_merlin_exception(client):
     response = client.post('/segment',
                            json={'cx': cx, 'cy': cy, 'acquired': a})
 
-    chips = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_chip(cfg=app.cfg,
-                                                     cx=test.cx,
-                                                     cy=test.cy))
+    chips = _ceph.select_chip(cx=test.cx, cy=test.cy)
     
-    pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixels(cfg=app.cfg,
-                                                        cx=test.cx,
-                                                        cy=test.cy))
+    pixels = _ceph.select_pixels(cx=test.cx, cy=test.cy)
     
-    segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segments(cfg=app.cfg,
-                                                            cx=test.cx,
-                                                            cy=test.cy))
+    segments = _ceph.select_segments(cx=test.cx, cy=test.cy)
+    
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
@@ -159,20 +138,12 @@ def test_segment_merlin_no_input_data(client):
     response = client.post('/segment',
                            json={'cx': cx, 'cy': cy, 'acquired': a})
 
-    chips = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_chip(cfg=app.cfg,
-                                                     cx=test.cx,
-                                                     cy=test.cy))
+    chips = _ceph.select_chip(cx=test.cx, cy=test.cy)
     
-    pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixels(cfg=app.cfg,
-                                                        cx=test.cx,
-                                                        cy=test.cy))
+    pixels = _ceph.select_pixels(cx=test.cx, cy=test.cy)
     
-    segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segments(cfg=app.cfg,
-                                                            cx=test.cx,
-                                                            cy=test.cy))
+    segments = _ceph.select_segments(cx=test.cx, cy=test.cy)
+    
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
@@ -205,20 +176,12 @@ def test_segment_detection_exception(client):
                                  'acquired': a,
                                  'test_detection_exception': True})
 
-    chips = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_chip(cfg=app.cfg,
-                                                     cx=test.cx,
-                                                     cy=test.cy))
+    chips = _ceph.select_chip(cx=test.cx, cy=test.cy)
     
-    pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixels(cfg=app.cfg,
-                                                        cx=test.cx,
-                                                        cy=test.cy))
+    pixels = _ceph.select_pixels(cx=test.cx, cy=test.cy)
     
-    segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segments(cfg=app.cfg,
-                                                            cx=test.cx,
-                                                            cy=test.cy))
+    segments = _ceph.select_segments(cx=test.cx, cy=test.cy)
+    
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy
@@ -251,20 +214,12 @@ def test_segment_cassandra_exception(client):
                                  'acquired': a,
                                  'test_cassandra_exception': True})
 
-    chips = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_chip(cfg=app.cfg,
-                                                     cx=test.cx,
-                                                     cy=test.cy))
+    chips = _ceph.select_chip(cx=test.cx, cy=test.cy)
     
-    pixels = db.execute_statement(cfg=app.cfg,
-                                  stmt=db.select_pixels(cfg=app.cfg,
-                                                        cx=test.cx,
-                                                        cy=test.cy))
+    pixels = _ceph.select_pixels(cx=test.cx, cy=test.cy)
     
-    segments = db.execute_statement(cfg=app.cfg,
-                                    stmt=db.select_segments(cfg=app.cfg,
-                                                            cx=test.cx,
-                                                            cy=test.cy))
+    segments = _ceph.select_segments(cx=test.cx, cy=test.cy)
+    
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('cx', response.get_json()) == cx
     assert get('cy', response.get_json()) == cy

@@ -6,9 +6,8 @@ from multiprocessing import Pool
 import logging
 import os
 
-cfg = {
-       #'ard_url': os.environ['ARD_URL'],
-       #'aux_url': os.environ['AUX_URL'],
+cfg = {'ard_url': os.environ['ARD_URL'],
+       'aux_url': os.environ['AUX_URL'],
        'log_level': logging.INFO,
        'cpus_per_worker': int(os.environ.get('CPUS_PER_WORKER', 1)),
        'xgboost': {'num_round': int(os.environ.get('XGBOOST_NUM_ROUND', 500)),

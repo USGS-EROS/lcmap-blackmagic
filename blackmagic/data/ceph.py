@@ -1,6 +1,5 @@
 from blackmagic.data import Storage
 from cytoolz import first
-from cytoolz import merge
 from interface import implements
 
 import blackmagic
@@ -46,11 +45,10 @@ also be set.
 
 """
 
-cfg = merge(blackmagic.cfg,
-            {'s3_url': os.environ.get('S3_URL', 'http://localhost:4572'),
-             's3_access_key': os.environ.get('S3_ACCESS_KEY', ''),
-             's3_secret_key': os.environ.get('S3_SECRET_KEY', ''),
-             's3_bucket': os.environ.get('S3_BUCKET', 'blackmagic-test-bucket')})
+cfg = {'s3_url': os.environ.get('S3_URL', 'http://localhost:4572'),
+       's3_access_key': os.environ.get('S3_ACCESS_KEY', ''),
+       's3_secret_key': os.environ.get('S3_SECRET_KEY', ''),
+       's3_bucket': os.environ.get('S3_BUCKET', 'blackmagic-test-bucket')}
 
    
 class Ceph(implements(Storage)):
@@ -101,21 +99,36 @@ class Ceph(implements(Storage)):
         self.bucket = None
 
     def select_tile(self, tx, ty):
-        return self._get_bin(self._tile_key(tx=tx, ty=ty))
+        try:
+            return self._get_json(self._tile_key(tx=tx, ty=ty))
+        except self.client.exceptions.NoSuchKey:
+            return []
     
     def select_chip(self, cx, cy):
-        return self._get_json(self._chip_key(cx=cx, cy=cy))
+        try:
+            return self._get_json(self._chip_key(cx=cx, cy=cy))
+        except self.client.exceptions.NoSuchKey:
+            return []
 
     def select_pixels(self, cx, cy):
-        return self._get_json(self._pixel_key(cx=cx, cy=cy))
+        try:
+            return self._get_json(self._pixel_key(cx=cx, cy=cy))
+        except self.client.exceptions.NoSuchKey:
+            return []
 
     def select_segments(self, cx, cy):
-        return self._get_json(self._segment_key(cx=cx, cy=cy))
+        try:
+            return self._get_json(self._segment_key(cx=cx, cy=cy))
+        except self.client.exceptions.NoSuchKey:
+            return []
 
     def select_predictions(self, cx, cy):
-        return self._get_json(self._prediction_key(cx=cx, cy=cy))
+        try:
+            return self._get_json(self._prediction_key(cx=cx, cy=cy))
+        except self.client.exceptions.NoSuchKey:
+            return []
 
-    def insert_tile(self, h, v, tx, ty, model):
+    def insert_tile(self, tx, ty, model):
 
         def tile(tx, ty, tile):
             return {'tx': tx,
@@ -124,12 +137,11 @@ class Ceph(implements(Storage)):
 
         t = tile(tx, ty, model)
         
-        return self._put_json(self._tile_prefix(h, v),
-                              self._tile_key(tx, ty),
-                              t,
+        return self._put_json(self._tile_key(tx, ty),
+                              [t],
                               compress=True)
     
-    def insert_chip(self, h, v, detections):
+    def insert_chip(self, detections):
 
         def chip(detection):
             return {'cx':    detection['cx'],
@@ -138,12 +150,11 @@ class Ceph(implements(Storage)):
 
         c = chip(first(detections))
 
-        return self._put_json(self._chip_prefix(h, v),
-                              self._chip_key(c['cx'], c['cy']),
-                              c,
+        return self._put_json(self._chip_key(c['cx'], c['cy']),
+                              [c],
                               compress=True)
 
-    def insert_pixels(self, h, v, detections):
+    def insert_pixels(self, detections):
         
         def pixel(detection):
             return {'cx':   detection['cx'],
@@ -154,12 +165,11 @@ class Ceph(implements(Storage)):
 
         pixels = [pixel(d) for d in detections]
         
-        return self._put_json(self._pixel_prefix(h, v),
-                              self._pixel_key(first(pixels)['cx'], first(pixels)['cy']),
+        return self._put_json(self._pixel_key(first(pixels)['cx'], first(pixels)['cy']),
                               pixels,
                               compress=True)
 
-    def insert_segments(self, h, v, detections):
+    def insert_segments(self, detections):
 
         def segment(detection):
             return {'cx':     detection['cx'],
@@ -202,19 +212,31 @@ class Ceph(implements(Storage)):
 
         segments = [segment(d) for d in detections]
         
-        return self._put_json(self._segment_prefix(h, v),
-                              self._segment_key(first(detections)['cx'], first(detections)['cy']),
+        return self._put_json(self._segment_key(first(detections)['cx'], first(detections)['cy']),
                               segments,
                               compress=True)
 
-    def insert_predictions(self, h, v, predictions):
-        return self._put_json(self._prediction_prefix(h, v),
-                              self._prediction_key(tx, ty),
-                              predictions,
+    def insert_predictions(self, predictions):
+
+        def prediction(p):
+            return {'cx':   p['cx'],
+                    'cy':   p['cy'],
+                    'px':   p['px'],
+                    'py':   p['py'],
+                    'sday': p['sday'],
+                    'eday': p['eday'],
+                    'pday': p['pday'],
+                    'prob': p['prob']}
+
+        preds = [prediction(p) for p in predictions]
+        
+        return self._put_json(self._prediction_key(first(predictions)['cx'],
+                                                   first(predictions)['cy']),
+                              preds,
                               compress=True)
 
     def delete_tile(self, tx, ty):
-        return self._delete(self._tile_key(cx=cx, cy=cy))
+        return self._delete(self._tile_key(tx=tx, ty=ty))
     
     def delete_chip(self, cx, cy):
         return self._delete(self._chip_key(cx=cx, cy=cy))
@@ -229,7 +251,7 @@ class Ceph(implements(Storage)):
         return self._delete(self._prediction_key(cx=cx, cy=cy))
 
     def _get_bin(self, key):
-        o = self.bucket.get_object(Bucket=self.bucket_name, Key=key)
+        o = self.client.get_object(Bucket=self.bucket_name, Key=key)
 
         if o['ContentEncoding'] == 'gzip':
             v = gzip.decompress(o['Body'].read())
@@ -238,7 +260,7 @@ class Ceph(implements(Storage)):
 
         return v
 
-    def _put_bin(self, prefix, key, value, compress=True):
+    def _put_bin(self, key, value, compress=True):
 
         v = value
 
@@ -261,7 +283,7 @@ class Ceph(implements(Storage)):
                                           ContentLength=len(v))
     
     def _get_json(self, key):
-        o = self.bucket.get_object(Bucket=self.bucket_name, Key=key)
+        o = self.client.get_object(Bucket=self.bucket_name, Key=key)
 
         if o['ContentEncoding'] == 'gzip':
             v = gzip.decompress(o['Body'].read()).decode('utf-8')
@@ -303,31 +325,16 @@ class Ceph(implements(Storage)):
         return self.client.delete_object(Bucket=self.bucket_name, Key=key)
 
     def _tile_key(self, tx, ty):
-        return '{tx}-{ty}.json'.format(tx=tx, ty=ty),
+        return 'tile/{tx}-{ty}.json'.format(tx=tx, ty=ty)
 
     def _chip_key(self, cx, cy):
-        return '{cx}-{cy}.json'.format(cx=cx, cy=cy)
+        return 'chip/{cx}-{cy}.json'.format(cx=cx, cy=cy)
 
     def _pixel_key(self, cx, cy):
-        return '{cx}-{cy}.json'.format(cx=cx, cy=cy)
+        return 'pixel/{cx}-{cy}.json'.format(cx=cx, cy=cy)
 
     def _segment_key(self, cx, cy):
-        return '{cx}-{cy}.json'.format(cx=cx, cy=cy)
+        return 'segment/{cx}-{cy}.json'.format(cx=cx, cy=cy)
 
     def _prediction_key(self, cx, cy):
-        return '{cx}-{cy}.json'.format(cx=cx, cy=cy),
-
-    def _tile_prefix(self, h, v):
-        return 'tile/{h}/{v}/'.format(h=h, v=v)
-
-    def _chip_prefix(self, h, v):
-        return 'chip/{h}/{v}/'.format(h=h, v=v)
-
-    def _pixel_prefix(self, h, v):
-        return 'pixel/{h}/{v}/'.format(h=h, v=v)
-
-    def _segment_prefix(self, h, v):
-        return 'segment/{h}/{v}/'.format(h=h, v=v)
-
-    def _prediction_prefix(self, h, v):
-        return 'prediction/{h}/{v}/'.format(h=h, v=v)
+        return 'prediction/{cx}-{cy}.json'.format(cx=cx, cy=cy)

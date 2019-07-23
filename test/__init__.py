@@ -4,11 +4,10 @@ import os
 # Chipmunk does not get started and run during CICD testing.  We use
 # vcrpy to prerecord and replay HTTP responses
 
-os.environ['CASSANDRA_HOST']     = 'localhost'
-os.environ['CASSANDRA_PORT']     = '9042'
-os.environ['CASSANDRA_USER']     = 'cassandra'
-os.environ['CASSANDRA_PASS']     = 'cassandra'
-os.environ['CASSANDRA_KEYSPACE'] = 'blackmagic_test'
+os.environ['S3_URL'] = 'http://localhost:4572'
+os.environ['S3_ACCESS_KEY'] = ''
+os.environ['S3_SECRET_KEY'] = ''
+os.environ['S3_BUCKET'] = 'blackmagic-test-bucket'
 os.environ['ARD_URL']            = 'http://localhost:9999'
 os.environ['AUX_URL']            = 'http://localhost:9999'
 os.environ['CPUS_PER_WORKER']    = '1'

@@ -1,4 +1,3 @@
-from blackmagic import db
 from blackmagic import segaux
 from collections import namedtuple
 from cytoolz import assoc
@@ -76,34 +75,35 @@ def test_aux_filter():
 
     assert expected == outputs
     
-    
-def test_segments():
-    inputs = {'cx': test.cx,
-              'cy': test.cy,
-              'cluster': db.cluster(blackmagic.cfg)}
 
-    outputs = segaux.segments(inputs, blackmagic.cfg)
+# TODO:  move this test to test_B_tile and test_D_predictions
+#def test_segments():
+#    inputs = {'cx': test.cx,
+#              'cy': test.cy,
+#              'cluster': db.cluster(blackmagic.cfg)}
 
-    segments = get('segments', outputs, None)
+#    outputs = segaux.segments(inputs, blackmagic.cfg)
 
-    assert segments is not None
-    assert len(segments) > 0
+#    segments = get('segments', outputs, None)
+
+#    assert segments is not None
+#    assert len(segments) > 0
 
 
 def test_combine():
-    seg = namedtuple('Segment', ['cx', 'cy', 'px', 'py', 'segval'])
     key = namedtuple('Key', ['cx', 'cy', 'px', 'py'])
+
     
-    inputs = {'segments': [seg(1, 2, 3, 4, 5),
-                           seg(2, 3, 4, 5, 6),
-                           seg(3, 4, 5, 6, 7)],
+    inputs = {'segments': [{'cx': 1, 'cy': 2, 'px': 3, 'py': 4, 'segval': 5},
+                           {'cx': 2, 'cy': 3, 'px': 4, 'py': 5, 'segval': 6},
+                           {'cx': 3, 'cy': 4, 'px': 5, 'py': 6, 'segval': 7}],
               'aux': {key(1, 2, 3, 4): {'auxval': 111},
                       key(2, 3, 4, 5): {'auxval': 222},
                       key(3, 4, 5, 6): {'auxval': 333}}}
 
-    expected = {'segments': [seg(1, 2, 3, 4, 5),
-                             seg(2, 3, 4, 5, 6),
-                             seg(3, 4, 5, 6, 7)],
+    expected = {'segments': [{'cx': 1, 'cy': 2, 'px': 3, 'py': 4, 'segval': 5},
+                             {'cx': 2, 'cy': 3, 'px': 4, 'py': 5, 'segval': 6},
+                             {'cx': 3, 'cy': 4, 'px': 5, 'py': 6, 'segval': 7}],
                 'aux':{key(1, 2, 3, 4): {'auxval': 111},
                        key(2, 3, 4, 5): {'auxval': 222},
                        key(3, 4, 5, 6): {'auxval': 333}},

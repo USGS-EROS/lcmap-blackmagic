@@ -1,10 +1,9 @@
-from blackmagic import cfg
-from blackmagic import db
 from blackmagic import raise_on
 from blackmagic import segaux
 from blackmagic import skip_on_empty
 from blackmagic import skip_on_exception
 from blackmagic import workers
+from blackmagic.data import ceph
 from cytoolz import assoc
 from cytoolz import count
 from cytoolz import dissoc
@@ -22,10 +21,15 @@ from flask import jsonify
 from flask import request
 from functools import wraps
 from merlin.functions import flatten
-
 from sklearn.model_selection import train_test_split
+from operator import add
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_attempt
+from tenacity import wait_random_exponential
 
 import arrow
+import blackmagic
 import logging
 import json
 import numpy
@@ -33,19 +37,11 @@ import xgboost as xgb
 
 logger = logging.getLogger('blackmagic.tile')
 tile = Blueprint('tile', __name__)
-__cluster = None
 
+cfg = merge(blackmagic.cfg, ceph.cfg)
 
-def _cluster(cfg):
-    '''Cache db.cluster per module'''
-
-    global __cluster
-
-    if __cluster is None:
-        __cluster = db.cluster(cfg)
-
-    return __cluster
-
+_ceph = ceph.Ceph(cfg)
+_ceph.start()
 
 def segments_filter(ctx):
     '''Yield segments that span the supplied date'''
@@ -54,7 +50,7 @@ def segments_filter(ctx):
     
     return assoc(ctx,
                  'segments',
-                 list(filter(lambda s: d >= arrow.get(s.sday).datetime and d <= arrow.get(s.eday).datetime,
+                 list(filter(lambda s: d >= arrow.get(s['sday']).datetime and d <= arrow.get(s['eday']).datetime,
                              ctx['segments'])))
 
 
@@ -80,6 +76,16 @@ def add_average_reflectance(ctx):
     return assoc(ctx, 'data', segaux.average_reflectance(ctx['data']))
 
 
+@retry(retry=retry_if_exception_type(Exception),
+       stop=stop_after_attempt(10),
+       reraise=True,
+       wait=wait_random_exponential(multiplier=1, max=60))
+def segments(ctx, cfg):
+    '''Return segments stored in Cassandra'''
+
+    return assoc(ctx, 'segments', _ceph.select_segments(ctx['cx'], ctx['cy']))
+
+                 
 def pipeline(chip, tx, ty, date, acquired, cfg):
 
     ctx = {'tx': tx,
@@ -87,11 +93,10 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
            'cx': first(chip),
            'cy': second(chip),
            'date': date,
-           'acquired': acquired,
-           'cluster': _cluster(cfg)}
+           'acquired': acquired}           
 
     return thread_first(ctx,
-                        partial(segaux.segments, cfg=cfg),
+                        partial(segments, cfg=cfg),
                         segments_filter,
                         partial(segaux.aux, cfg=cfg),
                         segaux.aux_filter,                        
@@ -284,12 +289,11 @@ def save(ctx, cfg):
     #db.insert_tile(cfg,
     #               ctx['tx'],
     #               ctx['ty'],
-    #               ctx['model'].save_raw().hex())
+    #               segaux.bytes_from_booster(ctx['model']).hex())
 
-    db.insert_tile(cfg,
-                   ctx['tx'],
-                   ctx['ty'],
-                   segaux.bytes_from_booster(ctx['model']).hex())
+    _ceph.insert_tile(ctx['tx'],
+                      ctx['ty'],
+                      segaux.bytes_from_booster(ctx['model']).hex())
     return ctx
 
 
