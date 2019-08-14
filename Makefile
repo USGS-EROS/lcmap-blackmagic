@@ -33,7 +33,7 @@ update-test-data: deps-up-d clear-nginx-cache tests set-nginx-cache-file-perms d
 	@echo "NGINX cache files updated"
 
 test-with-manual-deps:
-	pytest --ignore=deps/nginxcache
+	pytest --ignore=deps/nginxcache -p no:warnings
 
 tests: deps-up-d test-with-manual-deps deps-down
 
