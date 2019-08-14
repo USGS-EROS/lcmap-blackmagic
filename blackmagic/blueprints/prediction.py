@@ -149,10 +149,9 @@ def load_data(ctx, cfg):
 @skip_on_exception
 @measure
 def load_model(ctx):
-
-    t = _ceph.select_tile(ctx['tx'], ctx['ty'])
     
-    fn = excepts(StopIteration, lambda _: bytes.fromhex(first(t)['model']))
+    fn = excepts(Exception,
+                 lambda _: bytes.fromhex(first(_ceph.select_tile(ctx['tx'], ctx['ty']))['model']))
 
     model = fn(None)
 
