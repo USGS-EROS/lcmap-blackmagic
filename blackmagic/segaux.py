@@ -10,7 +10,6 @@ Segaux functions should remain non-complected and composed
 into functions in the module or namespace where they are used.
 '''
 
-from cassandra import ReadTimeout
 from cytoolz import assoc
 from cytoolz import dissoc
 from cytoolz import filter
