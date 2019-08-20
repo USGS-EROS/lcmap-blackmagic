@@ -1,9 +1,9 @@
 from blackmagic import app
-from blackmagic import db
 from blackmagic.blueprints import tile
-from cassandra.cluster import Cluster
+from blackmagic.data import ceph
 from collections import namedtuple
 from cytoolz import count
+from cytoolz import do
 from cytoolz import first
 from cytoolz import get
 from cytoolz import reduce
@@ -15,9 +15,12 @@ import numpy
 import requests
 import test
 
+_ceph = ceph.Ceph(app.cfg)
+_ceph.start()
+
 def delete_tile(tx, ty):
-    return db.execute_statements(app.cfg,
-                                 [db.delete_tile(app.cfg, tx, ty)])
+    return _ceph.delete_tile(tx, ty)
+
 
 @pytest.fixture
 def client():
@@ -29,7 +32,7 @@ def test_tile_runs_as_expected(client):
     '''
     As a blackmagic user, when I send tx, ty, date & chips
     via HTTP POST, an xgboost model is trained and saved
-    to Cassandra so that change segments may be classified.
+    so that change segments may be classified.
     '''
 
     tx       = test.tx
@@ -57,10 +60,8 @@ def test_tile_runs_as_expected(client):
                                  'chips': chips,
                                  'date': date})
 
-    tiles = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_tile(cfg=app.cfg,
-                                                     tx=test.tx,
-                                                     ty=test.ty))
+    tiles = _ceph.select_tile(tx=test.tx, ty=test.ty)
+    
     assert response.status == '200 OK'
     assert get('tx', response.get_json()) == tx
     assert get('ty', response.get_json()) == ty
@@ -93,10 +94,7 @@ def test_tile_bad_parameters(client):
                                  'chips': chips,
                                  'date': date})
 
-    tiles = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_tile(cfg=app.cfg,
-                                                     tx=test.tx,
-                                                     ty=test.ty))
+    tiles = _ceph.select_tile(tx=test.tx, ty=test.ty)
 
     assert response.status == '400 BAD REQUEST'
     assert get('tx', response.get_json()) == tx
@@ -132,10 +130,7 @@ def test_tile_data_exception(client):
                                  'date': date,
                                  'test_data_exception': True})
 
-    tiles = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_tile(cfg=app.cfg,
-                                                     tx=test.tx,
-                                                     ty=test.ty))
+    tiles = _ceph.select_tile(tx=test.tx, ty=test.ty)
 
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -171,10 +166,7 @@ def test_tile_training_exception(client):
                                  'date': date,
                                  'test_training_exception': True})
 
-    tiles = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_tile(cfg=app.cfg,
-                                                     tx=test.tx,
-                                                     ty=test.ty))
+    tiles = _ceph.select_tile(tx=test.tx, ty=test.ty)
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -187,10 +179,10 @@ def test_tile_training_exception(client):
     assert len(list(map(lambda x: x, tiles))) == 0
 
 
-def test_tile_cassandra_exception(client):
+def test_tile_save_exception(client):
     '''
     As a blackmagic user, when an exception occurs saving 
-    models to Cassandra, an HTTP 500 is issued
+    models, an HTTP 500 is issued
     with a descriptive message so that the issue may be 
     investigated, corrected & retried.
     '''
@@ -209,12 +201,9 @@ def test_tile_cassandra_exception(client):
                                  'acquired': acquired,
                                  'chips': chips,
                                  'date': date,
-                                 'test_cassandra_exception': True})
+                                 'test_save_exception': True})
 
-    tiles = db.execute_statement(cfg=app.cfg,
-                                 stmt=db.select_tile(cfg=app.cfg,
-                                                     tx=test.tx,
-                                                     ty=test.ty))
+    tiles = _ceph.select_tile(tx=test.tx, ty=test.ty)
     
     assert response.status == '500 INTERNAL SERVER ERROR'
     assert get('tx', response.get_json()) == tx
@@ -228,14 +217,13 @@ def test_tile_cassandra_exception(client):
 
     
 def test_segments_filter():
-    record = namedtuple('TestRecord', ['sday', 'eday'])
     
     inputs = {'date': '1980-01-01',
-              'segments': [record(sday='1970-01-01', eday='1990-01-01'),
-                           record(sday='1963-01-01', eday='1964-01-01')]}
+              'segments': [{'sday': '1970-01-01', 'eday': '1990-01-01'},
+                           {'sday': '1963-01-01', 'eday': '1964-01-01'}]}
 
     expected = {'date': '1980-01-01',
-                'segments': [record(sday='1970-01-01', eday='1990-01-01')]}
+                'segments': [{'sday': '1970-01-01', 'eday': '1990-01-01'}]}
     
     outputs = tile.segments_filter(inputs)
 

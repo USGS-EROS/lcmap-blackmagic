@@ -18,7 +18,10 @@ deps-down:
 	docker-compose -f deps/docker-compose.yml down
 
 clean:
-	@rm -rf lcmap_blackmagic.egg-info *pyc *~ *__pycache__*
+	@find . -type d -name "lcmap_blackmagic.egg-info" -exec rm -rf {} +
+	@find . -type f -name "*pyc" -exec rm -rf {} \;
+	@find . -type f -name "*~" -exec rm -rf {} \;
+	@find . -type d -name "__pycache__" -exec rm -rf {} +
 
 set-nginx-cache-file-perms: deps-up-d
 	docker exec -it blackmagic-nginx /bin/bash -c "chmod -R 777 /data/nginx/cache"
@@ -30,7 +33,7 @@ update-test-data: deps-up-d clear-nginx-cache tests set-nginx-cache-file-perms d
 	@echo "NGINX cache files updated"
 
 test-with-manual-deps:
-	pytest --ignore=deps/nginxcache
+	pytest --ignore=deps/nginxcache -p no:warnings
 
 tests: deps-up-d test-with-manual-deps deps-down
 

@@ -10,8 +10,6 @@ Segaux functions should remain non-complected and composed
 into functions in the module or namespace where they are used.
 '''
 
-from blackmagic import db
-from cassandra import ReadTimeout
 from cytoolz import assoc
 from cytoolz import dissoc
 from cytoolz import filter
@@ -42,6 +40,14 @@ import xgboost as xgb
 
 
 logger = logging.getLogger('blackmagic.segaux')
+
+######################
+# quiet arrow down
+######################
+import warnings
+from arrow.factory import ArrowParseWarning
+
+warnings.simplefilter("ignore", ArrowParseWarning)
 
 
 def independent(data):
@@ -92,17 +98,16 @@ def aux_filter(ctx):
                                   ctx['aux'].items()))))
 
 
-@retry(retry=retry_if_exception_type(ReadTimeout),
-       stop=stop_after_attempt(10),
-       reraise=True,
-       wait=wait_random_exponential(multiplier=1, max=60))
-def segments(ctx, cfg):
-    '''Return segments stored in Cassandra'''
-    
-    return assoc(ctx,
-                 'segments',
-                 [r for r in db.execute_statement(cfg, db.select_segments(cfg, ctx['cx'], ctx['cy']))])
-                                        
+#@retry(retry=retry_if_exception_type(ReadTimeout),
+#       stop=stop_after_attempt(10),
+#       reraise=True,
+#       wait=wait_random_exponential(multiplier=1, max=60))
+#def segments(ctx, cfg):
+#    '''Return saved segments'''
+#    
+#    return assoc(ctx,
+#                 'segments',
+#                 [r for r in db.execute_statement(cfg, db.select_segments(cfg, ctx['cx'], ctx['cy']))])
 
 def combine(ctx):
     '''Combine segments with matching aux entry'''
@@ -111,11 +116,11 @@ def combine(ctx):
         
     for s in ctx['segments']:
 
-        key = (s.cx, s.cy, s.px, s.py)
+        key = (s['cx'], s['cy'], s['px'], s['py'])
         a   = get_in(['aux', key], ctx, None)
 
         if a is not None:
-            data.append(merge(a, s._asdict()))
+            data.append(merge(a, s))
 
     return assoc(ctx, 'data', data)
 

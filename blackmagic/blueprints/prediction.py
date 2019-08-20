@@ -1,10 +1,9 @@
-from blackmagic import cfg
-from blackmagic import db
 from blackmagic import raise_on
 from blackmagic import segaux
 from blackmagic import skip_on_empty
 from blackmagic import skip_on_exception
 from blackmagic import workers
+from blackmagic.data import ceph
 
 from cytoolz import assoc
 from cytoolz import count
@@ -26,8 +25,13 @@ from flask import request
 from functools import wraps
 from merlin.functions import flatten
 from operator import add
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_attempt
+from tenacity import wait_random_exponential
 from xgboost.core import Booster
 
+import blackmagic
 import logging
 import merlin
 import numpy
@@ -36,6 +40,10 @@ import xgboost as xgb
 logger = logging.getLogger('blackmagic.prediction')
 prediction = Blueprint('prediction', __name__)
 
+cfg = merge(blackmagic.cfg, ceph.cfg)
+
+_ceph = ceph.Ceph(cfg)
+_ceph.start()
 
 def log_request(ctx):
     '''Create log message for HTTP request'''
@@ -107,6 +115,16 @@ def measure(fn):
     return wrapper
 
 
+@retry(retry=retry_if_exception_type(Exception),
+       stop=stop_after_attempt(10),
+       reraise=True,
+       wait=wait_random_exponential(multiplier=1, max=60))
+def segments(ctx, cfg):
+    '''Return saved segments'''
+
+    return assoc(ctx, 'segments', _ceph.select_segments(ctx['cx'], ctx['cy']))
+
+
 @raise_on('test_load_data_exception')
 @skip_on_exception
 @measure
@@ -114,7 +132,7 @@ def load_data(ctx, cfg):
     return assoc(ctx,
                  'data',
                  thread_first(ctx,
-                              partial(segaux.segments, cfg=cfg),
+                              partial(segments, cfg=cfg),
                               partial(segaux.aux, cfg=cfg),
                               segaux.combine,
                               segaux.unload_segments,
@@ -130,14 +148,12 @@ def load_data(ctx, cfg):
 @raise_on('test_load_model_exception')
 @skip_on_exception
 @measure
-def load_model(ctx, cfg):
-    stmt  = db.select_tile(cfg, ctx['tx'], ctx['ty'])
+def load_model(ctx):
+
+    ctile = _ceph.select_tile(ctx['tx'], ctx['ty'])
+
+    model = bytes.fromhex(first(ctile)['model'])
     
-    fn = excepts(StopIteration,
-                 lambda cfg, statement: bytes.fromhex(first(db.execute_statement(cfg, statement)).model))
-
-    model = fn(cfg, stmt)
-
     if model is None:
         raise Exception("No model found for tx:{tx} and ty:{ty}".format(**ctx))
     else:
@@ -269,9 +285,8 @@ def parameters(r):
 def delete(ctx, cfg):                                                
     '''Delete existing predictions'''
 
-    stmt = db.delete_predictions(cfg, get('cx', ctx), get('cy', ctx))
-    db.execute_statement(cfg, stmt)
-
+    _ceph.delete_predictions(ctx['cx'], ctx['cy'])
+    
     return ctx
 
 
@@ -279,10 +294,9 @@ def delete(ctx, cfg):
 @skip_on_exception
 @measure
 def save(ctx, cfg):                                                
-    '''Saves predictions to Cassandra'''
-
-    # save all new predictions
-    db.insert_predictions(cfg, ctx['predictions'])
+    '''Saves predictions'''
+    
+    _ceph.insert_predictions(merlin.functions.denumpify(ctx['predictions']))
                 
     return ctx
 
@@ -316,7 +330,7 @@ def predictions_route():
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
-                        partial(exception_handler, http_status=500, name='load_model', fn=partial(load_model, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='load_model', fn=load_model),
                         partial(exception_handler, http_status=500, name='load_data', fn=partial(load_data, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='group_data', fn=group_data),
                         partial(exception_handler, http_status=500, name='matrix', fn=matrix),
