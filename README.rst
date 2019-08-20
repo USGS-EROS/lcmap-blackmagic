@@ -12,7 +12,6 @@ What does it do?
 * Uses PyCCD to detect land change segments
 * Trains & persists XGBoost classifiers from change segments & NLCD reference data
 * Applies classifiers to create land cover probabilities
-* Automatic schema creation on startup
 
   
 Use 
@@ -55,20 +54,6 @@ Requirements
 * Ability to run Docker containers
 * An S3/Ceph bucket to save outputs
 * HTTP traffic load balancer (optional)
-
-
-export S3_ACCESS_KEY=EQEIJDOHR9XQIGHHJQVD
-export S3_BUCKET=ard-cu-c01-v01-aux-cu-v01-ccdc-1-0
-export S3_SECRET_KEY=yzghujqPukAt71aDN3wnz8uL3JrmFH0l4IrfW2J2
-export S3_URL=http://10.0.84.178:7484
-export CPUS_PER_WORKER=4
-export ARD_URL=http://lcmap-test.cr.usgs.gov/ard_cu_c01_v01
-export AUX_URL=http://lcmap-test.cr.usgs.gov/aux_cu_v01
-export HTTP_PORT=9876
-export WORKERS=1
-export WORKER_TIMEOUT=15000
-export PYTHONWARNINGS="ignore"
-
 
   
 Install & Run
