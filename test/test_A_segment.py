@@ -26,7 +26,7 @@ def client():
 def test_segment_runs_as_expected(client):
     '''
     As a blackmagic user, when I send cx, cy, & acquired range
-    via HTTP POST, change segments are detected and saved to Cassandra
+    via HTTP POST, change segments are detected and saved
     so that they can be retrieved later.
     '''
     
@@ -194,10 +194,10 @@ def test_segment_detection_exception(client):
     assert len(list(map(lambda x: x, segments))) == 0
 
 
-def test_segment_cassandra_exception(client):
+def test_segment_save_exception(client):
     '''
     As a blackmagic user, when an exception occurs saving 
-    chips, pixels & segments to Cassandra, an HTTP 500 is issued
+    chips, pixels & segments, an HTTP 500 is issued
     with a descriptive message so that the issue may be 
     investigated, corrected & retried.
     '''
@@ -212,7 +212,7 @@ def test_segment_cassandra_exception(client):
                            json={'cx': cx,
                                  'cy': cy,
                                  'acquired': a,
-                                 'test_cassandra_exception': True})
+                                 'test_save_exception': True})
 
     chips = _ceph.select_chip(cx=test.cx, cy=test.cy)
     

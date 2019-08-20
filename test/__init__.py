@@ -1,6 +1,6 @@
 import os
 
-# set environment so blackmagic will point to local cassandra & chipmunk
+# set environment so blackmagic will point to local s3 & chipmunk
 # Chipmunk does not get started and run during CICD testing.  We use
 # vcrpy to prerecord and replay HTTP responses
 

@@ -13,7 +13,7 @@ def version():
 
 setup(name='lcmap-blackmagic',
       version=version(),
-      description='HTTP server that saves LCMAP change segments, classifiers & land cover probabilities to Apache Cassandra',
+      description='HTTP server that saves LCMAP change segments, classifiers & land cover probabilities to S3/Ceph',
       long_description=readme(),
       classifiers=[
         'Development Status :: 5 - Stable',

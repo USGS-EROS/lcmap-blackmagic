@@ -14,8 +14,6 @@ import logging
 cfg = merge(blackmagic.cfg, ceph.cfg)
 
 logging.basicConfig(format='%(asctime)-15s %(name)-15s %(levelname)-8s - %(message)s', level=cfg['log_level'])
-logging.getLogger('cassandra.connection').setLevel(logging.ERROR)
-logging.getLogger('cassandra.cluster').setLevel(logging.ERROR)
 logger = logging.getLogger('blackmagic.app')
 
 ceph.Ceph(cfg).setup()

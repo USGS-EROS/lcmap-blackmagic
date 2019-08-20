@@ -120,7 +120,7 @@ def measure(fn):
        reraise=True,
        wait=wait_random_exponential(multiplier=1, max=60))
 def segments(ctx, cfg):
-    '''Return segments stored in Cassandra'''
+    '''Return saved segments'''
 
     return assoc(ctx, 'segments', _ceph.select_segments(ctx['cx'], ctx['cy']))
 
@@ -294,10 +294,8 @@ def delete(ctx, cfg):
 @skip_on_exception
 @measure
 def save(ctx, cfg):                                                
-    '''Saves predictions to Cassandra'''
+    '''Saves predictions'''
     
-    # save all new predictions
-    #_ceph.insert_predictions(merlin.functions.denumpify(cx=ctx['cx'], cy=ctx['cy'], ctx['predictions']))
     _ceph.insert_predictions(merlin.functions.denumpify(ctx['predictions']))
                 
     return ctx

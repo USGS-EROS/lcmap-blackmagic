@@ -4,7 +4,7 @@
 ================
 lcmap-blackmagic
 ================
-HTTP server that saves land change segment, trained classifiers & land cover probabilities to Apache Cassandra  
+HTTP server that saves land change segment, trained classifiers & land cover probabilities to S3/Ceph.  
 
 
 What does it do?
@@ -53,8 +53,22 @@ Requirements
 ------------
 * lcmap-chipmunk running with ARD & NLCD data ingested
 * Ability to run Docker containers
-* An Apache Cassandra cluster to save outputs
+* An S3/Ceph bucket to save outputs
 * HTTP traffic load balancer (optional)
+
+
+export S3_ACCESS_KEY=EQEIJDOHR9XQIGHHJQVD
+export S3_BUCKET=ard-cu-c01-v01-aux-cu-v01-ccdc-1-0
+export S3_SECRET_KEY=yzghujqPukAt71aDN3wnz8uL3JrmFH0l4IrfW2J2
+export S3_URL=http://10.0.84.178:7484
+export CPUS_PER_WORKER=4
+export ARD_URL=http://lcmap-test.cr.usgs.gov/ard_cu_c01_v01
+export AUX_URL=http://lcmap-test.cr.usgs.gov/aux_cu_v01
+export HTTP_PORT=9876
+export WORKERS=1
+export WORKER_TIMEOUT=15000
+export PYTHONWARNINGS="ignore"
+
 
   
 Install & Run
@@ -68,14 +82,10 @@ From Dockerhub:
                --rm \
                --net=host \
                --pid=host \
-	       -e CASSANDRA_BATCH_SIZE=1000 \
-	       -e CASSANDRA_HOST=localhost \
-	       -e CASSANDRA_PORT=9042 \
-	       -e CASSANDRA_USER=cassandra \
-	       -e CASSANDRA_PASS=cassandra \
-	       -e CASSANDRA_KEYSPACE=some_keyspace \
-	       -e CASSANDRA_TIMEOUT=600 \
-	       -e CASSANDRA_CONSISTENCY=ALL \
+	       -e S3_BUCKET=the-bucket-name \
+	       -e S3_ACCESS_KEY=the-access-key \
+	       -e S3_SECRET_KEY=the-secret-key \
+	       -e S3_URL=http://host:port \
 	       -e ARD_URL=http://host:port/path \
      	       -e AUX_URL=http://host:port/path \
 	       -e CPUS_PER_WORKER=4 \
@@ -89,14 +99,10 @@ From PyPI:
 .. code-block:: bash
 
     $ pip install lcmap-blackmagic
-    $ export CASSANDRA_BATCH_SIZE=1000
-    $ export CASSANDRA_HOST=localhost
-    $ export CASSANDRA_PORT=9042
-    $ export CASSANDRA_USER=cassandra
-    $ export CASSANDRA_PASS=cassandra
-    $ export CASSANDRA_KEYSPACE=some_keyspace
-    $ export CASSANDRA_TIMEOUT=600
-    $ export CASSANDRA_CONSISTENCY=ALL
+    $ export S3_BUCKET=the-bucket-name
+    $ export S3_ACCESS_KEY=the-access-key
+    $ export S3_SECRET_KEY=the-secret-key
+    $ export S3_URL=http://host:port
     $ export ARD_URL=http://host:port/path
     $ export AUX_URL=http://host:port/path
     $ export CPUS_PER_WORKER=4
@@ -115,14 +121,10 @@ From Github:
     $ conda create --name=blackmagic python=3.7
     $ source activate blackmagic
     $ pip install -e .[test]
-    $ export CASSANDRA_BATCH_SIZE=1000
-    $ export CASSANDRA_HOST=localhost
-    $ export CASSANDRA_PORT=9042
-    $ export CASSANDRA_USER=cassandra
-    $ export CASSANDRA_PASS=cassandra
-    $ export CASSANDRA_KEYSPACE=some_keyspace
-    $ export CASSANDRA_TIMEOUT=600
-    $ export CASSANDRA_CONSISTENCY=ALL
+    $ export S3_BUCKET=the-bucket-name
+    $ export S3_ACCESS_KEY=the-access-key
+    $ export S3_SECRET_KEY=the-secret-key
+    $ export S3_URL=http://host:port
     $ export ARD_URL=http://host:port/path
     $ export AUX_URL=http://host:port/path
     $ export CPUS_PER_WORKER=4
@@ -266,7 +268,7 @@ HTTP Requests & Responses
 Testing
 -------
 Tests are available in the ``test/`` directory.  To properly test blackmagic
-operations, input data and a local Cassandra database are needed.
+operations, input data and a local S3/Ceph instance are needed.
 
 Input data originates from `lcmap-chipmunk <http://github.com/usgs-eros/lcmap-chipmunk>`_.
 Follow the instructions to download, run and load test data onto your local machine.

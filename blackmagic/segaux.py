@@ -103,7 +103,7 @@ def aux_filter(ctx):
 #       reraise=True,
 #       wait=wait_random_exponential(multiplier=1, max=60))
 #def segments(ctx, cfg):
-#    '''Return segments stored in Cassandra'''
+#    '''Return saved segments'''
 #    
 #    return assoc(ctx,
 #                 'segments',

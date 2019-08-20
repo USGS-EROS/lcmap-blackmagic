@@ -150,7 +150,7 @@ def parameters(r):
 
     test_pixel_count         = int(get('test_pixel_count', r, 10000))
     test_detection_exception = get('test_detection_exception', r, None)
-    test_cassandra_exception = get('test_cassandra_exception', r, None)
+    test_save_exception      = get('test_save_exception', r, None)
     
     if (cx is None or cy is None or acquired is None):
         raise Exception('cx, cy and acquired are required parameters')
@@ -160,7 +160,7 @@ def parameters(r):
                 'acquired': acquired,
                 'test_pixel_count': test_pixel_count,
                 'test_detection_exception': test_detection_exception,
-                'test_cassandra_exception': test_cassandra_exception}
+                'test_save_exception': test_save_exception}
 
 
 @skip_on_exception
@@ -211,8 +211,8 @@ def delete(ctx, cfg):
 @measure
 def save(ctx, cfg):
     
-    if get('test_cassandra_exception', ctx, None) is not None:
-        raise Exception('test_cassandra_exception')
+    if get('test_save_exception', ctx, None) is not None:
+        raise Exception('test_save_exception')
     else:
         save_chip(ctx, cfg)
         save_pixels(ctx, cfg)

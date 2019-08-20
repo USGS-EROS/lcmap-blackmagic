@@ -93,7 +93,7 @@ def create_prediction_test_data(client):
 def test_prediction_runs_as_expected(client):
     '''
     As a blackmagic user, when I send tx, ty, acquired, month, day and chip list
-    via HTTP POST, predictions are generated and saved to Cassandra
+    via HTTP POST, predictions are generated and saved
     so that they can be retrieved later.
     '''
 
@@ -214,7 +214,7 @@ def test_prediction_missing_model(client):
 def test_prediction_load_model_exception(client):
     '''
     As a blackmagic user, when an exception occurs loading
-    a model from Cassandra, an HTTP 500 is issued
+    a model, an HTTP 500 is issued
     with a descriptive message so that the issue may be 
     investigated, corrected & retried.
     '''
@@ -473,7 +473,7 @@ def test_prediction_prediction_exception(client):
 def test_prediction_delete_exception(client):
     '''
     As a blackmagic user, when an exception occurs deleting 
-    predictions from Cassandra, an HTTP 500 is issued
+    predictions, an HTTP 500 is issued
     with a descriptive message so that the issue may be 
     investigated, corrected & retried.
     '''
@@ -516,7 +516,7 @@ def test_prediction_delete_exception(client):
 def test_prediction_save_exception(client):
     '''
     As a blackmagic user, when an exception occurs saving 
-    a predictions to Cassandra, an HTTP 500 is issued
+    a predictions, an HTTP 500 is issued
     with a descriptive message so that the issue may be 
     investigated, corrected & retried.
     '''
@@ -624,11 +624,11 @@ def test_prediction_matrix():
     #
     # Using the 2nd approach, if the interface requires a zero length probability array,
     # you'll need to detect them again post-prediction, wipe out the predicted values
-    # and then save those to Cassandra.
+    # and then save those.
     #
     # Approach 1 seems least complex.  Detect default segments, group them, run prediction
     # on the remainder, combine default segments back into the resultset with the desired
-    # default value ([]), save to Cassandra.
+    # default value ([]), save.
 
     
     # normal expected input with no default segments

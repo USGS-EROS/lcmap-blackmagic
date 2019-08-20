@@ -81,7 +81,7 @@ def add_average_reflectance(ctx):
        reraise=True,
        wait=wait_random_exponential(multiplier=1, max=60))
 def segments(ctx, cfg):
-    '''Return segments stored in Cassandra'''
+    '''Return saved segments'''
 
     return assoc(ctx, 'segments', _ceph.select_segments(ctx['cx'], ctx['cy']))
 
@@ -169,7 +169,7 @@ def parameters(r):
                 'chips': list(map(lambda chip: (int(first(chip)), int(second(chip))), chips)),
                 'test_data_exception': get('test_data_exception', r, None),
                 'test_training_exception': get('test_training_exception', r, None),
-                'test_cassandra_exception': get('test_cassandra_exception', r, None)}
+                'test_save_exception': get('test_save_exception', r, None)}
 
 
 @skip_on_exception
@@ -275,22 +275,17 @@ def train(ctx, cfg):
                                          verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg)))
 
 
-@raise_on('test_cassandra_exception')
+@raise_on('test_save_exception')
 @skip_on_exception
 @skip_on_empty('model')
 @measure
 def save(ctx, cfg):                                                
-    '''Saves an xgboost model to Cassandra for this tx & ty'''
+    '''Saves an xgboost model for this tx & ty'''
 
     # will need to decode hex when pulling model
     # >>> bytes.fromhex('deadbeef')
     #b'\xde\xad\xbe\xef'
         
-    #db.insert_tile(cfg,
-    #               ctx['tx'],
-    #               ctx['ty'],
-    #               segaux.bytes_from_booster(ctx['model']).hex())
-
     _ceph.insert_tile(ctx['tx'],
                       ctx['ty'],
                       segaux.bytes_from_booster(ctx['model']).hex())

@@ -32,7 +32,7 @@ def test_tile_runs_as_expected(client):
     '''
     As a blackmagic user, when I send tx, ty, date & chips
     via HTTP POST, an xgboost model is trained and saved
-    to Cassandra so that change segments may be classified.
+    so that change segments may be classified.
     '''
 
     tx       = test.tx
@@ -179,10 +179,10 @@ def test_tile_training_exception(client):
     assert len(list(map(lambda x: x, tiles))) == 0
 
 
-def test_tile_cassandra_exception(client):
+def test_tile_save_exception(client):
     '''
     As a blackmagic user, when an exception occurs saving 
-    models to Cassandra, an HTTP 500 is issued
+    models, an HTTP 500 is issued
     with a descriptive message so that the issue may be 
     investigated, corrected & retried.
     '''
@@ -201,7 +201,7 @@ def test_tile_cassandra_exception(client):
                                  'acquired': acquired,
                                  'chips': chips,
                                  'date': date,
-                                 'test_cassandra_exception': True})
+                                 'test_save_exception': True})
 
     tiles = _ceph.select_tile(tx=test.tx, ty=test.ty)
     
