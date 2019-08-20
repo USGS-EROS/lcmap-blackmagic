@@ -6,6 +6,7 @@ import blackmagic
 import boto3
 import json
 import gzip
+import logging
 import os
 
 """Blackmagic ceph provides the capability of storing and retrieving
@@ -44,6 +45,8 @@ client should be able to determine the content type and handle it appropriately.
 also be set.
 
 """
+
+logger = logging.getLogger(__name__)
 
 cfg = {'s3_url': os.environ.get('S3_URL', 'http://localhost:4572'),
        's3_access_key': os.environ.get('S3_ACCESS_KEY', ''),
@@ -229,11 +232,17 @@ class Ceph(implements(Storage)):
                     'prob': p['prob']}
 
         preds = [prediction(p) for p in predictions]
-        
-        return self._put_json(self._prediction_key(first(predictions)['cx'],
-                                                   first(predictions)['cy']),
-                              preds,
-                              compress=True)
+
+        if len(preds) > 0:
+            return self._put_json(self._prediction_key(first(predictions)['cx'],
+                                                       first(predictions)['cy']),
+                                  preds,
+                                  compress=True)
+        else:
+            msg = "No predictions supplied to ceph.insert_predictions... skipping save"
+            logger.warn(msg)
+            return msg
+            
 
     def delete_tile(self, tx, ty):
         return self._delete(self._tile_key(tx=tx, ty=ty))

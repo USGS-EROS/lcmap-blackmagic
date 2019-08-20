@@ -296,8 +296,9 @@ def delete(ctx, cfg):
 @measure
 def save(ctx, cfg):                                                
     '''Saves predictions to Cassandra'''
-
+    
     # save all new predictions
+    #_ceph.insert_predictions(merlin.functions.denumpify(cx=ctx['cx'], cy=ctx['cy'], ctx['predictions']))
     _ceph.insert_predictions(merlin.functions.denumpify(ctx['predictions']))
                 
     return ctx

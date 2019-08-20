@@ -42,6 +42,14 @@ import xgboost as xgb
 
 logger = logging.getLogger('blackmagic.segaux')
 
+######################
+# quiet arrow down
+######################
+import warnings
+from arrow.factory import ArrowParseWarning
+
+warnings.simplefilter("ignore", ArrowParseWarning)
+
 
 def independent(data):
     '''Independent variable is (are) all the values except the labels.
