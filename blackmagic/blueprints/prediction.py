@@ -149,12 +149,11 @@ def load_data(ctx, cfg):
 @skip_on_exception
 @measure
 def load_model(ctx):
+
+    ctile = _ceph.select_tile(ctx['tx'], ctx['ty'])
+
+    model = bytes.fromhex(first(ctile)['model'])
     
-    fn = excepts(Exception,
-                 lambda _: bytes.fromhex(first(_ceph.select_tile(ctx['tx'], ctx['ty']))['model']))
-
-    model = fn(None)
-
     if model is None:
         raise Exception("No model found for tx:{tx} and ty:{ty}".format(**ctx))
     else:

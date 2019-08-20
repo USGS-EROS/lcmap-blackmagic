@@ -1,5 +1,6 @@
 from blackmagic.data import Storage
 from cytoolz import first
+from cytoolz import get
 from interface import implements
 
 import blackmagic
@@ -262,10 +263,10 @@ class Ceph(implements(Storage)):
     def _get_bin(self, key):
         o = self.client.get_object(Bucket=self.bucket_name, Key=key)
 
-        if o['ContentEncoding'] == 'gzip':
+        if get('ContentEncoding', o, None) == 'gzip':
             v = gzip.decompress(o['Body'].read())
         else:
-            v = o['Body'].read().decode('utf-8')
+            v = o['Body'].read()
 
         return v
 
@@ -293,8 +294,8 @@ class Ceph(implements(Storage)):
     
     def _get_json(self, key):
         o = self.client.get_object(Bucket=self.bucket_name, Key=key)
-
-        if o['ContentEncoding'] == 'gzip':
+        
+        if get('ContentEncoding', o, None) == 'gzip':
             v = gzip.decompress(o['Body'].read()).decode('utf-8')
         else:
             v = o['Body'].read().decode('utf-8')
