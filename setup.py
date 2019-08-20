@@ -36,9 +36,7 @@ setup(name='lcmap-blackmagic',
           'gunicorn',
           'tenacity',
           'python-interface',
-          'boto3',
-          'cassandra-driver'
-          
+          'boto3',          
       ],
       # List additional groups of dependencies here (e.g. development
       # dependencies). You can install these using the following syntax,
