@@ -128,7 +128,7 @@ def combine(ctx):
 def prediction_date_fn(sday, eday, month, day):
     start = arrow.get(sday)
     end   = arrow.get(eday)
-    years = list(map(lambda x: x.year, arrow.Arrow.range('year', start, end)))
+    years = range(start.year, end.year + 1)
     dates = []
 
     for y in years:
@@ -157,11 +157,23 @@ def prediction_dates(segments, month, day):
                                        eday=get('eday', s),
                                        month=month,
                                        day=day)
+            #tx: 1034415 ty: 2114805
+            #cx: 1034415 cy: 1967805
+            #px: 1034415 py: 1964925
+
+            #if key == (1034415, 1967805, 1034415, 1964925):
+            #    print("Combine target:{}".format(a))
+
+            #if (s['px'] == 1034415 and s['py'] == 1964925):
+                #print("SEGMENT:{}".format(segment))
+            #    print("sday:{} eday:{} bday:{}".format(s['sday'], s['eday'], s['bday']))
+                
             for date in dates:
                 yield assoc(s, 'date', date)
 
                       
 def training_date(data, date):
+    
     return assoc(data, 'date', date)
 
 
