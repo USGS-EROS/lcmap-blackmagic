@@ -131,6 +131,24 @@ def test_prediction_date_fn():
 
     assert expected == outputs
 
+
+    inputs = {'sday' : '1980-01-01',
+              'eday' : '1986-09-01',
+              'month': '07',
+              'day'  : '01'}
+
+    expected = ['1980-07-01',
+                '1981-07-01',
+                '1982-07-01',
+                '1983-07-01',
+                '1984-07-01',
+                '1985-07-01',
+                '1986-07-01']
+
+    outputs = segaux.prediction_date_fn(**inputs)
+
+    assert expected == outputs
+
     
     inputs = {'sday' : '0001-01-01',
               'eday' : '0002-11-01',
