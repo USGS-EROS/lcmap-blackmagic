@@ -26,7 +26,6 @@ from requests.exceptions import ConnectionError
 from operator import add
 from operator import mul
 from tenacity import retry
-from tenacity import retry_if_exception_type
 from tenacity import stop_after_attempt
 from tenacity import wait_random_exponential
 
@@ -72,8 +71,7 @@ def dependent(data):
                         data.ndim - 1).flatten().astype('int8')
 
 
-@retry(retry=retry_if_exception_type(ConnectionError),
-       stop=stop_after_attempt(10),
+@retry(stop=stop_after_attempt(10),
        reraise=True,
        wait=wait_random_exponential(multiplier=1, max=60))
 def aux(ctx, cfg):
