@@ -79,7 +79,7 @@ def aux(ctx, cfg):
     
     data = merlin.create(x=ctx['cx'],
                          y=ctx['cy'],
-                         acquired=ctx['acquired'],  #'1982/2018',
+                         acquired=ctx['acquired'],
                          cfg=merlin.cfg.get(profile='chipmunk-aux',
                                             env={'CHIPMUNK_URL': cfg['aux_url']}))
 
@@ -95,17 +95,6 @@ def aux_filter(ctx):
                  dict(list(filter(lambda d: first(get('nlcdtrn', second(d))) != 0,
                                   ctx['aux'].items()))))
 
-
-#@retry(retry=retry_if_exception_type(ReadTimeout),
-#       stop=stop_after_attempt(10),
-#       reraise=True,
-#       wait=wait_random_exponential(multiplier=1, max=60))
-#def segments(ctx, cfg):
-#    '''Return saved segments'''
-#    
-#    return assoc(ctx,
-#                 'segments',
-#                 [r for r in db.execute_statement(cfg, db.select_segments(cfg, ctx['cx'], ctx['cy']))])
 
 def combine(ctx):
     '''Combine segments with matching aux entry'''

@@ -1,4 +1,5 @@
 from blackmagic.data import Storage
+from contextlib import contextmanager
 from cytoolz import first
 from cytoolz import get
 from interface import implements
@@ -100,6 +101,7 @@ class Ceph(implements(Storage)):
         self.bucket = resource.Bucket(self.bucket_name)
 
     def stop(self):
+        self.client = None
         self.bucket = None
 
     def select_tile(self, tx, ty):
@@ -301,8 +303,7 @@ class Ceph(implements(Storage)):
             v = o['Body'].read().decode('utf-8')
 
         return json.loads(v)
-            
-                
+                            
     def _put_json(self, key, value, compress=True):
 
         """if compression is desired, this works:
@@ -348,3 +349,18 @@ class Ceph(implements(Storage)):
 
     def _prediction_key(self, cx, cy):
         return 'prediction/{cx}-{cy}.json'.format(cx=cx, cy=cy)
+
+
+@contextmanager
+def connect(cfg):
+
+    c = None
+
+    try:
+        c = Ceph(cfg)
+        c.start()
+        yield c
+    finally:
+        if c:
+            c.stop()
+        c = None

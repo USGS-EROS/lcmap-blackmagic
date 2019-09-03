@@ -40,19 +40,6 @@ tile = Blueprint('tile', __name__)
 
 cfg = merge(blackmagic.cfg, ceph.cfg)
 
-_ceph = ceph.Ceph(cfg)
-_ceph.start()
-
-def segments_filter(ctx):
-    '''Yield segments that span the supplied date'''
-
-    d = arrow.get(ctx['date']).datetime
-    
-    return assoc(ctx,
-                 'segments',
-                 list(filter(lambda s: d >= arrow.get(s['sday']).datetime and d <= arrow.get(s['eday']).datetime,
-                             ctx['segments'])))
-
 
 def log_request(ctx):
     '''Create log message for HTTP request'''
@@ -82,10 +69,24 @@ def add_average_reflectance(ctx):
        wait=wait_random_exponential(multiplier=1, max=60))
 def segments(ctx, cfg):
     '''Return saved segments'''
+    
+    with ceph.connect(cfg) as c:     
+        return assoc(ctx,
+                     'segments',
+                     c.select_segments(ctx['cx'], ctx['cy']))
 
-    return assoc(ctx, 'segments', _ceph.select_segments(ctx['cx'], ctx['cy']))
 
-                 
+def segments_filter(ctx):
+    '''Yield segments that span the supplied date'''
+
+    d = arrow.get(ctx['date']).datetime
+    
+    return assoc(ctx,
+                 'segments',
+                 list(filter(lambda s: d >= arrow.get(s['sday']).datetime and d <= arrow.get(s['eday']).datetime,
+                             ctx['segments'])))
+
+
 def pipeline(chip, tx, ty, date, acquired, cfg):
 
     ctx = {'tx': tx,
@@ -93,7 +94,7 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
            'cx': first(chip),
            'cy': second(chip),
            'date': date,
-           'acquired': acquired}           
+           'acquired': acquired}
 
     return thread_first(ctx,
                         partial(segments, cfg=cfg),
@@ -147,7 +148,6 @@ def measure(fn):
         return ctx
     return wrapper                 
 
-
 @skip_on_exception
 @measure
 def parameters(r):
@@ -170,7 +170,6 @@ def parameters(r):
                 'test_data_exception': get('test_data_exception', r, None),
                 'test_training_exception': get('test_training_exception', r, None),
                 'test_save_exception': get('test_save_exception', r, None)}
-
 
 @skip_on_exception
 @raise_on('test_data_exception')
@@ -285,12 +284,13 @@ def save(ctx, cfg):
     # will need to decode hex when pulling model
     # >>> bytes.fromhex('deadbeef')
     #b'\xde\xad\xbe\xef'
-        
-    _ceph.insert_tile(ctx['tx'],
+
+    with ceph.connect(cfg) as c:
+        c.insert_tile(ctx['tx'],
                       ctx['ty'],
                       segaux.bytes_from_booster(ctx['model']).hex())
-    return ctx
-
+        return ctx
+    
 
 def respond(ctx):
     '''Send the HTTP response'''

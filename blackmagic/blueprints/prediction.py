@@ -42,8 +42,6 @@ prediction = Blueprint('prediction', __name__)
 
 cfg = merge(blackmagic.cfg, ceph.cfg)
 
-_ceph = ceph.Ceph(cfg)
-_ceph.start()
 
 def log_request(ctx):
     '''Create log message for HTTP request'''
@@ -122,7 +120,10 @@ def measure(fn):
 def segments(ctx, cfg):
     '''Return saved segments'''
 
-    return assoc(ctx, 'segments', _ceph.select_segments(ctx['cx'], ctx['cy']))
+    with ceph.connect(cfg) as c:
+        return assoc(ctx,
+                     'segments',
+                     c.select_segments(ctx['cx'], ctx['cy']))
 
 
 @raise_on('test_load_data_exception')
@@ -148,16 +149,17 @@ def load_data(ctx, cfg):
 @raise_on('test_load_model_exception')
 @skip_on_exception
 @measure
-def load_model(ctx):
+def load_model(ctx, cfg):
 
-    ctile = _ceph.select_tile(ctx['tx'], ctx['ty'])
+    with ceph.connect(cfg) as c:
+        ctile = c.select_tile(ctx['tx'], ctx['ty'])
 
-    model = bytes.fromhex(first(ctile)['model'])
+        model = bytes.fromhex(first(ctile)['model'])
     
-    if model is None:
-        raise Exception("No model found for tx:{tx} and ty:{ty}".format(**ctx))
-    else:
-        return assoc(ctx, 'model_bytes', model)
+        if model is None:
+            raise Exception("No model found for tx:{tx} and ty:{ty}".format(**ctx))
+        else:
+            return assoc(ctx, 'model_bytes', model)
     
 
 @raise_on('test_group_data_exception')
@@ -285,7 +287,8 @@ def parameters(r):
 def delete(ctx, cfg):                                                
     '''Delete existing predictions'''
 
-    _ceph.delete_predictions(ctx['cx'], ctx['cy'])
+    with ceph.connect(cfg) as c:
+        c.delete_predictions(ctx['cx'], ctx['cy'])
     
     return ctx
 
@@ -296,7 +299,8 @@ def delete(ctx, cfg):
 def save(ctx, cfg):                                                
     '''Saves predictions'''
     
-    _ceph.insert_predictions(merlin.functions.denumpify(ctx['predictions']))
+    with ceph.connect(cfg) as c:    
+        c.insert_predictions(merlin.functions.denumpify(ctx['predictions']))
                 
     return ctx
 
@@ -330,7 +334,7 @@ def predictions_route():
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
-                        partial(exception_handler, http_status=500, name='load_model', fn=load_model),
+                        partial(exception_handler, http_status=500, name='load_model', fn=partial(load_model, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='load_data', fn=partial(load_data, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='group_data', fn=group_data),
                         partial(exception_handler, http_status=500, name='matrix', fn=matrix),
