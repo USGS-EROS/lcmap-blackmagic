@@ -266,12 +266,21 @@ def train(ctx, cfg):
     train_matrix = xgb.DMatrix(data=itrain, label=dtrain)
     test_matrix  = xgb.DMatrix(data=itest, label=dtest)
     
-    return assoc(ctx, 'model', xgb.train(params=get_in(['xgboost', 'parameters'], cfg),
-                                         dtrain=train_matrix,
-                                         num_boost_round=get_in(['xgboost', 'num_round'], cfg),
-                                         evals=watchlist(train_matrix, test_matrix),
-                                         early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
-                                         verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg)))
+    model = xgb.train(params=get_in(['xgboost', 'parameters'], cfg),
+                      dtrain=train_matrix,
+                      num_boost_round=get_in(['xgboost', 'num_round'], cfg),
+                      evals=watchlist(train_matrix, test_matrix),
+                      early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
+                      verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg))
+
+    itrain = None
+    itest = None
+    dtrain = None
+    dtest = None
+    train_matrix = None
+    test_matrix = None
+    
+    return assoc(ctx, 'model', model)
 
 
 @raise_on('test_save_exception')
@@ -292,6 +301,14 @@ def save(ctx, cfg):
         return ctx
     
 
+def cleanup(ctx):
+
+    ctx = dissoc(ctx, 'independent')
+    ctx = dissoc(ctx, 'dependent')
+    ctx = dissoc(ctx, 'model')
+
+    return ctx
+    
 def respond(ctx):
     '''Send the HTTP response'''
 
@@ -326,4 +343,5 @@ def tiles():
                         partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='cleanup', fn=cleanup),
                         respond)
