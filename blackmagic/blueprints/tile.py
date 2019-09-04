@@ -303,6 +303,10 @@ def save(ctx, cfg):
 
 def cleanup(ctx):
 
+    ctx['independent'] = None
+    ctx['dependent'] = None
+    ctx['model'] = None
+    
     ctx = dissoc(ctx, 'independent')
     ctx = dissoc(ctx, 'dependent')
     ctx = dissoc(ctx, 'model')
