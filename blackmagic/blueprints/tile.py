@@ -80,7 +80,7 @@ def segments_filter(ctx):
     '''Yield segments that span the supplied date'''
 
     d = arrow.get(ctx['date']).datetime
-    
+
     return assoc(ctx,
                  'segments',
                  list(filter(lambda s: d >= arrow.get(s['sday']).datetime and d <= arrow.get(s['eday']).datetime,
@@ -200,7 +200,7 @@ def statistics(ctx):
     dep = ctx['data'][::-1, ::ctx['data'].shape[1]].flatten()
     vals, cnts = numpy.unique(dep, return_counts=True)
     prct = cnts / numpy.sum(cnts)
-    dep = None
+    del dep
     return assoc(ctx, 'statistics', (vals, prct))
 
 
@@ -220,7 +220,7 @@ def split_data(ctx):
 
     independent = segaux.independent(ctx['data'])
     dependent   = segaux.dependent(ctx['data'])
-    ctx['data'] = None
+    del ctx['data']
     
     return merge(dissoc(ctx, 'data'),
                  {'independent': independent,
@@ -282,13 +282,16 @@ def train(ctx, cfg):
                       early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
                       verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg))
 
-    itrain = None
-    itest = None
-    dtrain = None
-    dtest = None
-    train_matrix = None
-    test_matrix = None
-    watch_list = None
+
+    del ctx['independent']
+    del ctx['dependent']
+    del itrain
+    del itest
+    del dtrain
+    del dtest
+    del train_matrix
+    del test_matrix
+    del watch_list
     
     return assoc(ctx, 'model', model)
 
@@ -306,7 +309,7 @@ def save(ctx, cfg):
 
     model_bytes = segaux.bytes_from_booster(ctx['model']).hex()
     
-    ctx['model'] = None
+    del ctx['model']
     
     with ceph.connect(cfg) as c:
         c.insert_tile(ctx['tx'],
@@ -314,18 +317,6 @@ def save(ctx, cfg):
                       model_bytes)
         return ctx
     
-
-def cleanup(ctx):
-
-    ctx['independent'] = None
-    ctx['dependent'] = None
-    ctx['model'] = None
-    
-    ctx = dissoc(ctx, 'independent')
-    ctx = dissoc(ctx, 'dependent')
-    ctx = dissoc(ctx, 'model')
-
-    return ctx
     
 def respond(ctx):
     '''Send the HTTP response'''
@@ -361,5 +352,4 @@ def tiles():
                         partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='cleanup', fn=cleanup),
                         respond)
