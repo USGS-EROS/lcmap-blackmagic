@@ -200,6 +200,7 @@ def statistics(ctx):
     dep = ctx['data'][::-1, ::ctx['data'].shape[1]].flatten()
     vals, cnts = numpy.unique(dep, return_counts=True)
     prct = cnts / numpy.sum(cnts)
+    dep = None
     return assoc(ctx, 'statistics', (vals, prct))
 
 
@@ -217,9 +218,13 @@ def randomize(ctx, cfg):
 @measure
 def split_data(ctx):
 
+    independent = segaux.independent(ctx['data'])
+    dependent   = segaux.dependent(ctx['data'])
+    ctx['data'] = None
+    
     return merge(dissoc(ctx, 'data'),
-                 {'independent': segaux.independent(ctx['data']),
-                  'dependent': segaux.dependent(ctx['data'])})
+                 {'independent': independent,
+                  'dependent': dependent})
     
 
 @skip_on_exception
@@ -247,6 +252,9 @@ def sample(ctx, cfg):
 
     si = numpy.array(selected_indices)
 
+    # do we need to wipe out ctx['independent'] & ctx['dependent'] after
+    # taking the sample to free up memory?
+    
     return merge(ctx, {'independent': ctx['independent'][si],
                        'dependent': ctx['dependent'][si]})
 
@@ -265,11 +273,12 @@ def train(ctx, cfg):
     
     train_matrix = xgb.DMatrix(data=itrain, label=dtrain)
     test_matrix  = xgb.DMatrix(data=itest, label=dtest)
+    watch_list   = watchlist(train_matrix, test_matrix)
     
     model = xgb.train(params=get_in(['xgboost', 'parameters'], cfg),
                       dtrain=train_matrix,
                       num_boost_round=get_in(['xgboost', 'num_round'], cfg),
-                      evals=watchlist(train_matrix, test_matrix),
+                      evals=watch_list,
                       early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
                       verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg))
 
@@ -279,6 +288,7 @@ def train(ctx, cfg):
     dtest = None
     train_matrix = None
     test_matrix = None
+    watch_list = None
     
     return assoc(ctx, 'model', model)
 
@@ -294,10 +304,14 @@ def save(ctx, cfg):
     # >>> bytes.fromhex('deadbeef')
     #b'\xde\xad\xbe\xef'
 
+    model_bytes = segaux.bytes_from_booster(ctx['model']).hex()
+    
+    ctx['model'] = None
+    
     with ceph.connect(cfg) as c:
         c.insert_tile(ctx['tx'],
                       ctx['ty'],
-                      segaux.bytes_from_booster(ctx['model']).hex())
+                      model_bytes)
         return ctx
     
 
