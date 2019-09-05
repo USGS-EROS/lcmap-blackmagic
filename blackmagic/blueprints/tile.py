@@ -254,9 +254,16 @@ def sample(ctx, cfg):
 
     # do we need to wipe out ctx['independent'] & ctx['dependent'] after
     # taking the sample to free up memory?
+    # Advanced indexing always returns a copy of the data (contrast with basic slicing that returns a view).
+    independent = ctx['independent'][si]
+    dependent   = ctx['dependent'][si]
+
+    del selected_indices
+    del ctx['independent']
+    del ctx['dependent']
     
-    return merge(ctx, {'independent': ctx['independent'][si],
-                       'dependent': ctx['dependent'][si]})
+    return merge(ctx, {'independent': independent,
+                       'dependent': dependent})
 
 
 @raise_on('test_training_exception')
@@ -336,6 +343,8 @@ def respond(ctx):
 
     response.status_code = get('http_status', ctx, 200)
 
+    del ctx
+    
     return response
 
 
