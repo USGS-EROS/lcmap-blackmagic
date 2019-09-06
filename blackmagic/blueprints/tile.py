@@ -350,15 +350,26 @@ def respond(ctx):
 
 @tile.route('/tile', methods=['POST'])        
 def tiles():
-    
-    return thread_first(request.json,
-                        partial(exception_handler, http_status=500, name='log_request', fn=log_request),
-                        partial(exception_handler, http_status=400, name='parameters', fn=parameters),
-                        partial(exception_handler, http_status=500, name='data', fn=partial(data, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='statistics', fn=statistics),
-                        partial(exception_handler, http_status=500, name='randomize', fn=partial(randomize, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='split_data', fn=split_data),
-                        partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
-                        respond)
+    import tracemalloc
+    tracemalloc.start()
+
+    result = thread_first(request.json,
+                          partial(exception_handler, http_status=500, name='log_request', fn=log_request),
+                          partial(exception_handler, http_status=400, name='parameters', fn=parameters),
+                          partial(exception_handler, http_status=500, name='data', fn=partial(data, cfg=cfg)),
+                          partial(exception_handler, http_status=500, name='statistics', fn=statistics),
+                          partial(exception_handler, http_status=500, name='randomize', fn=partial(randomize, cfg=cfg)),
+                          partial(exception_handler, http_status=500, name='split_data', fn=split_data),
+                          partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
+                          partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
+                          partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
+                          respond)
+
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics('lineno')
+
+    print("[ Top 10 ]")
+    for stat in top_stats[:10]:
+        print(stat)
+
+    return result
