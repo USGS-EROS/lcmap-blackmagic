@@ -30,6 +30,7 @@ from tenacity import wait_random_exponential
 
 import arrow
 import blackmagic
+import gc
 import logging
 import json
 import numpy
@@ -184,8 +185,22 @@ def data(ctx, cfg):
                 acquired=ctx['acquired'],
                 cfg=cfg)
 
-    with workers(cfg) as w:
-        return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
+    # TODO:  try/except/finally the workers here to see if they arent' releaseing memory
+    w = None
+    d = None
+    try:
+        w = workers(cfg)
+        d = numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32)
+    finally:
+        w.close()
+        w.join()
+        del w
+        gc.collect()
+        
+    return assoc(ctx, 'data', d)
+    
+    #with workers(cfg) as w:
+    #    return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
 
     
 @skip_on_exception
@@ -348,8 +363,7 @@ def respond(ctx):
     
     return response
 
-def gc(ctx):
-    import gc
+def collect(ctx):
     gc.collect()
     return ctx
 
@@ -369,7 +383,7 @@ def tiles():
                           partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
                           partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
                           partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
-                          gc,
+                          collect,
                           respond)
 
     snapshot = tracemalloc.take_snapshot()
