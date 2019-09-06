@@ -30,7 +30,6 @@ from tenacity import wait_random_exponential
 
 import arrow
 import blackmagic
-import gc
 import logging
 import json
 import numpy
@@ -72,9 +71,7 @@ def segments(ctx, cfg):
     '''Return saved segments'''
     
     with ceph.connect(cfg) as c:     
-        return assoc(ctx,
-                     'segments',
-                     c.select_segments(ctx['cx'], ctx['cy']))
+        return assoc(ctx, 'segments', c.select_segments(ctx['cx'], ctx['cy']))
 
 
 def segments_filter(ctx):
@@ -184,23 +181,9 @@ def data(ctx, cfg):
                 date=ctx['date'],
                 acquired=ctx['acquired'],
                 cfg=cfg)
-
-    # TODO:  try/except/finally the workers here to see if they arent' releaseing memory
-    w = None
-    d = None
-    try:
-        w = workers(cfg)
-        d = numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32)
-    finally:
-        w.close()
-        w.join()
-        del w
-        gc.collect()
-        
-    return assoc(ctx, 'data', d)
-    
-    #with workers(cfg) as w:
-    #    return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
+   
+    with workers(cfg) as w:
+        return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
 
     
 @skip_on_exception
@@ -215,7 +198,10 @@ def statistics(ctx):
     dep = ctx['data'][::-1, ::ctx['data'].shape[1]].flatten()
     vals, cnts = numpy.unique(dep, return_counts=True)
     prct = cnts / numpy.sum(cnts)
+    dep = None
+    cnts = None
     del dep
+    del cnts
     return assoc(ctx, 'statistics', (vals, prct))
 
 
@@ -235,11 +221,10 @@ def split_data(ctx):
 
     independent = segaux.independent(ctx['data'])
     dependent   = segaux.dependent(ctx['data'])
+    ctx['data'] = None
     del ctx['data']
     
-    return merge(dissoc(ctx, 'data'),
-                 {'independent': independent,
-                  'dependent': dependent})
+    return merge(ctx, {'independent': independent, 'dependent': dependent})
     
 
 @skip_on_exception
@@ -273,13 +258,18 @@ def sample(ctx, cfg):
     independent = ctx['independent'][si]
     dependent   = ctx['dependent'][si]
 
+    selected_indices = None
+    ctx['independent'] = None
+    ctx['dependent'] = None
+    ctx['statistics'] = None
+    si = None
     del selected_indices
     del ctx['independent']
     del ctx['dependent']
     del ctx['statistics']
+    del si
     
-    return merge(ctx, {'independent': independent,
-                       'dependent': dependent})
+    return merge(ctx, {'independent': independent, 'dependent': dependent})
 
 
 @raise_on('test_training_exception')
@@ -305,7 +295,15 @@ def train(ctx, cfg):
                       early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
                       verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg))
 
-
+    ctx['independent'] = None
+    ctx['dependent'] = None
+    itrain = None
+    itest = None
+    dtrain = None
+    dtest = None
+    train_matrix = None
+    test_matrix = None
+    watch_list = None
     del ctx['independent']
     del ctx['dependent']
     del itrain
@@ -331,7 +329,8 @@ def save(ctx, cfg):
     #b'\xde\xad\xbe\xef'
 
     model_bytes = segaux.bytes_from_booster(ctx['model']).hex()
-    
+
+    ctx['model'] = None
     del ctx['model']
     
     with ceph.connect(cfg) as c:
@@ -359,38 +358,23 @@ def respond(ctx):
 
     response.status_code = get('http_status', ctx, 200)
 
+    ctx = None
     del ctx
     
     return response
 
-def collect(ctx):
-    gc.collect()
-    return ctx
-
     
 @tile.route('/tile', methods=['POST'])        
 def tiles():
-    import tracemalloc
-    tracemalloc.start()
 
-    result = thread_first(request.json,
-                          partial(exception_handler, http_status=500, name='log_request', fn=log_request),
-                          partial(exception_handler, http_status=400, name='parameters', fn=parameters),
-                          partial(exception_handler, http_status=500, name='data', fn=partial(data, cfg=cfg)),
-                          partial(exception_handler, http_status=500, name='statistics', fn=statistics),
-                          partial(exception_handler, http_status=500, name='randomize', fn=partial(randomize, cfg=cfg)),
-                          partial(exception_handler, http_status=500, name='split_data', fn=split_data),
-                          partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
-                          partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
-                          partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
-                          collect,
-                          respond)
-
-    snapshot = tracemalloc.take_snapshot()
-    top_stats = snapshot.statistics('lineno')
-
-    print("[ Top 10 ]")
-    for stat in top_stats[:10]:
-        print(stat)
-
-    return result
+    return thread_first(request.json,
+                        partial(exception_handler, http_status=500, name='log_request', fn=log_request),
+                        partial(exception_handler, http_status=400, name='parameters', fn=parameters),
+                        partial(exception_handler, http_status=500, name='data', fn=partial(data, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='statistics', fn=statistics),
+                        partial(exception_handler, http_status=500, name='randomize', fn=partial(randomize, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='split_data', fn=split_data),
+                        partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
+                        partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
+                        respond)

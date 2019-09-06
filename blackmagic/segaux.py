@@ -57,7 +57,12 @@ def independent(data):
 
     # Remove the first element from every array no matter the dimensions.
     # Returns data in same shape as provided. Is this really what we want?
-    return numpy.delete(data, 0, data.ndim - 1)
+    d = numpy.delete(data, 0, data.ndim - 1)
+
+    data = None
+    del data
+
+    return d
 
 
 def dependent(data):
@@ -66,9 +71,14 @@ def dependent(data):
        return: 1d numpy array of labels
     '''
 
-    return numpy.delete(data,
-                        numpy.s_[1:],
-                        data.ndim - 1).flatten().astype('int8')
+    d = numpy.delete(data,
+                     numpy.s_[1:],
+                     data.ndim - 1).flatten().astype('int8')
+
+    data = None
+    del data
+
+    return d
 
 
 @retry(stop=stop_after_attempt(10),
@@ -196,6 +206,7 @@ def average_reflectance(segments):
 def unload_segments(ctx):
     '''Manage memory, unload segments following combine'''
 
+    ctx['segments'] = None
     del ctx['segments']
     return ctx
 
@@ -203,6 +214,7 @@ def unload_segments(ctx):
 def unload_aux(ctx):
     '''Manage memory, unload aux following combine'''
 
+    ctx['aux'] = None
     del ctx['aux']
     return ctx
 
@@ -218,6 +230,7 @@ def log_chip(ctx):
 
 def exit_pipeline(ctx):
     data = ctx['data']
+    ctx = None
     del ctx
     return data
 
@@ -260,6 +273,7 @@ def training_format(ctx):
 
     d = [standard_format(sm) for sm in ctx['data']]
     n = to_numpy(d)
+    d = None
     del d
     return assoc(ctx, 'data', n)
 

@@ -302,12 +302,7 @@ class Ceph(implements(Storage)):
         else:
             v = o['Body'].read().decode('utf-8')
 
-        j = json.loads(v)
-        
-        del o
-        del v
-
-        return j
+        return json.loads(v)
                             
     def _put_json(self, key, value, compress=True):
 
@@ -369,3 +364,4 @@ def connect(cfg):
         if c:
             c.stop()
         c = None
+        del c
