@@ -6,6 +6,7 @@ from blackmagic import workers
 from blackmagic.data import ceph
 from cytoolz import assoc
 from cytoolz import count
+from cytoolz import dissoc
 from cytoolz import do
 from cytoolz import first
 from cytoolz import get
@@ -59,10 +60,7 @@ def watchlist(training_data, eval_data):
 
 
 def add_average_reflectance(ctx):
-
-    ctx['data'] = segaux.average_reflectance(ctx['data'])
-    
-    return ctx
+    return assoc(ctx, 'data', segaux.average_reflectance(ctx['data']))
 
 
 @retry(retry=retry_if_exception_type(Exception),
@@ -72,11 +70,10 @@ def add_average_reflectance(ctx):
 def segments(ctx, cfg):
     '''Return saved segments'''
     
-    with ceph.connect(cfg) as c:
-
-        ctx['segments'] = c.select_segments(ctx['cx'], ctx['cy'])
-
-        return ctx
+    with ceph.connect(cfg) as c:     
+        return assoc(ctx,
+                     'segments',
+                     c.select_segments(ctx['cx'], ctx['cy']))
 
 
 def segments_filter(ctx):
@@ -84,11 +81,10 @@ def segments_filter(ctx):
 
     d = arrow.get(ctx['date']).datetime
 
-    fn = lambda s: d >= arrow.get(s['sday']).datetime and d <= arrow.get(s['eday']).datetime
-    
-    ctx['segments'] = list(filter(fn, ctx['segments']))
-
-    return ctx
+    return assoc(ctx,
+                 'segments',
+                 list(filter(lambda s: d >= arrow.get(s['sday']).datetime and d <= arrow.get(s['eday']).datetime,
+                             ctx['segments'])))
 
 
 def pipeline(chip, tx, ty, date, acquired, cfg):
@@ -111,7 +107,7 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
                         segaux.add_training_dates,
                         add_average_reflectance,
                         segaux.training_format,
-                        # segaux.log_chip,
+                        segaux.log_chip,
                         segaux.exit_pipeline)
 
 
@@ -189,14 +185,7 @@ def data(ctx, cfg):
                 cfg=cfg)
 
     with workers(cfg) as w:
-        results = list(flatten(w.map(p, ctx['chips'])))
-        
-        ctx['data'] = numpy.array(results, dtype=numpy.float32)
-
-        del results
-        
-        return ctx
-                     
+        return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
 
     
 @skip_on_exception
@@ -211,12 +200,8 @@ def statistics(ctx):
     dep = ctx['data'][::-1, ::ctx['data'].shape[1]].flatten()
     vals, cnts = numpy.unique(dep, return_counts=True)
     prct = cnts / numpy.sum(cnts)
-
     del dep
-
-    ctx['statistics'] = (vals, prct)
-
-    return ctx
+    return assoc(ctx, 'statistics', (vals, prct))
 
 
 @skip_on_exception
@@ -224,9 +209,9 @@ def statistics(ctx):
 def randomize(ctx, cfg):
     '''Randomize the order of training data'''
 
-    ctx['data'] = numpy.random.RandomState().permutation(ctx['data'])
-
-    return ctx
+    return assoc(ctx,
+                 'data',
+                 numpy.random.RandomState().permutation(ctx['data']))
 
 
 @skip_on_exception
@@ -235,12 +220,11 @@ def split_data(ctx):
 
     independent = segaux.independent(ctx['data'])
     dependent   = segaux.dependent(ctx['data'])
-
     del ctx['data']
     
-    ctx.update({'independent': independent, 'dependent': dependent})
-
-    return ctx
+    return merge(dissoc(ctx, 'data'),
+                 {'independent': independent,
+                  'dependent': dependent})
     
 
 @skip_on_exception
@@ -275,13 +259,11 @@ def sample(ctx, cfg):
     dependent   = ctx['dependent'][si]
 
     del selected_indices
-    del adj_counts
     del ctx['independent']
     del ctx['dependent']
     
-    ctx.update({'independent': independent, 'dependent': dependent})
-
-    return ctx
+    return merge(ctx, {'independent': independent,
+                       'dependent': dependent})
 
 
 @raise_on('test_training_exception')
@@ -307,6 +289,9 @@ def train(ctx, cfg):
                       early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
                       verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg))
 
+
+    del ctx['independent']
+    del ctx['dependent']
     del itrain
     del itest
     del dtrain
@@ -314,12 +299,8 @@ def train(ctx, cfg):
     del train_matrix
     del test_matrix
     del watch_list
-    del ctx['independent']
-    del ctx['dependent']
     
-    ctx['model'] = model
-
-    return ctx
+    return assoc(ctx, 'model', model)
 
 
 @raise_on('test_save_exception')
@@ -341,9 +322,6 @@ def save(ctx, cfg):
         c.insert_tile(ctx['tx'],
                       ctx['ty'],
                       model_bytes)
-
-        del model_bytes
-        
         return ctx
     
     

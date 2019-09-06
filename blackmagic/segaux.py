@@ -196,13 +196,12 @@ def average_reflectance(segments):
 def unload_segments(ctx):
     '''Manage memory, unload segments following combine'''
 
-    del ctx['segments']
     return dissoc(ctx, 'segments')
 
 
 def unload_aux(ctx):
     '''Manage memory, unload aux following combine'''
-    del ctx['aux']
+
     return dissoc(ctx, 'aux')
 
 
@@ -256,9 +255,7 @@ def standard_format(segmap):
 def training_format(ctx):
 
     d = [standard_format(sm) for sm in ctx['data']]
-    n = to_numpy(d)
-    del d
-    return assoc(ctx, 'data', n)
+    return assoc(ctx, 'data', to_numpy(d))
 
 
 #Coming into this function from combine is a list of dicts
