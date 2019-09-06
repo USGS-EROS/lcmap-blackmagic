@@ -261,6 +261,7 @@ def sample(ctx, cfg):
     del selected_indices
     del ctx['independent']
     del ctx['dependent']
+    del ctx['statistics']
     
     return merge(ctx, {'independent': independent,
                        'dependent': dependent})
@@ -347,7 +348,12 @@ def respond(ctx):
     
     return response
 
+def gc(ctx):
+    import gc
+    gc.collect()
+    return ctx
 
+    
 @tile.route('/tile', methods=['POST'])        
 def tiles():
     import tracemalloc
@@ -363,6 +369,7 @@ def tiles():
                           partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
                           partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
                           partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
+                          gc,
                           respond)
 
     snapshot = tracemalloc.take_snapshot()
