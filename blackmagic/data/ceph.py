@@ -302,7 +302,12 @@ class Ceph(implements(Storage)):
         else:
             v = o['Body'].read().decode('utf-8')
 
-        return json.loads(v)
+        j = json.loads(v)
+        
+        del o
+        del v
+
+        return j
                             
     def _put_json(self, key, value, compress=True):
 
