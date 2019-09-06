@@ -195,11 +195,14 @@ def statistics(ctx):
        sample 'statistics' value: Counter({4.0: 4255, 0.0: 3651, 3.0: 1746, 5.0: 348})
     '''
 
-    dep = ctx['data'][::-1, ::ctx['data'].shape[1]].flatten()
+    dimension = ctx['data'][::-1, ::ctx['data'].shape[1]]
+    dep = dimension.flatten()
     vals, cnts = numpy.unique(dep, return_counts=True)
     prct = cnts / numpy.sum(cnts)
+    dimension = None
     dep = None
     cnts = None
+    del dimension
     del dep
     del cnts
     return assoc(ctx, 'statistics', (vals, prct))
@@ -210,9 +213,10 @@ def statistics(ctx):
 def randomize(ctx, cfg):
     '''Randomize the order of training data'''
 
-    return assoc(ctx,
-                 'data',
-                 numpy.random.RandomState().permutation(ctx['data']))
+    r = numpy.random.RandomState().permutation(ctx['data'])
+    del ctx['data']
+    
+    return assoc(ctx, 'data', r)
 
 
 @skip_on_exception
