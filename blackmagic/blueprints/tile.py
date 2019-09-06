@@ -108,7 +108,7 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
                         segaux.add_training_dates,
                         add_average_reflectance,
                         segaux.training_format,
-                        segaux.log_chip,
+                        #segaux.log_chip,
                         segaux.exit_pipeline)
 
 
