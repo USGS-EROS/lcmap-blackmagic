@@ -254,6 +254,8 @@ def sample(ctx, cfg):
         # Add the index locations up to the count
         selected_indices.extend(indices[:int(count)])
 
+        indices = None
+
     si = numpy.array(selected_indices)
 
     # do we need to wipe out ctx['independent'] & ctx['dependent'] after
@@ -272,8 +274,9 @@ def sample(ctx, cfg):
     del ctx['dependent']
     del ctx['statistics']
     del si
-    
-    return merge(ctx, {'independent': independent, 'dependent': dependent})
+
+    ctx.update({'independent': independent, 'dependent': dependent})
+    return ctx
 
 
 @raise_on('test_training_exception')
