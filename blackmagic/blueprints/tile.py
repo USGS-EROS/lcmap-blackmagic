@@ -254,8 +254,6 @@ def sample(ctx, cfg):
         # Add the index locations up to the count
         selected_indices.extend(indices[:int(count)])
 
-        indices = None
-
     si = numpy.array(selected_indices)
 
     # do we need to wipe out ctx['independent'] & ctx['dependent'] after
@@ -265,18 +263,15 @@ def sample(ctx, cfg):
     dependent   = ctx['dependent'][si]
 
     selected_indices = None
-    ctx['independent'] = None
-    ctx['dependent'] = None
     ctx['statistics'] = None
     si = None
     del selected_indices
-    del ctx['independent']
-    del ctx['dependent']
     del ctx['statistics']
     del si
+    del class_values
+    del percent
 
-    ctx.update({'independent': independent, 'dependent': dependent})
-    return ctx
+    return merge(ctx, {'independent': independent, 'dependent': dependent})
 
 
 @raise_on('test_training_exception')
@@ -320,7 +315,7 @@ def train(ctx, cfg):
     del train_matrix
     del test_matrix
     del watch_list
-    
+
     return assoc(ctx, 'model', model)
 
 
@@ -370,6 +365,9 @@ def respond(ctx):
     
     return response
 
+def print_keys(ctx, step):
+    logger.info("{} keys: {}".format(step, ctx.keys()))
+    return ctx
     
 @tile.route('/tile', methods=['POST'])        
 def tiles():
@@ -377,11 +375,19 @@ def tiles():
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
+                        partial(print_keys, step='parameters'),
                         partial(exception_handler, http_status=500, name='data', fn=partial(data, cfg=cfg)),
+                        partial(print_keys, step='data'),
                         partial(exception_handler, http_status=500, name='statistics', fn=statistics),
+                        partial(print_keys, step='statistics'),
                         partial(exception_handler, http_status=500, name='randomize', fn=partial(randomize, cfg=cfg)),
+                        partial(print_keys, step='randomize'),
                         partial(exception_handler, http_status=500, name='split_data', fn=split_data),
+                        partial(print_keys, step='split_data'),
                         partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
+                        partial(print_keys, step='sample'),
                         partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
+                        partial(print_keys, step='train'),
                         partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
+                        partial(print_keys, step='save'),
                         respond)
