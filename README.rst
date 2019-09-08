@@ -77,6 +77,7 @@ From Dockerhub:
 	       -e HTTP_PORT=5000 \
 	       -e WORKERS=4 \
 	       -e WORKER_TIMEOUT=12000 \
+	       -e MAX_REQUESTS=1000 \
                usgseros/lcmap-blackmagic:1.0
 
 From PyPI:
@@ -94,6 +95,7 @@ From PyPI:
     $ export HTTP_PORT=5000
     $ export WORKERS=4
     $ export WORKER_TIMEOUT=12000
+    $ export MAX_REQUESTS=1000
     $ blackmagic.sh
 
     
@@ -116,6 +118,7 @@ From Github:
     $ export HTTP_PORT=5000
     $ export WORKERS=4
     $ export WORKER_TIMEOUT=12000
+    $ export MAX_REQUESTS=1000
     $ ./bin/blackmagic.sh
 
     
@@ -126,6 +129,9 @@ Blackmagic has two primary controls that determine the nature of its parallelism
 ``WORKERS`` controls the number of HTTP listener processes (gunicorn workers) and thus, the number of simultaneous HTTP requests that can be serviced.
 
 ``CPUS_PER_WORKER`` controls the number of cores available to each ``WORKER``.
+
+An additional parameter, MAX_REQUESTS, is available to help control the lifespace of each Gunicorn worker.
+See http://docs.gunicorn.org/en/stable/settings.html.
 
 
 Deployment Examples
