@@ -367,6 +367,11 @@ def respond(ctx):
 
 def print_keys(ctx, step):
     logger.info("{} keys: {}".format(step, ctx.keys()))
+
+    import resource
+    logger.info("SELF memory (kb):{}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))
+    logger.info("CHILDREN memory (kb):{}".format(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss))
+
     return ctx
     
 @tile.route('/tile', methods=['POST'])        
