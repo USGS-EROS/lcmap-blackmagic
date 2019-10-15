@@ -23,10 +23,11 @@ from functools import wraps
 from merlin.functions import flatten
 from sklearn.model_selection import train_test_split
 from operator import add
+from tenacity import after_log
 from tenacity import retry
 from tenacity import retry_if_exception_type
 from tenacity import stop_after_attempt
-from tenacity import wait_random_exponential
+from tenacity import wait_exponential
 
 import arrow
 import blackmagic
@@ -63,10 +64,10 @@ def add_average_reflectance(ctx):
     return assoc(ctx, 'data', segaux.average_reflectance(ctx['data']))
 
 
-@retry(retry=retry_if_exception_type(Exception),
-       stop=stop_after_attempt(10),
+@retry(stop=stop_after_attempt(20),
        reraise=True,
-       wait=wait_random_exponential(multiplier=1, max=60))
+       after=after_log(logger, logging.warn),
+       wait=wait_exponential(multiplier=1, min=4, max=30))
 def segments(ctx, cfg):
     '''Return saved segments'''
     
