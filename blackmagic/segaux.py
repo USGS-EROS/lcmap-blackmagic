@@ -25,8 +25,10 @@ from merlin.functions import flatten
 from requests.exceptions import ConnectionError
 from operator import add
 from operator import mul
+from tenacity import after_log
 from tenacity import retry
 from tenacity import stop_after_attempt
+from tenacity import wait_exponential
 from tenacity import wait_random_exponential
 
 import arrow
@@ -81,9 +83,10 @@ def dependent(data):
     return d
 
 
-@retry(stop=stop_after_attempt(10),
+@retry(stop=stop_after_attempt(20),
        reraise=True,
-       wait=wait_random_exponential(multiplier=1, max=60))
+       after=after_log(logger, logging.warn),
+       wait=wait_exponential(multiplier=1, min=4, max=30))
 def aux(ctx, cfg):
     '''Retrieve aux data'''
     
