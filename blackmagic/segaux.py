@@ -86,9 +86,11 @@ def dependent(data):
 @retry(stop=stop_after_attempt(20),
        reraise=True,
        after=after_log(logger, logging.warn),
-       wait=wait_exponential(multiplier=1, min=4, max=30))
+       wait=wait_exponential(multiplier=1, min=2, max=5))
 def aux(ctx, cfg):
     '''Retrieve aux data'''
+
+    logger.info("getting aux for cx:{} cy:{}".format(ctx['cx'], ctx['cy']))
     
     data = merlin.create(x=ctx['cx'],
                          y=ctx['cy'],
