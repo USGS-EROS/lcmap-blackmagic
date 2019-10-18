@@ -327,11 +327,8 @@ def respond(ctx):
 
     return response
 
-                
-@prediction.route('/prediction', methods=['POST'])        
-def predictions_route():
-    
-    return thread_first(request.json,
+def run(params):
+    return thread_first(params,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
                         partial(exception_handler, http_status=500, name='load_model', fn=partial(load_model, cfg=cfg)),
@@ -341,5 +338,9 @@ def predictions_route():
                         partial(exception_handler, http_status=500, name='predictions', fn=partial(predictions, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='default_predictions', fn=default_predictions),
                         partial(exception_handler, http_status=500, name='delete', fn=partial(delete, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
-                        respond)
+                        partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)))
+
+@prediction.route('/prediction', methods=['POST'])        
+def predictions_route():
+    return respond(run(request.json))    
+

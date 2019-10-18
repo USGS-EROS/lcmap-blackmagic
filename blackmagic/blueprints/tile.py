@@ -373,11 +373,9 @@ def print_keys(ctx, step):
     logger.info("CHILDREN memory (kb):{}".format(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss))
 
     return ctx
-    
-@tile.route('/tile', methods=['POST'])        
-def tiles():
 
-    return thread_first(request.json,
+def run(params):
+    return thread_first(params,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
                         partial(exception_handler, http_status=500, name='data', fn=partial(data, cfg=cfg)),
@@ -386,5 +384,8 @@ def tiles():
                         partial(exception_handler, http_status=500, name='split_data', fn=split_data),
                         partial(exception_handler, http_status=500, name='sample', fn=partial(sample, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='train', fn=partial(train, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
-                        respond)
+                        partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)))
+
+@tile.route('/tile', methods=['POST'])        
+def tiles():
+    return respond(run(request.json))

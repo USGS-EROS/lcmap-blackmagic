@@ -249,16 +249,18 @@ def exception_handler(ctx, http_status, name, fn):
                                  'exception': '{name} exception: {ex}'.format(name=name, ex=e),
                                  'http_status': http_status})
 
-    
-@segment.route('/segment', methods=['POST'])
-def segments():
-
-    return thread_first(request.json,
+def run(params):
+    return thread_first(params,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),
                         partial(exception_handler, http_status=500, name='timeseries', fn=partial(timeseries, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='nodata', fn=partial(nodata, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='detection', fn=partial(detection, cfg=cfg)),
                         partial(exception_handler, http_status=500, name='delete', fn=partial(delete, cfg=cfg)),
-                        partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)),
-                        respond)
+                        partial(exception_handler, http_status=500, name='save', fn=partial(save, cfg=cfg)))
+    
+@segment.route('/segment', methods=['POST'])
+def segments():
+    return respond(run(request.json))
+
+    
