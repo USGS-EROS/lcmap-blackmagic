@@ -66,7 +66,6 @@ def add_average_reflectance(ctx):
 
 @retry(stop=stop_after_attempt(20),
        reraise=True,
-       after=after_log(logger, logging.warn),
        wait=wait_exponential(multiplier=1, min=2, max=5))
 def segments(ctx, cfg):
     '''Return saved segments'''
