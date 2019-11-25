@@ -171,9 +171,12 @@ def add_training_dates(ctx):
 
 def spectral_slope(spectra, segment):
 
-    coefs = get(spectra, segment)
+    #handle cases where default change segments have
+    #been passed in that do not have any coefficients
+    #associated with them
+    coefs = get(spectra, segment, None)
 
-    if len(coefs) == 0:
+    if coefs is None or len(coefs) == 0:
         return 0
     else:
         return first(coefs)
