@@ -184,17 +184,20 @@ def average_reflectance_fn(segment):
     
     avgrefl = lambda intercept, slope, ordinal: add(intercept, mul(slope, ordinal))
     
+    #arfn    = partial(avgrefl,
+    #                  slope=first(get('slope', segment)),
+    #                  ordinal=arrow.get(get('date', segment)).datetime.toordinal())
+
     arfn    = partial(avgrefl,
-                      slope=first(get('slope', segment)),
                       ordinal=arrow.get(get('date', segment)).datetime.toordinal())
                               
-    ar = {'blar': arfn(get('blint', segment)),
-          'grar': arfn(get('grint', segment)),
-          'niar': arfn(get('niint', segment)),
-          'rear': arfn(get('reint', segment)),
-          's1ar': arfn(get('s1int', segment)),
-          's2ar': arfn(get('s2int', segment)),
-          'thar': arfn(get('thint', segment))}
+    ar = {'blar': arfn(intercept=get('blint', segment), slope=first(get('blcoef', segment))),
+          'grar': arfn(intercept=get('grint', segment), slope=first(get('grcoef', segment))),
+          'niar': arfn(intercept=get('niint', segment), slope=first(get('nicoef', segment))),
+          'rear': arfn(intercept=get('reint', segment), slope=first(get('recoef', segment))),
+          's1ar': arfn(intercept=get('s1int', segment), slope=first(get('s1coef', segment))),
+          's2ar': arfn(intercept=get('s2int', segment), slope=first(get('s2coef', segment))),
+          'thar': arfn(intercept=get('thint', segment), slope=first(get('thcoef', segment)))}
     
     return merge(segment, ar)
 
