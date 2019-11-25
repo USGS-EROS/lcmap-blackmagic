@@ -276,6 +276,14 @@ def test_add_training_dates():
 
     assert expected == outputs
 
+    
+def test_spectral_slope():
+    segment = {'blint': [1, 2, 3, 4, 5, 6]}
+    assert segaux.spectral_slope('blint', segment) == 1
+
+    segment = {'blint': []}
+    assert segaux.spectral_slope('blint', segment) == 0
+
 
 def test_average_reflectance_fn():
 
