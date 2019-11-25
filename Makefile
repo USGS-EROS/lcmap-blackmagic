@@ -1,12 +1,14 @@
-VERSION :=`cat version.txt`
-IMAGE   := usgseros/lcmap-blackmagic
+VERSION    :=`cat version.txt`
+IMAGE      := usgseros/lcmap-blackmagic
 BRANCH     := $(or $(TRAVIS_BRANCH),`git rev-parse --abbrev-ref HEAD`)
 BRANCH     := $(shell echo $(BRANCH) | tr / -)
 BUILD_TAG  := $(IMAGE):build
-TAG        := $(shell if [ "$(BRANCH)" = "master" ];\
-                         then echo "$(IMAGE):$(VERSION)";\
-                         else echo "$(IMAGE):$(VERSION)-$(BRANCH)";\
-                      fi)
+#TAG        := $(shell if [ "$(BRANCH)" = "master" ];\
+#                         then echo "$(IMAGE):$(VERSION)";\
+#                         else echo "$(IMAGE):$(VERSION)-$(BRANCH)";\
+#                      fi)
+SHORT_HASH := `git rev-parse --short HEAD`
+TAG        := $(IMAGE):$(BRANCH)-$(VERSION)-$(SHORT_HASH)
 
 deps-up:
 	docker-compose -f deps/docker-compose.yml up
