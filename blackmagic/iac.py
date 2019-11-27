@@ -55,29 +55,30 @@
 import os
 import requests
 
-cfg = {'train': os.environ['training_task_url'],
-       'detect': os.environ['detect_task_url'],
+cfg = {'train':   os.environ['training_task_url'],
+       'detect':  os.environ['detect_task_url'],
        'predict': os.environ['prediction_task_url']}
 
 def task_url(service, taskid):
-    url = cfg['service']
+    url = cfg[service]
     return '/'.join([url, taskid])
 
 def tasks(service):
-    resp = requests.get(cfg['service'])
+    body = {'code': 0}
+    resp = requests.POST(url=cfg[service], data=body)
 
-    if r.ok:
-        return r.json()
+    if resp.ok:
+        return resp.json()
     else:
         return None
 
 def start(service, taskid):
-    body = {'code': 0}
+    body = {'code': 1}
     resp = requests.POST(url=task_url(service, taskid), data=body)
     return resp.status_code
 
 def control(service, taskid):
-    body = {'code': 1}
+    body = {'code': 2}
     resp = requests.POST(url=task_url(service, taskid), data=body)
     
     if resp.ok:
@@ -87,21 +88,21 @@ def control(service, taskid):
         return None
 
 def status(service, taskid, message):
-    body = {'code': 2, 'message': message}
-    resp = requests.POST(url=task_url(service, taskid), data=body)
-    return resp.status_code
-
-def error(service, taskid, message):
     body = {'code': 3, 'message': message}
     resp = requests.POST(url=task_url(service, taskid), data=body)
     return resp.status_code
 
+def error(service, taskid, message):
+    body = {'code': 4, 'message': message}
+    resp = requests.POST(url=task_url(service, taskid), data=body)
+    return resp.status_code
+
 def stop(service, taskid):
-    body = {'code': 4}
+    body = {'code': 5}
     resp = requests.POST(url=task_url(service, taskid), data=body)
     return resp.status_code
 
 def finish(service, taskid):
-    body = {'code': 5}
+    body = {'code': 6}
     resp = requests.POST(url=task_url(service, taskid), data=body)
     return resp.status_code
