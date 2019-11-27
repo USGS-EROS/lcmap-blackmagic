@@ -23,10 +23,11 @@ from functools import wraps
 from merlin.functions import flatten
 from sklearn.model_selection import train_test_split
 from operator import add
+from tenacity import after_log
 from tenacity import retry
 from tenacity import retry_if_exception_type
 from tenacity import stop_after_attempt
-from tenacity import wait_random_exponential
+from tenacity import wait_exponential
 
 import arrow
 import blackmagic
@@ -63,13 +64,12 @@ def add_average_reflectance(ctx):
     return assoc(ctx, 'data', segaux.average_reflectance(ctx['data']))
 
 
-@retry(retry=retry_if_exception_type(Exception),
-       stop=stop_after_attempt(10),
+@retry(stop=stop_after_attempt(20),
        reraise=True,
-       wait=wait_random_exponential(multiplier=1, max=60))
+       wait=wait_exponential(multiplier=1, min=2, max=5))
 def segments(ctx, cfg):
     '''Return saved segments'''
-    
+    logger.info("getting segments for cx:{} cy:{}".format(ctx['cx'], ctx['cy']))
     with ceph.connect(cfg) as c:     
         return assoc(ctx, 'segments', c.select_segments(ctx['cx'], ctx['cy']))
 
@@ -181,7 +181,9 @@ def data(ctx, cfg):
                 date=ctx['date'],
                 acquired=ctx['acquired'],
                 cfg=cfg)
-   
+
+    logger.info("loading segments and aux data")
+    
     with workers(cfg) as w:
         return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
 
@@ -195,6 +197,8 @@ def statistics(ctx):
        sample 'statistics' value: Counter({4.0: 4255, 0.0: 3651, 3.0: 1746, 5.0: 348})
     '''
 
+    logger.info("generating statistics")
+    
     dimension = ctx['data'][::-1, ::ctx['data'].shape[1]]
     dep = dimension.flatten()
     vals, cnts = numpy.unique(dep, return_counts=True)
@@ -213,6 +217,8 @@ def statistics(ctx):
 def randomize(ctx, cfg):
     '''Randomize the order of training data'''
 
+    logger.info("randomizing data")
+    
     r = numpy.random.RandomState().permutation(ctx['data'])
     del ctx['data']
     
@@ -223,6 +229,8 @@ def randomize(ctx, cfg):
 @measure
 def split_data(ctx):
 
+    logger.info("splitting data")
+    
     independent = segaux.independent(ctx['data'])
     dependent   = segaux.dependent(ctx['data'])
     ctx['data'] = None
@@ -238,6 +246,8 @@ def sample(ctx, cfg):
 
     # See xg-train-annualized.py in lcmap-science/classification as reference.
 
+    logger.info("sampling data")
+    
     class_values, percent = ctx['statistics']
     
     # Adjust the target counts that we are wanting based on the percentage
@@ -281,6 +291,8 @@ def sample(ctx, cfg):
 @measure
 def train(ctx, cfg):
     '''Train an xgboost model'''
+
+    logger.info("training model")
     
     itrain, itest, dtrain, dtest = train_test_split(ctx['independent'],
                                                     ctx['dependent'],
@@ -330,6 +342,8 @@ def save(ctx, cfg):
     # >>> bytes.fromhex('deadbeef')
     #b'\xde\xad\xbe\xef'
 
+    logger.info("saving model")
+    
     model_bytes = segaux.bytes_from_booster(ctx['model']).hex()
 
     ctx['model'] = None
