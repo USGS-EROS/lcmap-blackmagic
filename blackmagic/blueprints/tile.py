@@ -60,7 +60,7 @@ def watchlist(training_data, eval_data):
     return [(training_data, 'train'), (eval_data, 'eval')]
 
 
-def add_average_reflectance(ctx):
+def add_average_reflectance(ctx):    
     return assoc(ctx, 'data', segaux.average_reflectance(ctx['data']))
 
 
@@ -76,7 +76,7 @@ def segments(ctx, cfg):
 
 def segments_filter(ctx):
     '''Yield segments that span the supplied date'''
-
+    
     d = arrow.get(ctx['date']).datetime
 
     return assoc(ctx,

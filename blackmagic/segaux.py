@@ -158,16 +158,6 @@ def prediction_dates(segments, month, day):
                                        eday=get('eday', s),
                                        month=month,
                                        day=day)
-            #tx: 1034415 ty: 2114805
-            #cx: 1034415 cy: 1967805
-            #px: 1034415 py: 1964925
-
-            #if key == (1034415, 1967805, 1034415, 1964925):
-            #    print("Combine target:{}".format(a))
-
-            #if (s['px'] == 1034415 and s['py'] == 1964925):
-                #print("SEGMENT:{}".format(segment))
-            #    print("sday:{} eday:{} bday:{}".format(s['sday'], s['eday'], s['bday']))
                 
             for date in dates:
                 yield assoc(s, 'date', date)
@@ -183,27 +173,39 @@ def add_training_dates(ctx):
     return assoc(ctx, 'data', list(map(fn, ctx['data'])))
 
 
+def spectral_slope(spectra, segment):
+
+    #handle cases where default change segments have
+    #been passed in that do not have any coefficients
+    #associated with them
+    coefs = get(spectra, segment, None)
+
+    if coefs is None or len(coefs) == 0:
+        return 0
+    else:
+        return first(coefs)
+
+    
 def average_reflectance_fn(segment):
     '''Add average reflectance values into dataset'''
     
     avgrefl = lambda intercept, slope, ordinal: add(intercept, mul(slope, ordinal))
     
-    arfn    = partial(avgrefl,
-                      slope=first(get('slope', segment)),
-                      ordinal=arrow.get(get('date', segment)).datetime.toordinal())
-                              
-    ar = {'blar': arfn(get('blint', segment)),
-          'grar': arfn(get('grint', segment)),
-          'niar': arfn(get('niint', segment)),
-          'rear': arfn(get('reint', segment)),
-          's1ar': arfn(get('s1int', segment)),
-          's2ar': arfn(get('s2int', segment)),
-          'thar': arfn(get('thint', segment))}
+    date = arrow.get(get('date', segment)).datetime.toordinal()
+    
+    ar = {'blar': avgrefl(get('blint', segment), spectral_slope('blcoef', segment), date),
+          'grar': avgrefl(get('grint', segment), spectral_slope('grcoef', segment), date),
+          'niar': avgrefl(get('niint', segment), spectral_slope('nicoef', segment), date),
+          'rear': avgrefl(get('reint', segment), spectral_slope('recoef', segment), date),
+          's1ar': avgrefl(get('s1int', segment), spectral_slope('s1coef', segment), date),
+          's2ar': avgrefl(get('s2int', segment), spectral_slope('s2coef', segment), date),
+          'thar': avgrefl(get('thint', segment), spectral_slope('thcoef', segment), date)}
     
     return merge(segment, ar)
 
 
 def average_reflectance(segments):
+    
     return map(average_reflectance_fn, segments)
 
 
@@ -233,7 +235,7 @@ def log_chip(ctx):
 
 
 def exit_pipeline(ctx):
-    data = ctx['data']
+    data = ctx['data']    
     ctx = None
     del ctx
     return data
