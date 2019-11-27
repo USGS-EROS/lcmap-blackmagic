@@ -1,12 +1,14 @@
-VERSION :=`cat version.txt`
-IMAGE   := usgseros/lcmap-blackmagic
+VERSION    :=`cat version.txt`
+IMAGE      := usgseros/lcmap-blackmagic
 BRANCH     := $(or $(TRAVIS_BRANCH),`git rev-parse --abbrev-ref HEAD`)
 BRANCH     := $(shell echo $(BRANCH) | tr / -)
 BUILD_TAG  := $(IMAGE):build
-TAG        := $(shell if [ "$(BRANCH)" = "master" ];\
-                         then echo "$(IMAGE):$(VERSION)";\
-                         else echo "$(IMAGE):$(VERSION)-$(BRANCH)";\
-                      fi)
+#TAG        := $(shell if [ "$(BRANCH)" = "master" ];\
+#                         then echo "$(IMAGE):$(VERSION)";\
+#                         else echo "$(IMAGE):$(VERSION)-$(BRANCH)";\
+#                      fi)
+SHORT_HASH := `git rev-parse --short HEAD`
+TAG        := $(IMAGE):$(BRANCH)-$(VERSION)-$(SHORT_HASH)
 
 deps-up:
 	docker-compose -f deps/docker-compose.yml up
@@ -18,7 +20,10 @@ deps-down:
 	docker-compose -f deps/docker-compose.yml down
 
 clean:
-	@rm -rf lcmap_blackmagic.egg-info *pyc *~ *__pycache__*
+	@find . -type d -name "lcmap_blackmagic.egg-info" -exec rm -rf {} +
+	@find . -type f -name "*pyc" -exec rm -rf {} \;
+	@find . -type f -name "*~" -exec rm -rf {} \;
+	@find . -type d -name "__pycache__" -exec rm -rf {} +
 
 set-nginx-cache-file-perms: deps-up-d
 	docker exec -it blackmagic-nginx /bin/bash -c "chmod -R 777 /data/nginx/cache"
@@ -30,7 +35,7 @@ update-test-data: deps-up-d clear-nginx-cache tests set-nginx-cache-file-perms d
 	@echo "NGINX cache files updated"
 
 test-with-manual-deps:
-	pytest --ignore=deps/nginxcache
+	pytest --ignore=deps/nginxcache -p no:warnings -vv
 
 tests: deps-up-d test-with-manual-deps deps-down
 

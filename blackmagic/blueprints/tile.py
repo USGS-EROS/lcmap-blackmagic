@@ -1,10 +1,9 @@
-from blackmagic import cfg
-from blackmagic import db
 from blackmagic import raise_on
 from blackmagic import segaux
 from blackmagic import skip_on_empty
 from blackmagic import skip_on_exception
 from blackmagic import workers
+from blackmagic.data import ceph
 from cytoolz import assoc
 from cytoolz import count
 from cytoolz import dissoc
@@ -22,10 +21,16 @@ from flask import jsonify
 from flask import request
 from functools import wraps
 from merlin.functions import flatten
-
 from sklearn.model_selection import train_test_split
+from operator import add
+from tenacity import after_log
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_attempt
+from tenacity import wait_exponential
 
 import arrow
+import blackmagic
 import logging
 import json
 import numpy
@@ -33,29 +38,8 @@ import xgboost as xgb
 
 logger = logging.getLogger('blackmagic.tile')
 tile = Blueprint('tile', __name__)
-__cluster = None
 
-
-def _cluster(cfg):
-    '''Cache db.cluster per module'''
-
-    global __cluster
-
-    if __cluster is None:
-        __cluster = db.cluster(cfg)
-
-    return __cluster
-
-
-def segments_filter(ctx):
-    '''Yield segments that span the supplied date'''
-
-    d = arrow.get(ctx['date']).datetime
-    
-    return assoc(ctx,
-                 'segments',
-                 list(filter(lambda s: d >= arrow.get(s.sday).datetime and d <= arrow.get(s.eday).datetime,
-                             ctx['segments'])))
+cfg = merge(blackmagic.cfg, ceph.cfg)
 
 
 def log_request(ctx):
@@ -76,8 +60,29 @@ def watchlist(training_data, eval_data):
     return [(training_data, 'train'), (eval_data, 'eval')]
 
 
-def add_average_reflectance(ctx):
+def add_average_reflectance(ctx):    
     return assoc(ctx, 'data', segaux.average_reflectance(ctx['data']))
+
+
+@retry(stop=stop_after_attempt(20),
+       reraise=True,
+       wait=wait_exponential(multiplier=1, min=2, max=5))
+def segments(ctx, cfg):
+    '''Return saved segments'''
+    logger.info("getting segments for cx:{} cy:{}".format(ctx['cx'], ctx['cy']))
+    with ceph.connect(cfg) as c:     
+        return assoc(ctx, 'segments', c.select_segments(ctx['cx'], ctx['cy']))
+
+
+def segments_filter(ctx):
+    '''Yield segments that span the supplied date'''
+    
+    d = arrow.get(ctx['date']).datetime
+
+    return assoc(ctx,
+                 'segments',
+                 list(filter(lambda s: d >= arrow.get(s['sday']).datetime and d <= arrow.get(s['eday']).datetime,
+                             ctx['segments'])))
 
 
 def pipeline(chip, tx, ty, date, acquired, cfg):
@@ -87,11 +92,10 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
            'cx': first(chip),
            'cy': second(chip),
            'date': date,
-           'acquired': acquired,
-           'cluster': _cluster(cfg)}
+           'acquired': acquired}
 
     return thread_first(ctx,
-                        partial(segaux.segments, cfg=cfg),
+                        partial(segments, cfg=cfg),
                         segments_filter,
                         partial(segaux.aux, cfg=cfg),
                         segaux.aux_filter,                        
@@ -101,7 +105,7 @@ def pipeline(chip, tx, ty, date, acquired, cfg):
                         segaux.add_training_dates,
                         add_average_reflectance,
                         segaux.training_format,
-                        segaux.log_chip,
+                        #segaux.log_chip,
                         segaux.exit_pipeline)
 
 
@@ -142,7 +146,6 @@ def measure(fn):
         return ctx
     return wrapper                 
 
-
 @skip_on_exception
 @measure
 def parameters(r):
@@ -164,8 +167,7 @@ def parameters(r):
                 'chips': list(map(lambda chip: (int(first(chip)), int(second(chip))), chips)),
                 'test_data_exception': get('test_data_exception', r, None),
                 'test_training_exception': get('test_training_exception', r, None),
-                'test_cassandra_exception': get('test_cassandra_exception', r, None)}
-
+                'test_save_exception': get('test_save_exception', r, None)}
 
 @skip_on_exception
 @raise_on('test_data_exception')
@@ -180,6 +182,8 @@ def data(ctx, cfg):
                 acquired=ctx['acquired'],
                 cfg=cfg)
 
+    logger.info("loading segments and aux data")
+    
     with workers(cfg) as w:
         return assoc(ctx, 'data', numpy.array(list(flatten(w.map(p, ctx['chips']))), dtype=numpy.float32))
 
@@ -193,9 +197,18 @@ def statistics(ctx):
        sample 'statistics' value: Counter({4.0: 4255, 0.0: 3651, 3.0: 1746, 5.0: 348})
     '''
 
-    dep = ctx['data'][::-1, ::ctx['data'].shape[1]].flatten()
+    logger.info("generating statistics")
+    
+    dimension = ctx['data'][::-1, ::ctx['data'].shape[1]]
+    dep = dimension.flatten()
     vals, cnts = numpy.unique(dep, return_counts=True)
     prct = cnts / numpy.sum(cnts)
+    dimension = None
+    dep = None
+    cnts = None
+    del dimension
+    del dep
+    del cnts
     return assoc(ctx, 'statistics', (vals, prct))
 
 
@@ -204,18 +217,26 @@ def statistics(ctx):
 def randomize(ctx, cfg):
     '''Randomize the order of training data'''
 
-    return assoc(ctx,
-                 'data',
-                 numpy.random.RandomState().permutation(ctx['data']))
+    logger.info("randomizing data")
+    
+    r = numpy.random.RandomState().permutation(ctx['data'])
+    del ctx['data']
+    
+    return assoc(ctx, 'data', r)
 
 
 @skip_on_exception
 @measure
 def split_data(ctx):
 
-    return merge(dissoc(ctx, 'data'),
-                 {'independent': segaux.independent(ctx['data']),
-                  'dependent': segaux.dependent(ctx['data'])})
+    logger.info("splitting data")
+    
+    independent = segaux.independent(ctx['data'])
+    dependent   = segaux.dependent(ctx['data'])
+    ctx['data'] = None
+    del ctx['data']
+    
+    return merge(ctx, {'independent': independent, 'dependent': dependent})
     
 
 @skip_on_exception
@@ -225,6 +246,8 @@ def sample(ctx, cfg):
 
     # See xg-train-annualized.py in lcmap-science/classification as reference.
 
+    logger.info("sampling data")
+    
     class_values, percent = ctx['statistics']
     
     # Adjust the target counts that we are wanting based on the percentage
@@ -243,8 +266,22 @@ def sample(ctx, cfg):
 
     si = numpy.array(selected_indices)
 
-    return merge(ctx, {'independent': ctx['independent'][si],
-                       'dependent': ctx['dependent'][si]})
+    # do we need to wipe out ctx['independent'] & ctx['dependent'] after
+    # taking the sample to free up memory?
+    # Advanced indexing always returns a copy of the data (contrast with basic slicing that returns a view).
+    independent = ctx['independent'][si]
+    dependent   = ctx['dependent'][si]
+
+    selected_indices = None
+    ctx['statistics'] = None
+    si = None
+    del selected_indices
+    del ctx['statistics']
+    del si
+    del class_values
+    del percent
+
+    return merge(ctx, {'independent': independent, 'dependent': dependent})
 
 
 @raise_on('test_training_exception')
@@ -254,6 +291,8 @@ def sample(ctx, cfg):
 @measure
 def train(ctx, cfg):
     '''Train an xgboost model'''
+
+    logger.info("training model")
     
     itrain, itest, dtrain, dtest = train_test_split(ctx['independent'],
                                                     ctx['dependent'],
@@ -261,38 +300,62 @@ def train(ctx, cfg):
     
     train_matrix = xgb.DMatrix(data=itrain, label=dtrain)
     test_matrix  = xgb.DMatrix(data=itest, label=dtest)
+    watch_list   = watchlist(train_matrix, test_matrix)
     
-    return assoc(ctx, 'model', xgb.train(params=get_in(['xgboost', 'parameters'], cfg),
-                                         dtrain=train_matrix,
-                                         num_boost_round=get_in(['xgboost', 'num_round'], cfg),
-                                         evals=watchlist(train_matrix, test_matrix),
-                                         early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
-                                         verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg)))
+    model = xgb.train(params=get_in(['xgboost', 'parameters'], cfg),
+                      dtrain=train_matrix,
+                      num_boost_round=get_in(['xgboost', 'num_round'], cfg),
+                      evals=watch_list,
+                      early_stopping_rounds=get_in(['xgboost', 'early_stopping_rounds'], cfg),
+                      verbose_eval=get_in(['xgboost', 'verbose_eval'], cfg))
+
+    ctx['independent'] = None
+    ctx['dependent'] = None
+    itrain = None
+    itest = None
+    dtrain = None
+    dtest = None
+    train_matrix = None
+    test_matrix = None
+    watch_list = None
+    del ctx['independent']
+    del ctx['dependent']
+    del itrain
+    del itest
+    del dtrain
+    del dtest
+    del train_matrix
+    del test_matrix
+    del watch_list
+
+    return assoc(ctx, 'model', model)
 
 
-@raise_on('test_cassandra_exception')
+@raise_on('test_save_exception')
 @skip_on_exception
 @skip_on_empty('model')
 @measure
 def save(ctx, cfg):                                                
-    '''Saves an xgboost model to Cassandra for this tx & ty'''
+    '''Saves an xgboost model for this tx & ty'''
 
     # will need to decode hex when pulling model
     # >>> bytes.fromhex('deadbeef')
     #b'\xde\xad\xbe\xef'
-        
-    #db.insert_tile(cfg,
-    #               ctx['tx'],
-    #               ctx['ty'],
-    #               ctx['model'].save_raw().hex())
 
-    db.insert_tile(cfg,
-                   ctx['tx'],
-                   ctx['ty'],
-                   segaux.bytes_from_booster(ctx['model']).hex())
-    return ctx
+    logger.info("saving model")
+    
+    model_bytes = segaux.bytes_from_booster(ctx['model']).hex()
 
-
+    ctx['model'] = None
+    del ctx['model']
+    
+    with ceph.connect(cfg) as c:
+        c.insert_tile(ctx['tx'],
+                      ctx['ty'],
+                      model_bytes)
+        return ctx
+    
+    
 def respond(ctx):
     '''Send the HTTP response'''
 
@@ -311,12 +374,23 @@ def respond(ctx):
 
     response.status_code = get('http_status', ctx, 200)
 
+    ctx = None
+    del ctx
+    
     return response
 
+def print_keys(ctx, step):
+    logger.info("{} keys: {}".format(step, ctx.keys()))
 
+    import resource
+    logger.info("SELF memory (kb):{}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))
+    logger.info("CHILDREN memory (kb):{}".format(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss))
+
+    return ctx
+    
 @tile.route('/tile', methods=['POST'])        
 def tiles():
-    
+
     return thread_first(request.json,
                         partial(exception_handler, http_status=500, name='log_request', fn=log_request),
                         partial(exception_handler, http_status=400, name='parameters', fn=parameters),

@@ -13,7 +13,7 @@ def version():
 
 setup(name='lcmap-blackmagic',
       version=version(),
-      description='HTTP server that saves LCMAP change segments, classifiers & land cover probabilities to Apache Cassandra',
+      description='HTTP server that saves LCMAP change segments, classifiers & land cover probabilities to S3/Ceph',
       long_description=readme(),
       classifiers=[
         'Development Status :: 5 - Stable',
@@ -27,7 +27,7 @@ setup(name='lcmap-blackmagic',
       license='Unlicense',
       packages=['blackmagic'],
       install_requires=[
-          'arrow',
+          'arrow==0.14.7',
           'cython',
           'lcmap-merlin>=2.3.1',
           'lcmap-pyccd==2018.10.17',
@@ -35,8 +35,8 @@ setup(name='lcmap-blackmagic',
           'flask',
           'gunicorn',
           'tenacity',
-          'cassandra-driver'
-          
+          'python-interface',
+          'boto3',          
       ],
       # List additional groups of dependencies here (e.g. development
       # dependencies). You can install these using the following syntax,

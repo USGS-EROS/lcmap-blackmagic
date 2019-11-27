@@ -1,4 +1,3 @@
-from blackmagic import db
 from blackmagic import segaux
 from collections import namedtuple
 from cytoolz import assoc
@@ -76,34 +75,35 @@ def test_aux_filter():
 
     assert expected == outputs
     
-    
-def test_segments():
-    inputs = {'cx': test.cx,
-              'cy': test.cy,
-              'cluster': db.cluster(blackmagic.cfg)}
 
-    outputs = segaux.segments(inputs, blackmagic.cfg)
+# TODO:  move this test to test_B_tile and test_D_predictions
+#def test_segments():
+#    inputs = {'cx': test.cx,
+#              'cy': test.cy,
+#              'cluster': db.cluster(blackmagic.cfg)}
 
-    segments = get('segments', outputs, None)
+#    outputs = segaux.segments(inputs, blackmagic.cfg)
 
-    assert segments is not None
-    assert len(segments) > 0
+#    segments = get('segments', outputs, None)
+
+#    assert segments is not None
+#    assert len(segments) > 0
 
 
 def test_combine():
-    seg = namedtuple('Segment', ['cx', 'cy', 'px', 'py', 'segval'])
     key = namedtuple('Key', ['cx', 'cy', 'px', 'py'])
+
     
-    inputs = {'segments': [seg(1, 2, 3, 4, 5),
-                           seg(2, 3, 4, 5, 6),
-                           seg(3, 4, 5, 6, 7)],
+    inputs = {'segments': [{'cx': 1, 'cy': 2, 'px': 3, 'py': 4, 'segval': 5},
+                           {'cx': 2, 'cy': 3, 'px': 4, 'py': 5, 'segval': 6},
+                           {'cx': 3, 'cy': 4, 'px': 5, 'py': 6, 'segval': 7}],
               'aux': {key(1, 2, 3, 4): {'auxval': 111},
                       key(2, 3, 4, 5): {'auxval': 222},
                       key(3, 4, 5, 6): {'auxval': 333}}}
 
-    expected = {'segments': [seg(1, 2, 3, 4, 5),
-                             seg(2, 3, 4, 5, 6),
-                             seg(3, 4, 5, 6, 7)],
+    expected = {'segments': [{'cx': 1, 'cy': 2, 'px': 3, 'py': 4, 'segval': 5},
+                             {'cx': 2, 'cy': 3, 'px': 4, 'py': 5, 'segval': 6},
+                             {'cx': 3, 'cy': 4, 'px': 5, 'py': 6, 'segval': 7}],
                 'aux':{key(1, 2, 3, 4): {'auxval': 111},
                        key(2, 3, 4, 5): {'auxval': 222},
                        key(3, 4, 5, 6): {'auxval': 333}},
@@ -126,6 +126,70 @@ def test_prediction_date_fn():
                 '1983-07-01',
                 '1984-07-01',
                 '1985-07-01']
+
+    outputs = segaux.prediction_date_fn(**inputs)
+
+    assert expected == outputs
+
+
+    inputs = {'sday' : '1980-01-01',
+              'eday' : '1986-09-01',
+              'month': '07',
+              'day'  : '01'}
+
+    expected = ['1980-07-01',
+                '1981-07-01',
+                '1982-07-01',
+                '1983-07-01',
+                '1984-07-01',
+                '1985-07-01',
+                '1986-07-01']
+
+    outputs = segaux.prediction_date_fn(**inputs)
+
+    assert expected == outputs
+
+    # this is failing in ops
+    inputs = {'sday' : '1982-12-07',
+              'eday' : '2017-08-09',
+              'month': 7,
+              'day':   1}
+
+    expected = ['1983-07-01',
+                '1984-07-01',
+                '1985-07-01',
+                '1986-07-01',
+                '1987-07-01',
+                '1988-07-01',
+                '1989-07-01',
+                '1990-07-01',
+                '1991-07-01',
+                '1992-07-01',
+                '1993-07-01',
+                '1994-07-01',
+                '1995-07-01',
+                '1996-07-01',
+                '1997-07-01',
+                '1998-07-01',
+                '1999-07-01',
+                '2000-07-01',
+                '2001-07-01',
+                '2002-07-01',
+                '2003-07-01',
+                '2004-07-01',
+                '2005-07-01',
+                '2006-07-01',
+                '2007-07-01',
+                '2008-07-01',
+                '2009-07-01',
+                '2010-07-01',
+                '2011-07-01',
+                '2012-07-01',
+                '2013-07-01',
+                '2014-07-01',
+                '2015-07-01',
+                '2016-07-01',
+                '2017-07-01',]
 
     outputs = segaux.prediction_date_fn(**inputs)
 
@@ -212,35 +276,57 @@ def test_add_training_dates():
 
     assert expected == outputs
 
+    
+def test_spectral_slope():
+    segment = {'blint': [1, 2, 3, 4, 5, 6]}
+    assert segaux.spectral_slope('blint', segment) == 1
+
+    segment = {'blint': []}
+    assert segaux.spectral_slope('blint', segment) == 0
+
 
 def test_average_reflectance_fn():
 
-    segment = {'slope': [1],
-               'blint': 2,
-               'grint': 2,
-               'niint': 2,
-               'reint': 2,
-               's1int': 2,
-               's2int': 2,
-               'thint': 2,
-               'date': '1980-01-01'} # ordinal day 722815
+    segment = {'slope':  [1],
+               'blint':  2,
+               'grint':  2,
+               'niint':  2,
+               'reint':  2,
+               's1int':  2,
+               's2int':  2,
+               'thint':  2,
+               'blcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'grcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'nicoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'recoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               's1coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               's2coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'thcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'date':   '1980-01-01'} # ordinal day 722815
     
-    expected = {'slope': [1],
-                'blint': 2,
-                'grint': 2,
-                'niint': 2,
-                'reint': 2,
-                's1int': 2,
-                's2int': 2,
-                'thint': 2,
-                'blar': 722817,
-                'grar': 722817,
-                'niar': 722817,
-                'rear': 722817,
-                's1ar': 722817,
-                's2ar': 722817,
-                'thar': 722817,
-                'date': '1980-01-01'}
+    expected = {'slope':  [1],
+                'blint':  2,
+                'grint':  2,
+                'niint':  2,
+                'reint':  2,
+                's1int':  2,
+                's2int':  2,
+                'thint':  2,
+                'blcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                'grcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                'nicoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                'recoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                's1coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                's2coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                'thcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                'blar':   72283.5,
+                'grar':   72283.5,
+                'niar':   72283.5,
+                'rear':   72283.5,
+                's1ar':   72283.5,
+                's2ar':   72283.5,
+                'thar':   72283.5,
+                'date':   '1980-01-01'}
     
     outputs = segaux.average_reflectance_fn(segment)
 
@@ -248,57 +334,85 @@ def test_average_reflectance_fn():
               
 
 def test_average_reflectance():
-    inputs = [{'slope': [1],
-               'blint': 2,
-               'grint': 2,
-               'niint': 2,
-               'reint': 2,
-               's1int': 2,
-               's2int': 2,
-               'thint': 2,
-               'date' : '1980-01-01'},
-              {'slope': [1],
-               'blint': 2,
-               'grint': 2,
-               'niint': 2,
-               'reint': 2,
-               's1int': 2,
-               's2int': 2,
-               'thint': 2,
+    inputs = [{'slope':  [1],
+               'blint':  2,
+               'grint':  2,
+               'niint':  2,
+               'reint':  2,
+               's1int':  2,
+               's2int':  2,
+               'thint':  2,
+               'blcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'grcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'nicoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'recoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               's1coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               's2coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'thcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'date' :  '1980-01-01'},
+              {'slope':  [1],
+               'blint':  2,
+               'grint':  2,
+               'niint':  2,
+               'reint':  2,
+               's1int':  2,
+               's2int':  2,
+               'thint':  2,
+               'blcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'grcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'nicoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'recoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               's1coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               's2coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+               'thcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
                'date' : '1982-12-31'}]
 
-    expected = [{'slope': [1],
-                 'blint': 2,
-                 'grint': 2,
-                 'niint': 2,
-                 'reint': 2,
-                 's1int': 2,
-                 's2int': 2,
-                 'thint': 2,
-                 'blar': 722817,
-                 'grar': 722817,
-                 'niar': 722817,
-                 'rear': 722817,
-                 's1ar': 722817,
-                 's2ar': 722817,
-                 'thar': 722817,
-                 'date': '1980-01-01'},
-                {'slope': [1],
-                 'blint': 2,
-                 'grint': 2,
-                 'niint': 2,
-                 'reint': 2,
-                 's1int': 2,
-                 's2int': 2,
-                 'thint': 2,
-                 'blar': 723912,
-                 'grar': 723912,
-                 'niar': 723912,
-                 'rear': 723912,
-                 's1ar': 723912,
-                 's2ar': 723912,
-                 'thar': 723912,
-                 'date': '1982-12-31'}]
+    expected = [{'slope':  [1],
+                 'blint':  2,
+                 'grint':  2,
+                 'niint':  2,
+                 'reint':  2,
+                 's1int':  2,
+                 's2int':  2,
+                 'thint':  2,
+                 'blcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 'grcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 'nicoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 'recoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 's1coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 's2coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 'thcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 'blar':   72283.5,
+                 'grar':   72283.5,
+                 'niar':   72283.5,
+                 'rear':   72283.5,
+                 's1ar':   72283.5,
+                 's2ar':   72283.5,
+                 'thar':   72283.5,
+                 'date':   '1980-01-01'},
+                {'slope':  [1],
+                 'blint':  2,
+                 'grint':  2,
+                 'niint':  2,
+                 'reint':  2,
+                 's1int':  2,
+                 's2int':  2,
+                 'thint':  2,
+                 'blcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 'grcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 'nicoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 'recoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 's1coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 's2coef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 'thcoef': [0.1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                 'blar':   72393.0,
+                 'grar':   72393.0,
+                 'niar':   72393.0,
+                 'rear':   72393.0,
+                 's1ar':   72393.0,
+                 's2ar':   72393.0,
+                 'thar':   72393.0,
+                 'date':   '1982-12-31'}]
 
     outputs = list(segaux.average_reflectance(inputs))
                  

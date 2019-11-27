@@ -4,7 +4,7 @@
 ================
 lcmap-blackmagic
 ================
-HTTP server that saves land change segment, trained classifiers & land cover probabilities to Apache Cassandra  
+HTTP server that saves land change segment, trained classifiers & land cover probabilities to S3/Ceph.  
 
 
 What does it do?
@@ -12,7 +12,6 @@ What does it do?
 * Uses PyCCD to detect land change segments
 * Trains & persists XGBoost classifiers from change segments & NLCD reference data
 * Applies classifiers to create land cover probabilities
-* Automatic schema creation on startup
 
   
 Use 
@@ -53,9 +52,12 @@ Requirements
 ------------
 * lcmap-chipmunk running with ARD & NLCD data ingested
 * Ability to run Docker containers
-* An Apache Cassandra cluster to save outputs
+* An S3/Ceph bucket to save outputs
 * HTTP traffic load balancer (optional)
 
+References & Acknowledgements
+-----------------------------
+* Based on prototype code available under ``references``
   
 Install & Run
 -------------
@@ -68,20 +70,17 @@ From Dockerhub:
                --rm \
                --net=host \
                --pid=host \
-	       -e CASSANDRA_BATCH_SIZE=1000 \
-	       -e CASSANDRA_HOST=localhost \
-	       -e CASSANDRA_PORT=9042 \
-	       -e CASSANDRA_USER=cassandra \
-	       -e CASSANDRA_PASS=cassandra \
-	       -e CASSANDRA_KEYSPACE=some_keyspace \
-	       -e CASSANDRA_TIMEOUT=600 \
-	       -e CASSANDRA_CONSISTENCY=ALL \
+	       -e S3_BUCKET=the-bucket-name \
+	       -e S3_ACCESS_KEY=the-access-key \
+	       -e S3_SECRET_KEY=the-secret-key \
+	       -e S3_URL=http://host:port \
 	       -e ARD_URL=http://host:port/path \
      	       -e AUX_URL=http://host:port/path \
 	       -e CPUS_PER_WORKER=4 \
 	       -e HTTP_PORT=5000 \
 	       -e WORKERS=4 \
 	       -e WORKER_TIMEOUT=12000 \
+	       -e MAX_REQUESTS=1000 \
                usgseros/lcmap-blackmagic:1.0
 
 From PyPI:
@@ -89,20 +88,17 @@ From PyPI:
 .. code-block:: bash
 
     $ pip install lcmap-blackmagic
-    $ export CASSANDRA_BATCH_SIZE=1000
-    $ export CASSANDRA_HOST=localhost
-    $ export CASSANDRA_PORT=9042
-    $ export CASSANDRA_USER=cassandra
-    $ export CASSANDRA_PASS=cassandra
-    $ export CASSANDRA_KEYSPACE=some_keyspace
-    $ export CASSANDRA_TIMEOUT=600
-    $ export CASSANDRA_CONSISTENCY=ALL
+    $ export S3_BUCKET=the-bucket-name
+    $ export S3_ACCESS_KEY=the-access-key
+    $ export S3_SECRET_KEY=the-secret-key
+    $ export S3_URL=http://host:port
     $ export ARD_URL=http://host:port/path
     $ export AUX_URL=http://host:port/path
     $ export CPUS_PER_WORKER=4
     $ export HTTP_PORT=5000
     $ export WORKERS=4
     $ export WORKER_TIMEOUT=12000
+    $ export MAX_REQUESTS=1000
     $ blackmagic.sh
 
     
@@ -115,20 +111,17 @@ From Github:
     $ conda create --name=blackmagic python=3.7
     $ source activate blackmagic
     $ pip install -e .[test]
-    $ export CASSANDRA_BATCH_SIZE=1000
-    $ export CASSANDRA_HOST=localhost
-    $ export CASSANDRA_PORT=9042
-    $ export CASSANDRA_USER=cassandra
-    $ export CASSANDRA_PASS=cassandra
-    $ export CASSANDRA_KEYSPACE=some_keyspace
-    $ export CASSANDRA_TIMEOUT=600
-    $ export CASSANDRA_CONSISTENCY=ALL
+    $ export S3_BUCKET=the-bucket-name
+    $ export S3_ACCESS_KEY=the-access-key
+    $ export S3_SECRET_KEY=the-secret-key
+    $ export S3_URL=http://host:port
     $ export ARD_URL=http://host:port/path
     $ export AUX_URL=http://host:port/path
     $ export CPUS_PER_WORKER=4
     $ export HTTP_PORT=5000
     $ export WORKERS=4
     $ export WORKER_TIMEOUT=12000
+    $ export MAX_REQUESTS=1000
     $ ./bin/blackmagic.sh
 
     
@@ -139,6 +132,9 @@ Blackmagic has two primary controls that determine the nature of its parallelism
 ``WORKERS`` controls the number of HTTP listener processes (gunicorn workers) and thus, the number of simultaneous HTTP requests that can be serviced.
 
 ``CPUS_PER_WORKER`` controls the number of cores available to each ``WORKER``.
+
+An additional parameter, MAX_REQUESTS, is available to help control the lifespace of each Gunicorn worker.
+See http://docs.gunicorn.org/en/stable/settings.html.
 
 
 Deployment Examples
@@ -266,7 +262,7 @@ HTTP Requests & Responses
 Testing
 -------
 Tests are available in the ``test/`` directory.  To properly test blackmagic
-operations, input data and a local Cassandra database are needed.
+operations, input data and a local S3/Ceph instance are needed.
 
 Input data originates from `lcmap-chipmunk <http://github.com/usgs-eros/lcmap-chipmunk>`_.
 Follow the instructions to download, run and load test data onto your local machine.

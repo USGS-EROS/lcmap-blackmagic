@@ -1,7 +1,6 @@
-from blackmagic import cfg
-from blackmagic import db
 from blackmagic import skip_on_exception
 from blackmagic import workers
+from blackmagic.data import ceph
 from cytoolz import assoc
 from cytoolz import count
 from cytoolz import do
@@ -22,28 +21,31 @@ from flask import request
 from functools import wraps
 from merlin.functions import flatten
 
+import blackmagic
 import ccd
 import logging
 import merlin
 import os
 import sys
 
+cfg     = merge(blackmagic.cfg, ceph.cfg)
 logger  = logging.getLogger('blackmagic.segment')
 segment = Blueprint('segment', __name__)
-
+_ceph   = ceph.Ceph(cfg)
+_ceph.start()
 
 def save_chip(ctx, cfg):
-    db.insert_chips(cfg, ctx['detections'])
+    _ceph.insert_chip(ctx['detections'])
     return ctx
     
 
 def save_pixels(ctx, cfg):
-    db.insert_pixels(cfg, ctx['detections'])
+    _ceph.insert_pixels(ctx['detections'])
     return ctx
 
 
 def save_segments(ctx, cfg):
-    db.insert_segments(cfg, ctx['detections'])
+    _ceph.insert_segments(ctx['detections'])
     return ctx
 
 
@@ -148,7 +150,7 @@ def parameters(r):
 
     test_pixel_count         = int(get('test_pixel_count', r, 10000))
     test_detection_exception = get('test_detection_exception', r, None)
-    test_cassandra_exception = get('test_cassandra_exception', r, None)
+    test_save_exception      = get('test_save_exception', r, None)
     
     if (cx is None or cy is None or acquired is None):
         raise Exception('cx, cy and acquired are required parameters')
@@ -158,7 +160,7 @@ def parameters(r):
                 'acquired': acquired,
                 'test_pixel_count': test_pixel_count,
                 'test_detection_exception': test_detection_exception,
-                'test_cassandra_exception': test_cassandra_exception}
+                'test_save_exception': test_save_exception}
 
 
 @skip_on_exception
@@ -197,9 +199,11 @@ def detection(ctx, cfg):
 def delete(ctx, cfg):
     cx = int(get('cx', ctx))
     cy = int(get('cy', ctx))
-    db.execute_statements(cfg, [db.delete_chip(cfg, cx, cy),
-                                db.delete_pixels(cfg, cx, cy),
-                                db.delete_segments(cfg, cx, cy)])
+
+    _ceph.delete_chip(cx, cy)
+    _ceph.delete_pixels(cx, cy)
+    _ceph.delete_segments(cx, cy)
+
     return ctx
 
 
@@ -207,8 +211,8 @@ def delete(ctx, cfg):
 @measure
 def save(ctx, cfg):
     
-    if get('test_cassandra_exception', ctx, None) is not None:
-        raise Exception('test_cassandra_exception')
+    if get('test_save_exception', ctx, None) is not None:
+        raise Exception('test_save_exception')
     else:
         save_chip(ctx, cfg)
         save_pixels(ctx, cfg)

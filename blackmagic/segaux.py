@@ -10,8 +10,6 @@ Segaux functions should remain non-complected and composed
 into functions in the module or namespace where they are used.
 '''
 
-from blackmagic import db
-from cassandra import ReadTimeout
 from cytoolz import assoc
 from cytoolz import dissoc
 from cytoolz import filter
@@ -27,9 +25,10 @@ from merlin.functions import flatten
 from requests.exceptions import ConnectionError
 from operator import add
 from operator import mul
+from tenacity import after_log
 from tenacity import retry
-from tenacity import retry_if_exception_type
 from tenacity import stop_after_attempt
+from tenacity import wait_exponential
 from tenacity import wait_random_exponential
 
 import arrow
@@ -43,6 +42,14 @@ import xgboost as xgb
 
 logger = logging.getLogger('blackmagic.segaux')
 
+######################
+# quiet arrow down
+######################
+import warnings
+from arrow.factory import ArrowParseWarning
+
+warnings.simplefilter("ignore", ArrowParseWarning)
+
 
 def independent(data):
     '''Independent variable is (are) all the values except the labels.
@@ -52,7 +59,12 @@ def independent(data):
 
     # Remove the first element from every array no matter the dimensions.
     # Returns data in same shape as provided. Is this really what we want?
-    return numpy.delete(data, 0, data.ndim - 1)
+    d = numpy.delete(data, 0, data.ndim - 1)
+
+    data = None
+    del data
+
+    return d
 
 
 def dependent(data):
@@ -61,21 +73,27 @@ def dependent(data):
        return: 1d numpy array of labels
     '''
 
-    return numpy.delete(data,
-                        numpy.s_[1:],
-                        data.ndim - 1).flatten().astype('int8')
+    d = numpy.delete(data,
+                     numpy.s_[1:],
+                     data.ndim - 1).flatten().astype('int8')
+
+    data = None
+    del data
+
+    return d
 
 
-@retry(retry=retry_if_exception_type(ConnectionError),
-       stop=stop_after_attempt(10),
+@retry(stop=stop_after_attempt(20),
        reraise=True,
-       wait=wait_random_exponential(multiplier=1, max=60))
+       wait=wait_exponential(multiplier=1, min=2, max=5))
 def aux(ctx, cfg):
     '''Retrieve aux data'''
+
+    logger.info("getting aux for cx:{} cy:{}".format(ctx['cx'], ctx['cy']))
     
     data = merlin.create(x=ctx['cx'],
                          y=ctx['cy'],
-                         acquired=ctx['acquired'],  #'1982/2018',
+                         acquired=ctx['acquired'],
                          cfg=merlin.cfg.get(profile='chipmunk-aux',
                                             env={'CHIPMUNK_URL': cfg['aux_url']}))
 
@@ -92,18 +110,6 @@ def aux_filter(ctx):
                                   ctx['aux'].items()))))
 
 
-@retry(retry=retry_if_exception_type(ReadTimeout),
-       stop=stop_after_attempt(10),
-       reraise=True,
-       wait=wait_random_exponential(multiplier=1, max=60))
-def segments(ctx, cfg):
-    '''Return segments stored in Cassandra'''
-    
-    return assoc(ctx,
-                 'segments',
-                 [r for r in db.execute_statement(cfg, db.select_segments(cfg, ctx['cx'], ctx['cy']))])
-                                        
-
 def combine(ctx):
     '''Combine segments with matching aux entry'''
 
@@ -111,11 +117,11 @@ def combine(ctx):
         
     for s in ctx['segments']:
 
-        key = (s.cx, s.cy, s.px, s.py)
+        key = (s['cx'], s['cy'], s['px'], s['py'])
         a   = get_in(['aux', key], ctx, None)
 
         if a is not None:
-            data.append(merge(a, s._asdict()))
+            data.append(merge(a, s))
 
     return assoc(ctx, 'data', data)
 
@@ -123,7 +129,7 @@ def combine(ctx):
 def prediction_date_fn(sday, eday, month, day):
     start = arrow.get(sday)
     end   = arrow.get(eday)
-    years = list(map(lambda x: x.year, arrow.Arrow.range('year', start, end)))
+    years = range(start.year, end.year + 1)
     dates = []
 
     for y in years:
@@ -152,11 +158,13 @@ def prediction_dates(segments, month, day):
                                        eday=get('eday', s),
                                        month=month,
                                        day=day)
+                
             for date in dates:
                 yield assoc(s, 'date', date)
 
                       
 def training_date(data, date):
+    
     return assoc(data, 'date', date)
 
 
@@ -165,40 +173,56 @@ def add_training_dates(ctx):
     return assoc(ctx, 'data', list(map(fn, ctx['data'])))
 
 
+def spectral_slope(spectra, segment):
+
+    #handle cases where default change segments have
+    #been passed in that do not have any coefficients
+    #associated with them
+    coefs = get(spectra, segment, None)
+
+    if coefs is None or len(coefs) == 0:
+        return 0
+    else:
+        return first(coefs)
+
+    
 def average_reflectance_fn(segment):
     '''Add average reflectance values into dataset'''
     
     avgrefl = lambda intercept, slope, ordinal: add(intercept, mul(slope, ordinal))
     
-    arfn    = partial(avgrefl,
-                      slope=first(get('slope', segment)),
-                      ordinal=arrow.get(get('date', segment)).datetime.toordinal())
-                              
-    ar = {'blar': arfn(get('blint', segment)),
-          'grar': arfn(get('grint', segment)),
-          'niar': arfn(get('niint', segment)),
-          'rear': arfn(get('reint', segment)),
-          's1ar': arfn(get('s1int', segment)),
-          's2ar': arfn(get('s2int', segment)),
-          'thar': arfn(get('thint', segment))}
+    date = arrow.get(get('date', segment)).datetime.toordinal()
+    
+    ar = {'blar': avgrefl(get('blint', segment), spectral_slope('blcoef', segment), date),
+          'grar': avgrefl(get('grint', segment), spectral_slope('grcoef', segment), date),
+          'niar': avgrefl(get('niint', segment), spectral_slope('nicoef', segment), date),
+          'rear': avgrefl(get('reint', segment), spectral_slope('recoef', segment), date),
+          's1ar': avgrefl(get('s1int', segment), spectral_slope('s1coef', segment), date),
+          's2ar': avgrefl(get('s2int', segment), spectral_slope('s2coef', segment), date),
+          'thar': avgrefl(get('thint', segment), spectral_slope('thcoef', segment), date)}
     
     return merge(segment, ar)
 
 
 def average_reflectance(segments):
+    
     return map(average_reflectance_fn, segments)
 
 
 def unload_segments(ctx):
     '''Manage memory, unload segments following combine'''
 
-    return dissoc(ctx, 'segments')
+    ctx['segments'] = None
+    del ctx['segments']
+    return ctx
 
 
 def unload_aux(ctx):
     '''Manage memory, unload aux following combine'''
 
-    return dissoc(ctx, 'aux')
+    ctx['aux'] = None
+    del ctx['aux']
+    return ctx
 
 
 def log_chip(ctx):
@@ -211,7 +235,10 @@ def log_chip(ctx):
 
 
 def exit_pipeline(ctx):
-    return ctx['data']
+    data = ctx['data']    
+    ctx = None
+    del ctx
+    return data
 
 
 def to_numpy(data):
@@ -251,7 +278,10 @@ def standard_format(segmap):
 def training_format(ctx):
 
     d = [standard_format(sm) for sm in ctx['data']]
-    return assoc(ctx, 'data', to_numpy(d))
+    n = to_numpy(d)
+    d = None
+    del d
+    return assoc(ctx, 'data', n)
 
 
 #Coming into this function from combine is a list of dicts
