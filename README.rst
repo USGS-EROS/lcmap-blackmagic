@@ -55,6 +55,9 @@ Requirements
 * An S3/Ceph bucket to save outputs
 * HTTP traffic load balancer (optional)
 
+References & Acknowledgements
+-----------------------------
+* Based on prototype code available under ``references``
   
 Install & Run
 -------------
